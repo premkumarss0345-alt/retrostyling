@@ -9,6 +9,12 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Request logging middleware
+app.use((req, res, next) => {
+  console.log(`📡 ${req.method} ${req.url}`);
+  next();
+});
+
 // Database connection configuration (using Pool for better stability)
 const pool = mysql.createPool({
   host: process.env.DB_HOST || '127.0.0.1',
@@ -654,6 +660,13 @@ app.put('/api/admin/orders/:id/status', authenticateToken, adminOnly, async (req
 });
 
 const PORT = process.env.PORT || 5000;
+
+// Global Error Handler
+app.use((err, req, res, next) => {
+  console.error('❌ Server Error:', err.message);
+  res.status(500).json({ error: err.message });
+});
+
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`🚀 Server running on port ${PORT}`);
 });
