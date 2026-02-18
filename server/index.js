@@ -37,7 +37,7 @@ const { sendOrderEmail } = require('./utils/email');
 console.log(`📡 Database pool initialized for ${process.env.DB_HOST}`);
 
 // --- CART ROUTES ---
-app.post('/api/cart', authenticateToken, async (req, res) => {
+app.post('/api/cart', authenticateToken, async (req, res, next) => {
   const { productId, variantId, quantity } = req.body;
   const userId = req.user.id;
   try {
@@ -49,11 +49,11 @@ app.post('/api/cart', authenticateToken, async (req, res) => {
     }
     res.json({ message: 'Added to cart' });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
-app.get('/api/cart', authenticateToken, async (req, res) => {
+app.get('/api/cart', authenticateToken, async (req, res, next) => {
   try {
     const [items] = await db.query(`
       SELECT c.*, p.name, p.price, p.discount_price, p.image, p.on_sale, v.size, v.color 
@@ -63,7 +63,7 @@ app.get('/api/cart', authenticateToken, async (req, res) => {
       WHERE c.user_id = ?`, [req.user.id]);
     res.json(items);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
@@ -215,7 +215,7 @@ app.get('/api/auth/profile', authenticateToken, async (req, res) => {
 });
 
 // Signup (Firebase version)
-app.post('/api/auth/signup', async (req, res) => {
+app.post('/api/auth/signup', async (req, res, next) => {
   const { name, email, uid } = req.body;
   try {
     const [existing] = await db.query('SELECT id FROM users WHERE email = ?', [email]);
@@ -231,12 +231,12 @@ app.post('/api/auth/signup', async (req, res) => {
 
     res.status(201).json({ message: 'User created successfully' });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
 // Firebase Login Sync
-app.post('/api/auth/firebase-login', async (req, res) => {
+app.post('/api/auth/firebase-login', async (req, res, next) => {
   const { email, uid } = req.body;
   try {
     const [users] = await db.query('SELECT * FROM users WHERE email = ?', [email]);
@@ -319,7 +319,7 @@ app.get('/api/health', async (req, res) => {
 // --- PRODUCT ROUTES ---
 
 // Get all products with filters
-app.get('/api/products', async (req, res) => {
+app.get('/api/products', async (req, res, next) => {
   const { category, minPrice, maxPrice, search } = req.query;
   const params = [];
   let query = 'SELECT p.*, c.name as category_name FROM products p LEFT JOIN categories c ON p.category_id = c.id WHERE 1=1';
@@ -368,7 +368,7 @@ app.get('/api/products', async (req, res) => {
     const [products] = await db.query(query, params);
     res.json(products);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
@@ -385,17 +385,17 @@ app.get('/api/products/:slug', async (req, res) => {
     const [variants] = await db.query('SELECT * FROM product_variants WHERE product_id = ?', [products[0].id]);
     res.json({ ...products[0], variants });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
 // --- CATEGORY ROUTES ---
-app.get('/api/categories', async (req, res) => {
+app.get('/api/categories', async (req, res, next) => {
   try {
     const [categories] = await db.query('SELECT * FROM categories');
     res.json(categories);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
@@ -511,12 +511,12 @@ const upload = multer({ storage: storage });
 app.use('/uploads', express.static('uploads'));
 
 // Get all slides
-app.get('/api/hero-slides', async (req, res) => {
+app.get('/api/hero-slides', async (req, res, next) => {
     try {
         const [slides] = await db.query('SELECT * FROM hero_slides WHERE active = 1 ORDER BY id ASC');
         res.json(slides);
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        next(err);
     }
 });
 
@@ -669,10 +669,19 @@ const PORT = process.env.PORT || 5000;
 
 // Global Error Handler
 app.use((err, req, res, next) => {
-  console.error('❌ Server Error:', err.message);
-  res.status(500).json({ error: err.message });
+  console.error('❌ GLOBAL_ERROR:', {
+    message: err.message,
+    code: err.code,
+    stack: err.stack,
+    path: req.path
+  });
+  res.status(500).json({ 
+    error: err.message || 'Internal Server Error',
+    code: err.code || 'UNKNOWN_CODE'
+  });
 });
 
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`🚀 Server started on port ${PORT}`);
+  console.log(`🔗 Database target: ${process.env.DB_HOST}`);
 });
