@@ -283,6 +283,27 @@ app.get('/', (req, res) => {
   res.send('Retrostylings Backend API is running...');
 });
 
+app.get('/api/health', async (req, res) => {
+    try {
+        await db.query('SELECT 1');
+        res.json({ 
+            status: 'ok', 
+            database: 'connected',
+            env_check: {
+                has_db_host: !!process.env.DB_HOST,
+                has_db_user: !!process.env.DB_USER,
+                has_db_name: !!process.env.DB_NAME
+            }
+        });
+    } catch (err) {
+        res.status(500).json({ 
+            status: 'error', 
+            message: err.message,
+            code: err.code
+        });
+    }
+});
+
 // --- PRODUCT ROUTES ---
 
 // Get all products with filters
