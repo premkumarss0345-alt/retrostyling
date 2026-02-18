@@ -59,6 +59,8 @@
     color: var(--text);
     text-transform: none;
     letter-spacing: normal;
+    word-break: break-word;
+    overflow-wrap: break-word;
 }
 
 .remove-btn {

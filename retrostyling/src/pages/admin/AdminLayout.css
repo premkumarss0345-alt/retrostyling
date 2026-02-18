@@ -736,6 +736,21 @@
     .pipeline-grid {
         grid-template-columns: 1fr;
     }
+
+    /* Ensure stats grid is responsive */
+    .crm-stats-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .stat-card {
+        padding: 1.25rem;
+    }
+
+    .stat-value {
+        font-size: 1.25rem;
+        word-break: break-word;
+        /* Fix for long numbers/text */
+    }
 }
 
 /* Generic Admin Page Styles (Shared) */
@@ -753,11 +768,15 @@
     font-weight: 700;
     color: var(--text);
     margin-bottom: 0.25rem;
+    word-break: break-word;
+    /* Ensure title wraps */
+    line-height: 1.2;
 }
 
 .admin-subtitle {
     color: var(--text-light);
     font-size: 0.95rem;
+    word-break: break-word;
 }
 
 .btn {
@@ -771,6 +790,8 @@
     align-items: center;
     gap: 0.5rem;
     border: none;
+    white-space: nowrap;
+    /* Prevent button text wrapping awkwardly */
 }
 
 .btn-primary {

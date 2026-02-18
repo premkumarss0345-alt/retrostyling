@@ -66,5 +66,22 @@
 @media (max-width: 768px) {
     .bottom-nav {
         display: block;
+        padding-bottom: env(safe-area-inset-bottom);
+        height: auto;
+        min-height: 70px;
+    }
+
+    .bottom-nav-container {
+        padding-bottom: 5px;
+        /* Adjust for the safe area if needed, or just visual balance */
+    }
+
+    .bottom-nav-label {
+        word-break: break-all;
+        /* Prevent overflow */
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 }

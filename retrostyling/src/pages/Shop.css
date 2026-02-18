@@ -17,6 +17,8 @@
     margin-bottom: 0.5rem;
     color: var(--text);
     letter-spacing: -1px;
+    word-break: break-word;
+    overflow-wrap: break-word;
 }
 
 .shop-header-large .subtitle {

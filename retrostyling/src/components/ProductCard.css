@@ -133,9 +133,12 @@
     color: var(--text);
     transition: var(--transition);
     display: -webkit-box;
-    -webkit-line-clamp: 1;
+    -webkit-line-clamp: 2;
+    /* Increased to 2 for better wrapping */
     -webkit-box-orient: vertical;
     overflow: hidden;
+    word-break: break-word;
+    overflow-wrap: break-word;
 }
 
 .card-title a:hover {

@@ -35,7 +35,12 @@ const Profile = () => {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await res.json();
-            setOrders(data);
+            if (Array.isArray(data)) {
+                setOrders(data);
+            } else {
+                console.error('Orders data is not an array:', data);
+                setOrders([]);
+            }
         } catch (err) {
             console.error(err);
         } finally {

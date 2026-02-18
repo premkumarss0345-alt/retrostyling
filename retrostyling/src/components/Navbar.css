@@ -66,6 +66,8 @@
     letter-spacing: 2px;
     color: var(--secondary);
     text-decoration: none;
+    word-break: break-word;
+    overflow-wrap: break-word;
 }
 
 .navbar-list {
@@ -294,33 +296,42 @@
     cursor: pointer;
 }
 
-@media (max-width: 992px) {
+.logo {
+    word-break: break-word;
+    /* Added for global word-break */
+}
+
+@media (max-width: 768px) {
     .top-bar {
-        display: none;
+        display: none !important;
+    }
+
+    .header-actions {
+        display: none !important;
     }
 
     .navbar {
-        position: fixed;
-        top: 0;
-        left: -100%;
-        width: 300px;
-        height: 100%;
-        background: white;
-        z-index: 2000;
-        padding: 2rem;
-        transition: 0.4s ease;
+        display: none !important;
     }
 
-    .navbar.open {
-        left: 0;
+    .header-container {
+        justify-content: center;
+        padding: 1rem 0;
     }
 
-    .navbar-list {
-        flex-direction: column;
-        gap: 1.5rem;
+    .logo {
+        font-size: 1.2rem;
+        text-align: center;
+        letter-spacing: 1px;
     }
 
     .menu-toggle-btn {
-        display: block;
+        display: none !important;
+    }
+
+    /* Ensure the main-header itself is simplified */
+    .main-header {
+        padding: 10px 0;
+        border-bottom: 1px solid var(--border);
     }
 }

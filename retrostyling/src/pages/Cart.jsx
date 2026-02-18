@@ -27,7 +27,12 @@ const Cart = () => {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await res.json();
-            setCartItems(data);
+            if (Array.isArray(data)) {
+                setCartItems(data);
+            } else {
+                console.error('Cart data is not an array:', data);
+                setCartItems([]);
+            }
         } catch (err) {
             console.error(err);
         } finally {

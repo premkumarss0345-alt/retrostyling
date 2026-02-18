@@ -45,6 +45,8 @@ a {
   text-decoration: none;
   color: inherit;
   transition: var(--transition);
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 ul {

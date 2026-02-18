@@ -21,6 +21,8 @@
     margin-bottom: 0.5rem;
     text-transform: uppercase;
     letter-spacing: -1px;
+    word-break: break-word;
+    overflow-wrap: break-word;
 }
 
 .section-subtitle {
@@ -69,6 +71,8 @@
     line-height: 1.2;
     margin-bottom: 2rem;
     text-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    word-break: break-word;
+    overflow-wrap: break-word;
 }
 
 .btn-white {

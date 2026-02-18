@@ -50,6 +50,8 @@
     letter-spacing: 1px;
     margin-bottom: 2rem;
     position: relative;
+    word-break: break-word;
+    overflow-wrap: break-word;
 }
 
 .footer-links h3::after {

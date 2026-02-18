@@ -204,6 +204,8 @@
 @media (max-width: 768px) {
     .product-form-container {
         padding: 1rem;
+        padding-bottom: 6rem;
+        /* Ensure space for fixed footer */
     }
 
     .form-grid {
@@ -222,10 +224,23 @@
         border-radius: 0;
         padding: 1rem;
         box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.1);
+        z-index: 100;
+        width: 100%;
+        margin: 0;
+    }
+
+    .btn {
+        flex: 1;
+        justify-content: center;
     }
 
     .product-form {
         padding-bottom: 4rem;
-        /* Space for fixed action bar */
+    }
+
+    .img-preview {
+        width: 100%;
+        height: auto;
+        max-height: 250px;
     }
 }
