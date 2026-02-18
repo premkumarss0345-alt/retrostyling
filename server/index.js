@@ -293,10 +293,14 @@ app.get('/', (req, res) => {
 
 app.get('/api/health', async (req, res) => {
     try {
-        await db.query('SELECT 1');
+        const [[{ pCount }]] = await db.query('SELECT COUNT(*) as pCount FROM products');
+        const [[{ cCount }]] = await db.query('SELECT COUNT(*) as cCount FROM categories');
+        const [[{ sCount }]] = await db.query('SELECT COUNT(*) as sCount FROM hero_slides');
+        
         res.json({ 
             status: 'ok', 
             database: 'connected',
+            counts: { products: pCount, categories: cCount, slides: sCount },
             env_check: {
                 has_db_host: !!process.env.DB_HOST,
                 has_db_user: !!process.env.DB_USER,
