@@ -1,0 +1,154 @@
+.order-success-page {
+    min-height: 80vh;
+    display: flex;
+    align-items: center;
+    position: relative;
+    overflow: hidden;
+    background: var(--bg-soft);
+    padding: 4rem 1rem;
+}
+
+.success-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    z-index: 10;
+    max-width: 800px;
+}
+
+.success-icon-wrapper {
+    background: var(--white);
+    width: 140px;
+    height: 140px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 20px 40px rgba(16, 185, 129, 0.15);
+    margin-bottom: 2rem;
+    position: relative;
+}
+
+.success-icon-wrapper::after {
+    content: '';
+    position: absolute;
+    inset: -15px;
+    border-radius: 50%;
+    border: 2px solid rgba(16, 185, 129, 0.1);
+    animation: pulse-ring 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+}
+
+@keyframes pulse-ring {
+    0% {
+        transform: scale(0.8);
+        opacity: 0;
+    }
+
+    50% {
+        opacity: 1;
+    }
+
+    100% {
+        transform: scale(1.3);
+        opacity: 0;
+    }
+}
+
+.success-title {
+    font-size: 2.5rem;
+    font-weight: 800;
+    color: var(--text);
+    margin-bottom: 1rem;
+    letter-spacing: -1px;
+}
+
+.success-message {
+    max-width: 600px;
+    font-size: 1.1rem;
+    color: var(--text-light);
+    margin-bottom: 3rem;
+    line-height: 1.6;
+}
+
+.success-actions {
+    display: flex;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.btn-xl {
+    padding: 1rem 2rem;
+    font-size: 1.1rem;
+    border-radius: 50px;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-weight: 700;
+    transition: all 0.3s ease;
+}
+
+.btn-outline-hero {
+    background: transparent;
+    border: 2px solid var(--text);
+    color: var(--text);
+}
+
+.btn-outline-hero:hover {
+    background: var(--text);
+    color: var(--white);
+    transform: translateY(-3px);
+}
+
+/* Confetti Bubbles */
+.confetti-bubble {
+    position: absolute;
+    background: var(--primary);
+    border-radius: 50%;
+    z-index: 1;
+    pointer-events: none;
+}
+
+.bubble-1 {
+    width: 120px;
+    height: 120px;
+    top: 15%;
+    left: 10%;
+    opacity: 0.1;
+    background: var(--green);
+}
+
+.bubble-2 {
+    width: 180px;
+    height: 180px;
+    bottom: 10%;
+    right: 5%;
+    opacity: 0.05;
+    background: var(--primary);
+}
+
+.bubble-3 {
+    width: 80px;
+    height: 80px;
+    top: 30%;
+    right: 20%;
+    opacity: 0.08;
+    background: var(--orange);
+}
+
+@media (max-width: 768px) {
+    .success-title {
+        font-size: 2rem;
+    }
+
+    .success-actions {
+        flex-direction: column;
+        width: 100%;
+    }
+
+    .btn-xl {
+        width: 100%;
+        justify-content: center;
+    }
+}

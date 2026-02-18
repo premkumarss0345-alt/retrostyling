@@ -1,0 +1,76 @@
+.newsletter {
+    padding: 8rem 0;
+    background: #f8f8f8;
+}
+
+.newsletter-card {
+    background-image: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), url('https://images.unsplash.com/photo-1558769132-cb1aea458c5e?q=80&w=2031&auto=format&fit=crop');
+    background-size: cover;
+    background-position: center;
+    padding: 5rem 2rem;
+    border-radius: 8px;
+    text-align: center;
+    color: white;
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.newsletter .card-title {
+    font-size: 2.2rem;
+    margin-bottom: 1rem;
+}
+
+.newsletter .card-text {
+    max-width: 500px;
+    margin: 0 auto 3rem;
+    color: #ccc;
+}
+
+.card-form {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1rem;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.input-wrapper {
+    position: relative;
+    flex: 1;
+}
+
+.mail-icon {
+    position: absolute;
+    top: 50%;
+    left: 1rem;
+    transform: translateY(-50%);
+    color: var(--text-light);
+}
+
+.card-form .input-field {
+    width: 100%;
+    background: white;
+    padding: 1.2rem 1rem 1.2rem 3rem;
+    border: none;
+    border-radius: 4px;
+    font-family: inherit;
+    outline: none;
+}
+
+.submit-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 1.2rem 2.5rem !important;
+}
+
+@media (max-width: 768px) {
+    .card-form {
+        flex-direction: column;
+    }
+
+    .newsletter-card {
+        padding: 3rem 1rem;
+    }
+}

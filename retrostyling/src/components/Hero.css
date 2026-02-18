@@ -1,0 +1,254 @@
+/* Hero.css - Redesigned */
+
+.hero {
+    height: 100vh;
+    min-height: 700px;
+    display: flex;
+    align-items: center;
+    position: relative;
+    color: var(--white);
+    margin-top: -80px;
+    /* Offset navbar */
+    overflow: hidden;
+    background: #000;
+}
+
+.hero-background {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+    z-index: 0;
+    filter: brightness(0.85);
+    /* Slightly darken image */
+}
+
+/* Sophisticated Overlay */
+.hero-background::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to right,
+            rgba(0, 0, 0, 0.8) 0%,
+            rgba(0, 0, 0, 0.4) 50%,
+            rgba(0, 0, 0, 0.1) 100%);
+    z-index: 1;
+}
+
+.hero-container {
+    position: relative;
+    z-index: 2;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding-top: 4rem;
+    /* Compensate for header */
+}
+
+.hero-content {
+    max-width: 800px;
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.hero-subtitle {
+    font-size: 1.1rem;
+    font-weight: 700;
+    letter-spacing: 6px;
+    margin-bottom: 1.5rem;
+    color: var(--primary);
+    text-transform: uppercase;
+    display: inline-block;
+    background: rgba(0, 0, 0, 0.3);
+    padding: 0.5rem 1rem;
+    backdrop-filter: blur(4px);
+    border-left: 3px solid var(--primary);
+}
+
+.hero-title {
+    font-size: clamp(3.5rem, 6vw, 6.5rem);
+    font-weight: 900;
+    line-height: 1.05;
+    margin-bottom: 2rem;
+    text-transform: uppercase;
+    letter-spacing: -2px;
+    color: white;
+    text-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+.hero-description {
+    font-size: 1.35rem;
+    color: rgba(255, 255, 255, 0.9);
+    margin-bottom: 3rem;
+    line-height: 1.6;
+    max-width: 600px;
+    font-weight: 400;
+    text-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+}
+
+/* Modern Button */
+.btn-hero {
+    display: inline-flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.2rem 3rem;
+    background: var(--white);
+    color: var(--black);
+    border-radius: 0;
+    /* Boxy aesthetic for retro feel */
+    font-weight: 800;
+    font-size: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    border: 2px solid var(--white);
+}
+
+.btn-hero:hover {
+    background: transparent;
+    color: var(--white);
+    gap: 1.5rem;
+    /* Icon slides out */
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+}
+
+/* Controls - Bottom Right */
+.hero-controls {
+    position: absolute;
+    bottom: 3rem;
+    right: 2rem;
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    z-index: 10;
+}
+
+.control-btn {
+    width: 60px;
+    height: 60px;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--white);
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.control-btn:hover {
+    background: var(--white);
+    color: var(--black);
+}
+
+.dots {
+    display: flex;
+    gap: 1rem;
+}
+
+.dot {
+    width: 60px;
+    height: 3px;
+    background: rgba(255, 255, 255, 0.3);
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.dot.active {
+    background: var(--white);
+    width: 80px;
+}
+
+/* Scroll Indicator */
+.hero-scroll-indicator {
+    position: absolute;
+    bottom: 2rem;
+    left: 2rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    opacity: 0.7;
+    z-index: 2;
+}
+
+.hero-scroll-indicator::after {
+    content: '';
+    width: 60px;
+    height: 2px;
+    background: white;
+    display: block;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+    .hero-title {
+        font-size: 4rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .hero {
+        min-height: 100vh;
+        margin-top: 0;
+        align-items: flex-end;
+        /* Text at bottom on mobile */
+        padding-bottom: 6rem;
+    }
+
+    .hero-background::after {
+        background: linear-gradient(to top,
+                rgba(0, 0, 0, 0.9) 0%,
+                rgba(0, 0, 0, 0.4) 60%,
+                rgba(0, 0, 0, 0.1) 100%);
+    }
+
+    .hero-container {
+        padding-top: 0;
+        justify-content: flex-end;
+    }
+
+    .hero-content {
+        margin-bottom: 2rem;
+    }
+
+    .hero-subtitle {
+        font-size: 0.9rem;
+        letter-spacing: 4px;
+        margin-bottom: 1rem;
+        padding: 0.3rem 0.8rem;
+    }
+
+    .hero-title {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+    }
+
+    .hero-description {
+        font-size: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    .hero-controls {
+        display: none;
+        /* Hide controls on mobile */
+    }
+
+    .hero-scroll-indicator {
+        display: none;
+    }
+
+    .btn-hero {
+        width: 100%;
+        justify-content: center;
+    }
+}

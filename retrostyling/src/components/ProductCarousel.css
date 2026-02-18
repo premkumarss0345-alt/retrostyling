@@ -1,0 +1,96 @@
+/* Product Carousel Styles */
+.product-carousel-section {
+    padding-bottom: 3rem;
+    position: relative;
+    overflow: hidden;
+    background: var(--bg-soft);
+}
+
+.carousel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+}
+
+.title-lg {
+    font-size: 2.5rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    color: var(--text);
+    position: relative;
+}
+
+.title-lg::after {
+    content: '';
+    position: absolute;
+    bottom: -10px;
+    left: 0;
+    width: 60px;
+    height: 4px;
+    background: var(--primary);
+}
+
+.carousel-nav {
+    display: flex;
+    gap: 1rem;
+}
+
+.nav-btn {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: white;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.nav-btn:hover {
+    background: var(--text);
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: var(--shadow);
+}
+
+.carousel-viewport {
+    overflow-x: auto;
+    scroll-behavior: smooth;
+    padding-bottom: 2rem;
+    /* Hide scrollbar */
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.carousel-viewport::-webkit-scrollbar {
+    display: none;
+}
+
+.carousel-track {
+    display: flex;
+    gap: 1.5rem;
+    width: max-content;
+}
+
+.carousel-item {
+    width: 300px;
+    flex-shrink: 0;
+}
+
+@media (max-width: 768px) {
+    .title-lg {
+        font-size: 1.8rem;
+    }
+
+    .carousel-item {
+        width: 260px;
+    }
+
+    .carousel-nav {
+        display: none;
+    }
+}

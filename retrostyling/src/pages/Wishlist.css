@@ -1,0 +1,14 @@
+.empty-wishlist {
+    text-align: center;
+    padding: 8rem 0;
+}
+
+.empty-wishlist h2 {
+    margin: 1.5rem 0 0.5rem;
+    color: var(--secondary);
+}
+
+.empty-wishlist p {
+    color: var(--text-light);
+    margin-bottom: 2rem;
+}
