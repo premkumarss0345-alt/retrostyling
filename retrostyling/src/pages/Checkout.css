@@ -185,11 +185,15 @@
     margin-bottom: 0.25rem;
     text-transform: none;
     letter-spacing: normal;
+    word-break: break-word;
+    overflow-wrap: break-word;
 }
 
 .item-detail p {
     font-size: 0.8rem;
     color: var(--text-light);
+    word-break: break-word;
+    overflow-wrap: break-word;
 }
 
 .item-price {
