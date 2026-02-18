@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Eye, ShoppingBag, Heart } from 'lucide-react';
+import { API_BASE_URL } from '../config';
 import Toast from './Toast';
 import './ProductCard.css';
 
@@ -13,7 +14,7 @@ const ProductCard = ({ product }) => {
         if (!token) return navigate('/login');
 
         try {
-            const res = await fetch('http://localhost:5001/api/cart', {
+            const res = await fetch(`${API_BASE_URL}/api/cart`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -38,7 +39,7 @@ const ProductCard = ({ product }) => {
         if (!token) return navigate('/login');
 
         try {
-            const res = await fetch('http://localhost:5001/api/wishlist', {
+            const res = await fetch(`${API_BASE_URL}/api/wishlist`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

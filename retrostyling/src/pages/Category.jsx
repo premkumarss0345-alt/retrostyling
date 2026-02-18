@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import ProductCard from '../components/ProductCard';
+import { API_BASE_URL } from '../config';
 import './Shop.css';
 
 const CategoryPage = () => {
@@ -15,7 +16,7 @@ const CategoryPage = () => {
     const fetchProducts = async () => {
         setLoading(true);
         try {
-            const res = await fetch(`http://localhost:5001/api/products?category=${slug}`);
+            const res = await fetch(`${API_BASE_URL}/api/products?category=${slug}`);
             const data = await res.json();
             setProducts(data);
         } catch (err) {

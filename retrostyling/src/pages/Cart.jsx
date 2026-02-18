@@ -3,6 +3,7 @@ import { Trash2, Plus, Minus, ShoppingBag, ArrowRight, ChevronLeft } from 'lucid
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import Toast from '../components/Toast';
+import { API_BASE_URL } from '../config';
 import './Cart.css';
 
 const Cart = () => {
@@ -22,7 +23,7 @@ const Cart = () => {
             return;
         }
         try {
-            const res = await fetch('http://localhost:5001/api/cart', {
+            const res = await fetch(`${API_BASE_URL}/api/cart`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await res.json();
@@ -38,7 +39,7 @@ const Cart = () => {
         if (newQty < 1) return;
         const token = localStorage.getItem('token');
         try {
-            const res = await fetch(`http://localhost:5001/api/cart/${id}`, {
+            const res = await fetch(`${API_BASE_URL}/api/cart/${id}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -57,7 +58,7 @@ const Cart = () => {
     const removeItem = async (id) => {
         const token = localStorage.getItem('token');
         try {
-            const res = await fetch(`http://localhost:5001/api/cart/${id}`, {
+            const res = await fetch(`${API_BASE_URL}/api/cart/${id}`, {
                 method: 'DELETE',
                 headers: { 'Authorization': `Bearer ${token}` }
             });

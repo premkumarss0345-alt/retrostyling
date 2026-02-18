@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronRight, ChevronLeft } from 'lucide-react';
+import { API_BASE_URL } from '../config';
 import './Hero.css';
 
 const Hero = () => {
@@ -14,9 +15,9 @@ const Hero = () => {
 
     const fetchSlides = async () => {
         try {
-            const res = await fetch('http://localhost:5001/api/hero-slides');
+            const res = await fetch(`${API_BASE_URL}/api/hero-slides`);
             const data = await res.json();
-            if (data.length > 0) {
+            if (Array.isArray(data) && data.length > 0) {
                 setSlides(data);
             } else {
                 // Fallback dummy
@@ -50,7 +51,7 @@ const Hero = () => {
 
     const currentSlide = slides[current];
     const imageSrc = currentSlide.image.startsWith('/')
-        ? `http://localhost:5001${currentSlide.image}` // Local upload
+        ? `${API_BASE_URL}${currentSlide.image}` // Local upload
         : currentSlide.image; // External URL
 
     return (

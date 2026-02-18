@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { ShoppingBag, Heart, Truck, RotateCcw, ShieldCheck } from 'lucide-react';
+import { API_BASE_URL } from '../config';
 import './ProductDetails.css';
 
 const ProductDetails = () => {
@@ -18,7 +19,7 @@ const ProductDetails = () => {
     const fetchProduct = async () => {
         setLoading(true);
         try {
-            const res = await fetch(`http://localhost:5001/api/products/${slug}`);
+            const res = await fetch(`${API_BASE_URL}/api/products/${slug}`);
             const data = await res.json();
             setProduct(data);
             if (data.variants && data.variants.length > 0) {

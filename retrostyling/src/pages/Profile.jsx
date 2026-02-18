@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { User, Package, Calendar, Clock, ChevronRight, ChevronDown, MapPin, Phone } from 'lucide-react';
+import { API_BASE_URL } from '../config';
 import './Profile.css';
 
 const Profile = () => {
@@ -17,7 +18,7 @@ const Profile = () => {
     const fetchProfile = async () => {
         const token = localStorage.getItem('token');
         try {
-            const res = await fetch('http://localhost:5001/api/auth/profile', {
+            const res = await fetch(`${API_BASE_URL}/api/auth/profile`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await res.json();
@@ -30,7 +31,7 @@ const Profile = () => {
     const fetchOrders = async () => {
         const token = localStorage.getItem('token');
         try {
-            const res = await fetch('http://localhost:5001/api/orders/my-orders', {
+            const res = await fetch(`${API_BASE_URL}/api/orders/my-orders`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await res.json();
@@ -53,7 +54,7 @@ const Profile = () => {
         if (!orderDetails[orderId]) {
             const token = localStorage.getItem('token');
             try {
-                const res = await fetch(`http://localhost:5001/api/orders/my-orders/${orderId}`, {
+                const res = await fetch(`${API_BASE_URL}/api/orders/my-orders/${orderId}`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 const data = await res.json();

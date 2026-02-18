@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import AdminLayout from './AdminLayout';
+import { API_BASE_URL } from '../../config';
 
 const AdminOrders = () => {
     const [orders, setOrders] = useState([]);
@@ -11,7 +12,7 @@ const AdminOrders = () => {
 
     const fetchOrders = () => {
         const token = localStorage.getItem('token');
-        fetch('http://localhost:5001/api/admin/orders', {
+        fetch(`${API_BASE_URL}/api/admin/orders`, {
             headers: { 'Authorization': `Bearer ${token}` }
         })
             .then(res => res.json())
@@ -24,7 +25,7 @@ const AdminOrders = () => {
 
     const updateStatus = (id, status) => {
         const token = localStorage.getItem('token');
-        fetch(`http://localhost:5001/api/admin/orders/${id}/status`, {
+        fetch(`${API_BASE_URL}/api/admin/orders/${id}/status`, {
             method: 'PUT',
             headers: {
                 'Authorization': `Bearer ${token}`,

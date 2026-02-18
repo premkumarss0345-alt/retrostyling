@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { MapPin, Phone, CreditCard, ShieldCheck, ChevronLeft, Truck } from 'lucide-react';
 import Toast from '../components/Toast';
+import { API_BASE_URL } from '../config';
 import './Checkout.css';
 
 const Checkout = () => {
@@ -28,7 +29,7 @@ const Checkout = () => {
         if (!token) return navigate('/login');
 
         try {
-            const res = await fetch('http://localhost:5001/api/cart', {
+            const res = await fetch(`${API_BASE_URL}/api/cart`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await res.json();
@@ -61,7 +62,7 @@ const Checkout = () => {
         const fullAddress = `${formData.shippingAddress}, ${formData.city} - ${formData.pincode}`;
 
         try {
-            const res = await fetch('http://localhost:5001/api/orders/place', {
+            const res = await fetch(`${API_BASE_URL}/api/orders/place`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

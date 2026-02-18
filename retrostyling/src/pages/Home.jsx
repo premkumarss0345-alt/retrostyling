@@ -34,7 +34,7 @@ const Home = () => {
                 viewport={{ once: true, margin: "-100px" }}
                 variants={fadeInUp}
             >
-                <ProductCarousel title="New Drops" fetchUrl="http://localhost:5001/api/products?is_new=1" />
+                <ProductCarousel title="New Drops" fetchUrl="/api/products?is_new=1" />
             </motion.div>
 
             {/* 4. Featured Categories (FashionFantasy) */}
@@ -87,7 +87,7 @@ const Home = () => {
                 viewport={{ once: true }}
                 variants={fadeInUp}
             >
-                <ProductCarousel title="Trending Now" fetchUrl="http://localhost:5001/api/products?sort=popular" />
+                <ProductCarousel title="Trending Now" fetchUrl="/api/products?sort=popular" />
             </motion.div>
 
             {/* 7. Newsletter */}

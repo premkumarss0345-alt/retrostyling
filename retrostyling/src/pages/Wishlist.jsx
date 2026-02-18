@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Heart, Trash2, ShoppingBag } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import ProductCard from '../components/ProductCard';
+import { API_BASE_URL } from '../config';
 import './Wishlist.css';
 
 const Wishlist = () => {
@@ -19,7 +20,7 @@ const Wishlist = () => {
             return;
         }
         try {
-            const res = await fetch('http://localhost:5001/api/wishlist', {
+            const res = await fetch(`${API_BASE_URL}/api/wishlist`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await res.json();

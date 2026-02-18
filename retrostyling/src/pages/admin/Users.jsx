@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import AdminLayout from './AdminLayout';
+import { API_BASE_URL } from '../../config';
 
 const AdminUsers = () => {
     const [users, setUsers] = useState([]);
@@ -7,7 +8,7 @@ const AdminUsers = () => {
 
     useEffect(() => {
         const token = localStorage.getItem('token');
-        fetch('http://localhost:5001/api/admin/users', {
+        fetch(`${API_BASE_URL}/api/admin/users`, {
             headers: { 'Authorization': `Bearer ${token}` }
         })
             .then(res => res.json())

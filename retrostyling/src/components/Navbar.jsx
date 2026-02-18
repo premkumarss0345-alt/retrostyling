@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { API_BASE_URL } from '../config';
 import {
     Search,
     Heart,
@@ -14,7 +15,7 @@ import {
     Twitter,
     LogOut
 } from 'lucide-react';
-import './Navbar.css';  
+import './Navbar.css';
 
 const Navbar = () => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -36,11 +37,18 @@ const Navbar = () => {
 
     const fetchCategories = async () => {
         try {
-            const res = await fetch('http://localhost:5001/api/categories');
+            const res = await fetch(`${API_BASE_URL}/api/categories`);
+            if (!res.ok) throw new Error('Failed to fetch categories');
             const data = await res.json();
-            setCategories(data);
+            if (Array.isArray(data)) {
+                setCategories(data);
+            } else {
+                console.error('Categories data is not an array:', data);
+                setCategories([]);
+            }
         } catch (err) {
-            console.error(err);
+            console.error('Error fetching categories:', err);
+            setCategories([]);
         }
     };
 

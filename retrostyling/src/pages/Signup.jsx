@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { auth } from '../firebase';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { API_BASE_URL } from '../config';
 import './Login.css'; // Reuse Login styles
 
 const Signup = () => {
@@ -19,7 +20,7 @@ const Signup = () => {
             const user = userCredential.user;
 
             // 2. Sync with MySQL Backend
-            const response = await fetch('http://localhost:5001/api/auth/signup', {
+            const response = await fetch(`${API_BASE_URL}/api/auth/signup`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ name, email, uid: user.uid })

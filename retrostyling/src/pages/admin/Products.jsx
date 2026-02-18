@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import AdminLayout from './AdminLayout';
+import { API_BASE_URL } from '../../config';
 import ProductForm from './ProductForm';
 import { Plus, Search, Filter, Edit, Trash2, MoreVertical } from 'lucide-react';
 import './Products.css'; // We'll create this CSS file next
@@ -20,7 +21,7 @@ const AdminProducts = () => {
 
     const fetchProducts = () => {
         setLoading(true);
-        fetch('http://localhost:5001/api/products')
+        fetch(`${API_BASE_URL}/api/products`)
             .then(res => res.json())
             .then(data => {
                 setProducts(data);
@@ -30,7 +31,7 @@ const AdminProducts = () => {
     };
 
     const fetchCategories = () => {
-        fetch('http://localhost:5001/api/categories')
+        fetch(`${API_BASE_URL}/api/categories`)
             .then(res => res.json())
             .then(data => setCategories(data))
             .catch(err => console.error(err));
@@ -49,7 +50,7 @@ const AdminProducts = () => {
     const handleDelete = (id) => {
         if (window.confirm('Are you sure you want to delete this product?')) {
             const token = localStorage.getItem('token');
-            fetch(`http://localhost:5001/api/products/${id}`, {
+            fetch(`${API_BASE_URL}/api/products/${id}`, {
                 method: 'DELETE',
                 headers: { 'Authorization': `Bearer ${token}` }
             })
@@ -65,8 +66,8 @@ const AdminProducts = () => {
         const token = localStorage.getItem('token');
         const method = editingProduct ? 'PUT' : 'POST';
         const url = editingProduct
-            ? `http://localhost:5001/api/products/${editingProduct.id}`
-            : 'http://localhost:5001/api/products';
+            ? `${API_BASE_URL}/api/products/${editingProduct.id}`
+            : `${API_BASE_URL}/api/products`;
 
         // Backend expects specific fields. We map/filter here.
         // Generate slug from name if not provided
@@ -112,11 +113,11 @@ const AdminProducts = () => {
     };
 
     // Filter Logic
-    const filteredProducts = products.filter(p => {
+    const filteredProducts = Array.isArray(products) ? products.filter(p => {
         const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase());
         const matchesCategory = filterCategory ? p.category_id == filterCategory : true;
         return matchesSearch && matchesCategory;
-    });
+    }) : [];
 
     if (view === 'form') {
         return (
@@ -166,7 +167,7 @@ const AdminProducts = () => {
                         className="filter-select"
                     >
                         <option value="">All Categories</option>
-                        {categories.map(cat => (
+                        {Array.isArray(categories) && categories.map(cat => (
                             <option key={cat.id} value={cat.id}>{cat.name}</option>
                         ))}
                     </select>

@@ -1,6 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { API_BASE_URL } from '../config';
 import ProductCard from './ProductCard';
 import './ProductCarousel.css';
 
@@ -12,12 +13,24 @@ const ProductCarousel = ({ title, fetchUrl }) => {
     useEffect(() => {
         const loadProducts = async () => {
             try {
-                const res = await fetch(fetchUrl || 'http://localhost:5001/api/products');
+                // Ensure fetchUrl is used if provided, otherwise default to API_BASE_URL/api/products
+                const url = fetchUrl
+                    ? (fetchUrl.startsWith('http') ? fetchUrl : `${API_BASE_URL}${fetchUrl}`)
+                    : `${API_BASE_URL}/api/products`;
+
+                const res = await fetch(url);
+                if (!res.ok) throw new Error('Failed to fetch products');
                 const data = await res.json();
-                // If no specific fetchUrl, maybe slice for demo
-                setProducts(data.slice(0, 8));
+
+                if (Array.isArray(data)) {
+                    setProducts(data.slice(0, 8));
+                } else {
+                    console.error('ProductCarousel: Data is not an array', data);
+                    setProducts([]);
+                }
             } catch (err) {
                 console.error("Failed to load carousel products", err);
+                setProducts([]);
             } finally {
                 setLoading(false);
             }

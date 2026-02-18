@@ -26,6 +26,7 @@ import {
     Area
 } from 'recharts';
 import { motion } from 'framer-motion';
+import { API_BASE_URL } from '../../config';
 
 const Dashboard = () => {
     const [stats, setStats] = useState({
@@ -54,7 +55,7 @@ const Dashboard = () => {
 
     useEffect(() => {
         const token = localStorage.getItem('token');
-        fetch('http://localhost:5001/api/admin/stats', {
+        fetch(`${API_BASE_URL}/api/admin/stats`, {
             headers: { 'Authorization': `Bearer ${token}` }
         })
             .then(res => res.json())

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import ProductCard from '../components/ProductCard';
+import { API_BASE_URL } from '../config';
 import './Shop.css';
 
 const Shop = () => {
@@ -24,11 +25,17 @@ const Shop = () => {
 
     const fetchCategories = async () => {
         try {
-            const res = await fetch('http://localhost:5001/api/categories');
+            const res = await fetch(`${API_BASE_URL}/api/categories`);
+            if (!res.ok) throw new Error('Failed to fetch categories');
             const data = await res.json();
-            setCategories(data);
+            if (Array.isArray(data)) {
+                setCategories(data);
+            } else {
+                setCategories([]);
+            }
         } catch (err) {
             console.error("Error fetching categories:", err);
+            setCategories([]);
         }
     };
 
@@ -41,11 +48,19 @@ const Shop = () => {
             if (filters.maxPrice) queryParams.append('maxPrice', filters.maxPrice);
             if (filters.search) queryParams.append('search', filters.search);
 
-            const res = await fetch(`http://localhost:5001/api/products?${queryParams.toString()}`);
+            const res = await fetch(`${API_BASE_URL}/api/products?${queryParams.toString()}`);
+            if (!res.ok) throw new Error('Failed to fetch products');
             const data = await res.json();
-            setProducts(data);
+
+            if (Array.isArray(data)) {
+                setProducts(data);
+            } else {
+                console.error('Products data is not an array:', data);
+                setProducts([]);
+            }
         } catch (err) {
             console.error("Error fetching products:", err);
+            setProducts([]);
         } finally {
             setLoading(false);
         }

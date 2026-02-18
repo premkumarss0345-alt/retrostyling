@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Pencil, Trash2, Plus, X, Upload } from 'lucide-react';
+import { API_BASE_URL } from '../../config';
 import './AdminLayout.css';
 import './HeroSlides.css';
 
@@ -24,7 +25,7 @@ const HeroSlides = () => {
     const fetchSlides = async () => {
         const token = localStorage.getItem('token');
         try {
-            const res = await fetch('http://localhost:5001/api/admin/hero-slides', {
+            const res = await fetch(`${API_BASE_URL}/api/admin/hero-slides`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await res.json();
@@ -60,8 +61,8 @@ const HeroSlides = () => {
         }
 
         const url = editMode
-            ? `http://localhost:5001/api/admin/hero-slides/${currentSlideId}`
-            : 'http://localhost:5001/api/admin/hero-slides';
+            ? `${API_BASE_URL}/api/admin/hero-slides/${currentSlideId}`
+            : `${API_BASE_URL}/api/admin/hero-slides`;
         const method = editMode ? 'PUT' : 'POST';
 
         try {
@@ -85,7 +86,7 @@ const HeroSlides = () => {
         if (!window.confirm('Are you sure you want to delete this slide?')) return;
         const token = localStorage.getItem('token');
         try {
-            const res = await fetch(`http://localhost:5001/api/admin/hero-slides/${id}`, {
+            const res = await fetch(`${API_BASE_URL}/api/admin/hero-slides/${id}`, {
                 method: 'DELETE',
                 headers: { 'Authorization': `Bearer ${token}` }
             });
@@ -133,7 +134,7 @@ const HeroSlides = () => {
                     <div key={slide.id} className={`slide-card ${slide.active ? '' : 'inactive'}`}>
                         <div className="slide-image-wrapper">
                             <img
-                                src={slide.image.startsWith('/') ? `http://localhost:5001${slide.image}` : slide.image}
+                                src={slide.image.startsWith('/') ? `${API_BASE_URL}${slide.image}` : slide.image}
                                 alt={slide.title}
                                 className="slide-img"
                             />

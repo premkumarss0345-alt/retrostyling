@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { auth } from '../firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
+import { API_BASE_URL } from '../config';
 import './Login.css';
 
 const Login = () => {
@@ -18,7 +19,7 @@ const Login = () => {
             const user = userCredential.user;
 
             // 2. Get User Details and Token from MySQL Backend
-            const response = await fetch('http://localhost:5001/api/auth/firebase-login', {
+            const response = await fetch(`${API_BASE_URL}/api/auth/firebase-login`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email: user.email, uid: user.uid })
