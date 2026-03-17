@@ -146,7 +146,8 @@ h6 {
 
 /* Layout Utilities */
 .section {
-  padding-block: clamp(60px, 10vw, 120px);
+  padding-top: clamp(140px, 12vw, 180px);
+  padding-bottom: clamp(60px, 10vw, 120px);
 }
 
 .container {
@@ -293,25 +294,22 @@ h6 {
 }
 
 /* Responsive Utilities */
-.desktop-only {
-  display: block;
-}
-
 .mobile-only {
   display: none;
 }
 
 @media (max-width: 768px) {
   .desktop-only {
-    display: none;
+    display: none !important;
   }
 
   .mobile-only {
-    display: block;
+    display: block !important;
   }
 
   .section {
-    padding-block: 60px;
+    padding-top: 130px;
+    padding-bottom: 60px;
   }
 
   .container {

@@ -107,6 +107,7 @@
     font-weight: 800;
     text-transform: uppercase;
     letter-spacing: 1px;
+    white-space: nowrap;
 }
 
 .card-content {
@@ -162,11 +163,21 @@
         bottom: 1rem;
         left: 0.75rem;
         right: 0.75rem;
+        justify-content: center;
     }
 
     .card-action-btn {
         width: 44px;
         height: 44px;
+    }
+
+    .cart-btn {
+        flex: 0 0 44px;
+        padding: 0;
+    }
+
+    .cart-btn p {
+        display: none;
     }
 
     .product-card:hover {

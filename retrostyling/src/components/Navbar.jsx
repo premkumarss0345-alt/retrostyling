@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { API_BASE_URL } from '../config';
 import {
     Search,
     Heart,
@@ -10,9 +9,10 @@ import {
     X,
     ChevronDown,
     LogOut,
-    ArrowRight
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useAuth } from '../services/AuthContext';
+import { categoryService, cartService } from '../services/firestoreService';
 import './Navbar.css';
 
 const Navbar = () => {
@@ -23,8 +23,11 @@ const Navbar = () => {
     const [categories, setCategories] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [currentNotice, setCurrentNotice] = useState(0);
+    const [cartCount, setCartCount] = useState(0);
+
     const navigate = useNavigate();
     const location = useLocation();
+    const { currentUser, userProfile, logout, isAdmin } = useAuth();
 
     const notices = [
         "🎉 FREE SHIPPING ON ALL ORDERS ABOVE ₹999",
@@ -38,16 +41,22 @@ const Navbar = () => {
             setCurrentNotice((prev) => (prev + 1) % notices.length);
         }, 5000);
         return () => clearInterval(timer);
-    }, []);
-
-    const user = JSON.parse(localStorage.getItem('user') || 'null');
+    }, [notices.length]);
 
     useEffect(() => {
         const handleScroll = () => setIsScrolled(window.scrollY > 50);
         window.addEventListener('scroll', handleScroll);
-        fetchCategories();
+        loadCategories();
         return () => window.removeEventListener('scroll', handleScroll);
     }, []);
+
+    useEffect(() => {
+        if (currentUser) {
+            loadCartCount();
+        } else {
+            setCartCount(0);
+        }
+    }, [currentUser, location.pathname]); // Update count on page change as well
 
     useEffect(() => {
         setIsMenuOpen(false);
@@ -55,14 +64,22 @@ const Navbar = () => {
         setIsProfileOpen(false);
     }, [location.pathname]);
 
-    const fetchCategories = async () => {
+    const loadCategories = async () => {
         try {
-            const res = await fetch(`${API_BASE_URL}/api/categories`);
-            if (!res.ok) throw new Error('Failed to fetch categories');
-            const data = await res.json();
-            if (Array.isArray(data)) setCategories(data);
+            const data = await categoryService.getAll();
+            setCategories(data);
         } catch (err) {
             console.error('Error fetching categories:', err);
+        }
+    };
+
+    const loadCartCount = async () => {
+        try {
+            const items = await cartService.get(currentUser.uid);
+            const count = items.reduce((acc, item) => acc + item.quantity, 0);
+            setCartCount(count);
+        } catch (err) {
+            console.error('Error fetching cart count:', err);
         }
     };
 
@@ -75,9 +92,8 @@ const Navbar = () => {
         }
     };
 
-    const handleLogout = () => {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
+    const handleLogout = async () => {
+        await logout();
         navigate('/login');
     };
 
@@ -86,6 +102,8 @@ const Navbar = () => {
         { name: 'SHOP', path: '/shop' },
         { name: 'ABOUT', path: '/about' }
     ];
+
+    const userName = currentUser?.displayName || userProfile?.name || 'User';
 
     return (
         <>
@@ -106,7 +124,7 @@ const Navbar = () => {
 
                 <div className="main-nav-container">
                     <div className="container header-container">
-                        <button className="mobile-toggle mobile-only" onClick={() => setIsMenuOpen(true)} aria-label="Open Menu">
+                        <button className="mobile-toggle" onClick={() => setIsMenuOpen(true)} aria-label="Open Menu">
                             <Menu size={24} />
                         </button>
 
@@ -118,7 +136,7 @@ const Navbar = () => {
                             <ul className="nav-links">
                                 {navLinks.map((link) => (
                                     <li key={link.name}>
-                                        <Link to={link.path}>
+                                        <Link to={link.path} className={location.pathname === link.path ? 'active' : ''}>
                                             {link.name}
                                             {location.pathname === link.path && (
                                                 <motion.div
@@ -149,9 +167,9 @@ const Navbar = () => {
                                             <div className="mega-column">
                                                 <h4>Highlights</h4>
                                                 <ul>
-                                                    <li><Link to="/shop?sale=true" style={{ color: 'var(--primary)' }}>Clearance Sale</Link></li>
-                                                    <li><Link to="/shop?new=true">New Arrivals</Link></li>
-                                                    <li><Link to="/shop?popular=true">Best Sellers</Link></li>
+                                                    <li><Link to="/shop" style={{ color: 'var(--primary)' }}>Clearance Sale</Link></li>
+                                                    <li><Link to="/shop">New Arrivals</Link></li>
+                                                    <li><Link to="/shop">Best Sellers</Link></li>
                                                 </ul>
                                             </div>
                                         </div>
@@ -165,20 +183,19 @@ const Navbar = () => {
                                 <Search size={20} />
                             </button>
 
-                            <Link to="/wishlist" className="action-btn">
+                            <Link to="/wishlist" className="action-btn desktop-only">
                                 <Heart size={20} />
-                                <span className="dot"></span>
                             </Link>
 
                             <Link to="/cart" className="action-btn">
                                 <ShoppingBag size={20} />
-                                <span className="cart-count">3</span>
+                                {cartCount > 0 && <span className="cart-count">{cartCount}</span>}
                             </Link>
 
-                            <div className="user-profile">
-                                {user ? (
+                            <div className="user-profile desktop-only">
+                                {currentUser ? (
                                     <div className="profile-container" onClick={() => setIsProfileOpen(!isProfileOpen)}>
-                                        <div className="nav-avatar">{user.name.charAt(0)}</div>
+                                        <div className="nav-avatar">{userName.charAt(0).toUpperCase()}</div>
                                         <AnimatePresence>
                                             {isProfileOpen && (
                                                 <motion.div
@@ -189,11 +206,10 @@ const Navbar = () => {
                                                 >
                                                     <div className="user-menu-header">
                                                         <p>Connected as</p>
-                                                        <strong>{user.name}</strong>
+                                                        <strong>{userName}</strong>
                                                     </div>
                                                     <Link to="/profile">My Orders</Link>
-                                                    <Link to="/profile">Dashboard</Link>
-                                                    {user.role === 'admin' && <Link to="/admin" className="admin-tag">Access Hub</Link>}
+                                                    {isAdmin && <Link to="/admin" className="admin-tag">Admin Hub</Link>}
                                                     <button onClick={handleLogout} className="logout-btn">
                                                         <LogOut size={16} /> SIGN OUT
                                                     </button>

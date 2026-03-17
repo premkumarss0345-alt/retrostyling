@@ -32,7 +32,7 @@ const BottomNav = () => {
                                 {isActive && (
                                     <motion.div
                                         layoutId="bottom-nav-active"
-                                        className="active-indicator"
+                                        className="bottom-nav-active-indicator"
                                         transition={{ type: 'spring', stiffness: 300, damping: 30 }}
                                     />
                                 )}

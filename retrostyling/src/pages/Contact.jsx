@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Mail, Phone, MapPin, Send, MessageSquare } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { contactService } from '../services/firestoreService';
+import Toast from '../components/Toast';
 import './Contact.css';
 
 const Contact = () => {
@@ -12,15 +14,21 @@ const Contact = () => {
     });
 
     const [status, setStatus] = useState(null);
+    const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
         setStatus('sending');
-        // Simulate API call
-        setTimeout(() => {
+        try {
+            await contactService.submit(formData);
             setStatus('success');
+            setToast({ show: true, message: 'Message sent successfully! We will get back to you soon.', type: 'success' });
             setFormData({ name: '', email: '', subject: '', message: '' });
-        }, 1500);
+        } catch (err) {
+            console.error(err);
+            setStatus('error');
+            setToast({ show: true, message: 'Failed to send message. Please try again later.', type: 'error' });
+        }
     };
 
     const handleChange = (e) => {
@@ -177,6 +185,12 @@ const Contact = () => {
             </section>
 
             {/* 🗺️ FAQ or Map Section can be added here */}
+            <Toast 
+                isOpen={toast.show}
+                message={toast.message}
+                type={toast.type}
+                onClose={() => setToast({ ...toast, show: false })}
+            />
         </div>
     );
 };

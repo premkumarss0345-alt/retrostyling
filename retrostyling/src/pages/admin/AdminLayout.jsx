@@ -12,20 +12,20 @@ import {
     Menu,
     X,
     Settings,
-    ChevronRight,
     Layers
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useAuth } from '../../services/AuthContext';
 import './AdminLayout.css';
 
 const AdminLayout = ({ children }) => {
     const navigate = useNavigate();
     const location = useLocation();
+    const { currentUser, logout, userProfile } = useAuth();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-    const handleLogout = () => {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
+    const handleLogout = async () => {
+        await logout();
         navigate('/login');
     };
 
@@ -38,6 +38,8 @@ const AdminLayout = ({ children }) => {
         { path: '/admin/hero-slides', label: 'Hero Slides', icon: Globe },
         { path: '/admin/settings', label: 'Settings', icon: Settings },
     ];
+
+    const adminName = currentUser?.displayName || userProfile?.name || 'Admin';
 
     return (
         <div className="admin-layout">
@@ -112,10 +114,10 @@ const AdminLayout = ({ children }) => {
                             <span className="notification-dot"></span>
                         </button>
                         <div className="admin-user-info">
-                            <div className="user-avatar">AD</div>
+                            <div className="user-avatar">{adminName.charAt(0).toUpperCase()}</div>
                             <div className="user-details">
-                                <span className="user-name">Admin User</span>
-                                <span className="user-role">Super Admin</span>
+                                <span className="user-name">{adminName}</span>
+                                <span className="user-role">Administrator</span>
                             </div>
                         </div>
                     </div>

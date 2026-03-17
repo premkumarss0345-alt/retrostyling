@@ -1,175 +1,196 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { ShoppingBag, Heart, Truck, RotateCcw, ShieldCheck } from 'lucide-react';
-import { API_BASE_URL } from '../config';
+import { productService, cartService, wishlistService } from '../services/firestoreService';
+import { useAuth } from '../services/AuthContext';
+import Toast from '../components/Toast';
 import './ProductDetails.css';
 
 const ProductDetails = () => {
-    const { slug } = useParams();
-    const [product, setProduct] = useState(null);
-    const [loading, setLoading] = useState(true);
-    const [selectedSize, setSelectedSize] = useState('');
-    const [selectedColor, setSelectedColor] = useState('');
-    const [quantity, setQuantity] = useState(1);
+  const { slug }           = useParams();
+  const navigate           = useNavigate();
+  const { currentUser }    = useAuth();
 
-    useEffect(() => {
-        fetchProduct();
-    }, [slug]);
+  const [product, setProduct]         = useState(null);
+  const [loading, setLoading]         = useState(true);
+  const [selectedSize, setSelectedSize]   = useState('');
+  const [selectedColor, setSelectedColor] = useState('');
+  const [quantity, setQuantity]       = useState(1);
+  const [adding, setAdding]           = useState(false);
+  const [toast, setToast]             = useState({ show: false, message: '', type: 'success' });
 
-    const fetchProduct = async () => {
-        setLoading(true);
-        try {
-            const res = await fetch(`${API_BASE_URL}/api/products/${slug}`);
-            const data = await res.json();
-            setProduct(data);
-            if (data.variants && data.variants.length > 0) {
-                setSelectedSize(data.variants[0].size);
-                setSelectedColor(data.variants[0].color);
-            }
-        } catch (err) {
-            console.error("Error fetching product:", err);
-        } finally {
-            setLoading(false);
-        }
-    };
+  useEffect(() => { loadProduct(); }, [slug]);
 
-    const handleAddToCart = async () => {
-        const token = localStorage.getItem('token');
-        if (!token) {
-            alert("Please login to add items to cart");
-            return;
-        }
+  const loadProduct = async () => {
+    setLoading(true);
+    try {
+      const data = await productService.getBySlug(slug);
+      setProduct(data);
+      if (data?.variants?.length > 0) {
+        setSelectedSize(data.variants[0].size || '');
+        setSelectedColor(data.variants[0].color || '');
+      }
+    } catch (err) {
+      console.error('Error fetching product:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-        const activeVariant = product.variants?.find(v => v.size === selectedSize && v.color === selectedColor);
+  const handleAddToCart = async () => {
+    if (!currentUser) {
+      navigate('/login');
+      return;
+    }
+    setAdding(true);
+    try {
+      const activeVariant = product.variants?.find(
+        (v) => v.size === selectedSize && v.color === selectedColor
+      ) || null;
+      await cartService.addItem(product, activeVariant, quantity);
+      setToast({ show: true, message: '✓ Added to cart!', type: 'success' });
+    } catch (err) {
+      console.error('Cart error:', err);
+      setToast({ show: true, message: 'Failed to add to cart', type: 'error' });
+    } finally {
+      setAdding(false);
+    }
+  };
 
-        try {
-            const res = await fetch(`${API_BASE_URL}/api/cart`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    productId: product.id,
-                    variantId: activeVariant?.id,
-                    quantity: quantity
-                })
-            });
-            if (res.ok) {
-                alert("Successfully added to cart!");
-            }
-        } catch (err) {
-            console.error("Cart error:", err);
-        }
-    };
+  const handleWishlist = async () => {
+    if (!currentUser) { navigate('/login'); return; }
+    try {
+      await wishlistService.add(product.id);
+      setToast({ show: true, message: '♥ Added to wishlist!', type: 'success' });
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
-    if (loading) return <div className="container section">Loading product details...</div>;
-    if (!product) return <div className="container section">Product not found.</div>;
+  if (loading) return <div className="container section center-loading">Loading product details...</div>;
+  if (!product) return <div className="container section">Product not found.</div>;
 
-    // Find the currently selected variant object
-    const activeVariant = product.variants?.find(v => v.size === selectedSize && v.color === selectedColor);
+  const activeVariant = product.variants?.find(
+    (v) => v.size === selectedSize && v.color === selectedColor
+  );
+  const displayPrice = activeVariant?.price_override
+    ? Number(activeVariant.price_override)
+    : product.on_sale
+    ? Number(product.discount_price)
+    : Number(product.price);
 
-    // Determine the display price (variant override if exists, else base product price)
-    const displayPrice = activeVariant?.price_override || (Number(product.on_sale) ? product.discount_price : product.price);
-
-    return (
-        <div className="product-details-page container section">
-            <div className="product-details-grid">
-                <div className="product-gallery">
-                    <div className="main-image">
-                        <img src={product.image} alt={product.name} className="w-100" />
-                    </div>
-                </div>
-
-                <div className="product-info">
-                    <p className="product-category-label">{product.category_name}</p>
-                    <h1 className="h2">{product.name}</h1>
-
-                    <div className="product-price-section">
-                        {activeVariant?.price_override ? (
-                            <span className="current-price">₹{Number(activeVariant.price_override).toLocaleString()}</span>
-                        ) : Number(product.on_sale) ? (
-                            <>
-                                <span className="current-price">₹{Number(product.discount_price).toLocaleString()}</span>
-                                <span className="old-price">₹{Number(product.price).toLocaleString()}</span>
-                                <span className="sale-badge">SALE</span>
-                            </>
-                        ) : (
-                            <span className="current-price">₹{Number(product.price).toLocaleString()}</span>
-                        )}
-                    </div>
-
-                    <p className="product-description">{product.description}</p>
-
-                    {product.variants && product.variants.length > 0 && (
-                        <div className="product-variants">
-                            <div className="variant-group">
-                                <h3>Size</h3>
-                                <div className="variant-options">
-                                    {[...new Set(product.variants.map(v => v.size))].map(size => (
-                                        <button
-                                            key={size}
-                                            className={`variant-btn ${selectedSize === size ? 'active' : ''}`}
-                                            onClick={() => setSelectedSize(size)}
-                                        >
-                                            {size}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-
-                            <div className="variant-group">
-                                <h3>Color</h3>
-                                <div className="variant-options">
-                                    {[...new Set(product.variants.map(v => v.color))].map(color => (
-                                        <button
-                                            key={color}
-                                            className={`variant-btn ${selectedColor === color ? 'active' : ''}`}
-                                            onClick={() => setSelectedColor(color)}
-                                        >
-                                            {color}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    <div className="purchase-section">
-                        <div className="quantity-selector">
-                            <button onClick={() => setQuantity(Math.max(1, quantity - 1))}>-</button>
-                            <span>{quantity}</span>
-                            <button onClick={() => setQuantity(quantity + 1)}>+</button>
-                        </div>
-                        <button className="btn btn-primary add-to-cart-big" onClick={handleAddToCart}>
-                            <ShoppingBag size={20} />
-                            ADD TO CART
-                        </button>
-                        <button className="wishlist-btn-round">
-                            <Heart size={20} />
-                        </button>
-                    </div>
-
-                    <div className="product-features-small">
-                        <div className="feature-small">
-                            <Truck size={24} />
-                            <div>
-                                <h4>Free Shipping</h4>
-                                <p>On orders above ₹500</p>
-                            </div>
-                        </div>
-                        <div className="feature-small">
-                            <RotateCcw size={24} />
-                            <div>
-                                <h4>Easy Returns</h4>
-                                <p>30-day hassle-free return</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+  return (
+    <div className="product-details-page container section">
+      <div className="product-details-grid">
+        {/* Gallery */}
+        <div className="product-gallery">
+          <div className="main-image">
+            <img src={product.image} alt={product.name} className="w-100" />
+          </div>
         </div>
-    );
+
+        {/* Info */}
+        <div className="product-info">
+          <p className="product-category-label">{product.categoryName || product.category_name}</p>
+          <h1 className="h2">{product.name}</h1>
+
+          <div className="product-price-section">
+            {activeVariant?.price_override ? (
+              <span className="current-price">₹{Number(activeVariant.price_override).toLocaleString()}</span>
+            ) : product.on_sale ? (
+              <>
+                <span className="current-price">₹{Number(product.discount_price).toLocaleString()}</span>
+                <span className="old-price">₹{Number(product.price).toLocaleString()}</span>
+                <span className="sale-badge">SALE</span>
+              </>
+            ) : (
+              <span className="current-price">₹{Number(product.price).toLocaleString()}</span>
+            )}
+          </div>
+
+          <p className="product-description">{product.description}</p>
+
+          {/* Stock Badge */}
+          {product.stock === 0 ? (
+            <span className="out-of-stock-badge">Out of Stock</span>
+          ) : product.stock < 10 ? (
+            <p className="low-stock-text">⚠ Only {product.stock} left!</p>
+          ) : null}
+
+          {/* Variants */}
+          {product.variants?.length > 0 && (
+            <div className="product-variants">
+              <div className="variant-group">
+                <h3>Size</h3>
+                <div className="variant-options">
+                  {[...new Set(product.variants.map((v) => v.size))].map((size) => (
+                    <button
+                      key={size}
+                      className={`variant-btn ${selectedSize === size ? 'active' : ''}`}
+                      onClick={() => setSelectedSize(size)}
+                    >
+                      {size}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="variant-group">
+                <h3>Color</h3>
+                <div className="variant-options">
+                  {[...new Set(product.variants.map((v) => v.color))].map((color) => (
+                    <button
+                      key={color}
+                      className={`variant-btn ${selectedColor === color ? 'active' : ''}`}
+                      onClick={() => setSelectedColor(color)}
+                    >
+                      {color}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Purchase */}
+          <div className="purchase-section">
+            <div className="quantity-selector">
+              <button onClick={() => setQuantity(Math.max(1, quantity - 1))}>-</button>
+              <span>{quantity}</span>
+              <button onClick={() => setQuantity(quantity + 1)}>+</button>
+            </div>
+            <button
+              className="btn btn-primary add-to-cart-big"
+              onClick={handleAddToCart}
+              disabled={adding || product.stock === 0}
+            >
+              <ShoppingBag size={20} />
+              {adding ? 'ADDING...' : product.stock === 0 ? 'OUT OF STOCK' : 'ADD TO CART'}
+            </button>
+            <button className="wishlist-btn-round" onClick={handleWishlist}>
+              <Heart size={20} />
+            </button>
+          </div>
+
+          <div className="product-features-small">
+            <div className="feature-small">
+              <Truck size={24} />
+              <div><h4>Free Shipping</h4><p>On orders above ₹999</p></div>
+            </div>
+            <div className="feature-small">
+              <RotateCcw size={24} />
+              <div><h4>Easy Returns</h4><p>30-day hassle-free return</p></div>
+            </div>
+            <div className="feature-small">
+              <ShieldCheck size={24} />
+              <div><h4>Secure Payment</h4><p>100% safe transactions</p></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <Toast isOpen={toast.show} message={toast.message} type={toast.type} onClose={() => setToast({ ...toast, show: false })} />
+    </div>
+  );
 };
 
 export default ProductDetails;

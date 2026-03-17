@@ -86,6 +86,21 @@
     box-shadow: 0 15px 30px rgba(var(--primary-rgb), 0.3);
 }
 
+@media (max-width: 1024px) {
+    .promo-banner {
+        flex-direction: column;
+        text-align: center;
+        padding: 3rem;
+        gap: 2rem;
+    }
+
+    .promo-content {
+        align-items: center;
+        background: transparent;
+        padding: 0;
+    }
+}
+
 @media (max-width: 768px) {
     .promo-banner {
         height: 450px;

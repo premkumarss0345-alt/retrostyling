@@ -18,7 +18,8 @@
 }
 
 .success-icon-wrapper {
-    background: var(--white);
+    background: rgba(var(--primary-rgb), 0.1);
+    border: 2px solid var(--primary);
     width: 140px;
     height: 140px;
     border-radius: 50%;
@@ -58,7 +59,7 @@
 .success-title {
     font-size: 2.5rem;
     font-weight: 800;
-    color: var(--text);
+    color: var(--white);
     margin-bottom: 1rem;
     letter-spacing: -1px;
 }
@@ -91,13 +92,13 @@
 
 .btn-outline-hero {
     background: transparent;
-    border: 2px solid var(--text);
-    color: var(--text);
+    border: 2px solid var(--primary);
+    color: var(--primary);
 }
 
 .btn-outline-hero:hover {
-    background: var(--text);
-    color: var(--white);
+    background: var(--primary);
+    color: var(--black);
     transform: translateY(-3px);
 }
 

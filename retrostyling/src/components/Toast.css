@@ -2,7 +2,10 @@
     position: fixed;
     top: 100px;
     right: 20px;
-    background: var(--white);
+    background: rgba(20, 20, 21, 0.9);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    color: var(--white);
     padding: 1rem 1.5rem;
     border-radius: var(--radius);
     box-shadow: var(--shadow-lg);
@@ -29,7 +32,7 @@
 .toast-message {
     font-size: 0.9rem;
     font-weight: 600;
-    color: var(--text);
+    color: var(--white);
 }
 
 .toast-close {

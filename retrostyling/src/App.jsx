@@ -29,6 +29,8 @@ import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-route
 function AppContent() {
   const location = useLocation();
   const isAdmin = location.pathname.startsWith('/admin');
+  const isAuthPage = ['/login', '/signup'].includes(location.pathname);
+  const showNav = !isAdmin && !isAuthPage;
 
   useEffect(() => {
     // Force dark theme system-wide
@@ -38,7 +40,7 @@ function AppContent() {
 
   return ( // Added return statement for JSX
     <div className="app">
-      {!isAdmin && <Navbar />}
+      {showNav && <Navbar />}
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/shop" element={<Shop />} />
@@ -91,8 +93,8 @@ function AppContent() {
           </ProtectedRoute>
         } />
       </Routes>
-      {!isAdmin && <BottomNav />}
-      {!isAdmin && <Footer />}
+      {showNav && <BottomNav />}
+      {showNav && <Footer />}
     </div>
   );
 }

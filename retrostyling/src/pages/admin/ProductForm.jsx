@@ -250,7 +250,7 @@ const ProductForm = ({ product, onSave, onCancel, categories }) => {
                                 id="trackInventory"
                             />
                             <label htmlFor="trackInventory">Track Inventory</label>
-                        </div>
+                        </div>  
                     </div>
 
                     {/* 🔹 Variants Section */}

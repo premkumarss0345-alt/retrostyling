@@ -1,0 +1,76 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function isAdmin() {
+      return isSignedIn() && 
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || 
+         request.auth.token.email == 'admin@retrostylings.com');
+    }
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    match /products/{productId} {
+      allow read: if true;
+      allow update: if isSignedIn();
+      allow create, delete: if isAdmin();
+    }
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /heroSlides/{slideId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Users can read/write their own profile, admin can read all
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow write: if isOwner(userId) || isAdmin();
+    }
+
+    // Cart: Users manage their own cart
+    match /carts/{userId} {
+      allow read, write: if isOwner(userId);
+    }
+
+    // Wishlist: Users manage their own
+    match /wishlist/{userId} {
+      allow read, write: if isOwner(userId);
+    }
+    
+    // Addresses: Users manage their own delivery addresses
+    match /addresses/{userId} {
+      allow read, write: if isOwner(userId);
+    }
+
+    // Orders: Users read their own, create new. Admin manages all.
+    match /orders/{orderId} {
+      allow create: if isSignedIn();
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow update: if isAdmin();
+      allow delete: if false;
+    }
+
+    // Admin Stats
+    match /stats/{docId} {
+      allow read: if isAdmin();
+      allow write: if isAdmin();
+    }
+
+    // Contact & Newsletter
+    match /contacts/{id} {
+      allow create: if true;
+      allow read, write: if isAdmin();
+    }
+    match /newsletter/{id} {
+      allow create: if true;
+      allow read, write: if isAdmin();
+    }
+  }
+}
