@@ -36,12 +36,35 @@ pool.on('error', (err) => {
   console.error('🔥 Unexpected Pool Error:', err);
 });
 
+// Proactive Connection Test
+pool.getConnection((err, connection) => {
+  if (err) {
+    console.error('❌ DATABASE_CONNECTION_FAILED:', {
+      message: err.message,
+      code: err.code,
+      host: process.env.DB_HOST
+    });
+  } else {
+    console.log(`✅ Database connection established to ${process.env.DB_HOST}`);
+    connection.release();
+  }
+});
+
 // Use promise-based wrapper or just use the pool directly
 const db = pool.promise();
 const { authenticateToken, adminOnly } = require('./middleware/auth');
 const { sendOrderEmail } = require('./utils/email');
 
+// Validate essential environment variables
+const requiredEnv = ['DB_HOST', 'DB_USER', 'DB_PASS', 'DB_NAME'];
+const missingEnv = requiredEnv.filter(env => !process.env[env]);
+if (missingEnv.length > 0) {
+  console.error(`❌ CRITICAL: Missing environment variables: ${missingEnv.join(', ')}`);
+}
+
 console.log(`📡 Database pool initialized for ${process.env.DB_HOST}`);
+console.log(`🔑 Database User: ${process.env.DB_USER}`);
+
 
 // --- CART ROUTES ---
 app.post('/api/cart', authenticateToken, async (req, res, next) => {
@@ -63,7 +86,7 @@ app.post('/api/cart', authenticateToken, async (req, res, next) => {
 app.get('/api/cart', authenticateToken, async (req, res, next) => {
   try {
     const [items] = await db.query(`
-      SELECT c.*, p.name, p.price, p.discount_price, p.image, p.on_sale, v.size, v.color 
+      SELECT c.*, p.name, p.price, p.discount_price, p.image, p.on_sale, v.size, v.color, v.price_override 
       FROM cart c 
       JOIN products p ON c.product_id = p.id 
       LEFT JOIN product_variants v ON c.variant_id = v.id 
@@ -152,9 +175,18 @@ app.post('/api/orders/place', authenticateToken, async (req, res) => {
 
       const currentPrice = product[0].on_sale ? product[0].discount_price : product[0].price;
 
+      // Use variant price if override exists, else use product price
+      let itemPrice = currentPrice;
+      if (item.variant_id) {
+        const [variant] = await db.query('SELECT price_override FROM product_variants WHERE id = ?', [item.variant_id]);
+        if (variant.length > 0 && variant[0].price_override) {
+          itemPrice = variant[0].price_override;
+        }
+      }
+
       await db.query(
         'INSERT INTO order_items (order_id, product_id, variant_id, quantity, price) VALUES (?, ?, ?, ?, ?)',
-        [orderId, item.product_id, item.variant_id, item.quantity, currentPrice]
+        [orderId, item.product_id, item.variant_id, item.quantity, itemPrice]
       );
 
       // Reduce stock
@@ -311,14 +343,18 @@ app.get('/api/health', async (req, res) => {
             env_check: {
                 has_db_host: !!process.env.DB_HOST,
                 has_db_user: !!process.env.DB_USER,
+                has_db_pass: !!process.env.DB_PASS,
                 has_db_name: !!process.env.DB_NAME
             }
         });
     } catch (err) {
+        console.error('🏥 Health Check Failed:', err);
         res.status(500).json({ 
             status: 'error', 
             message: err.message,
-            code: err.code
+            code: err.code,
+            sqlMessage: err.sqlMessage,
+            hint: 'Check if database IP is whitelisted or credentials are correct'
         });
     }
 });
@@ -399,10 +435,20 @@ app.get('/api/products/:slug', async (req, res, next) => {
 // --- CATEGORY ROUTES ---
 app.get('/api/categories', async (req, res, next) => {
   try {
-    const [categories] = await db.query('SELECT * FROM categories');
+    const [categories] = await db.query('SELECT * FROM categories ORDER BY name ASC');
     res.json(categories);
   } catch (err) {
     next(err);
+  }
+});
+
+app.get('/api/admin/categories/:id', authenticateToken, adminOnly, async (req, res) => {
+  try {
+    const [category] = await db.query('SELECT * FROM categories WHERE id = ?', [req.params.id]);
+    if (category.length === 0) return res.status(404).json({ message: 'Category not found' });
+    res.json(category[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -434,7 +480,20 @@ app.post('/api/products', authenticateToken, adminOnly, async (req, res) => {
         name, slug, description, price, discount_price, stock, image, category_id, 
         on_sale, is_new, sku, _cost_price, _tax, _low_stock_threshold, _track_inventory, _status, _brand
     ]);
-    res.status(201).json({ message: 'Product created', id: result.insertId });
+    const productId = result.insertId;
+
+    // Insert variants if provided
+    const { variants } = req.body;
+    if (variants && Array.isArray(variants)) {
+        for (const v of variants) {
+            await db.query(
+                'INSERT INTO product_variants (product_id, size, color, stock, price_override) VALUES (?, ?, ?, ?, ?)',
+                [productId, v.size, v.color, v.stock || 0, v.price_override || null]
+            );
+        }
+    }
+
+    res.status(201).json({ message: 'Product created', id: productId });
   } catch (err) {
     if (err.code === 'ER_DUP_ENTRY') {
         return res.status(400).json({ error: 'SKU or Slug already exists' });
@@ -461,6 +520,19 @@ app.put('/api/products/:id', authenticateToken, adminOnly, async (req, res) => {
         on_sale, is_new, sku, cost_price, tax, low_stock_threshold, track_inventory, status, brand, 
         req.params.id
     ]);
+
+    // Update variants: simplicity approach is delete and re-insert
+    const { variants } = req.body;
+    if (variants && Array.isArray(variants)) {
+        await db.query('DELETE FROM product_variants WHERE product_id = ?', [req.params.id]);
+        for (const v of variants) {
+            await db.query(
+                'INSERT INTO product_variants (product_id, size, color, stock, price_override) VALUES (?, ?, ?, ?, ?)',
+                [req.params.id, v.size, v.color, v.stock || 0, v.price_override || null]
+            );
+        }
+    }
+
     res.json({ message: 'Product updated successfully' });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -494,6 +566,15 @@ app.put('/api/admin/categories/:id', authenticateToken, adminOnly, async (req, r
   try {
     await db.query('UPDATE categories SET name = ?, slug = ?, image = ? WHERE id = ?', [name, slug, image, req.params.id]);
     res.json({ message: 'Category updated' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/admin/categories/:id', authenticateToken, adminOnly, async (req, res) => {
+  try {
+    await db.query('DELETE FROM categories WHERE id = ?', [req.params.id]);
+    res.json({ message: 'Category deleted' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -611,7 +692,7 @@ app.delete('/api/admin/categories/:id', authenticateToken, adminOnly, async (req
 app.get('/api/admin/stats', authenticateToken, adminOnly, async (req, res) => {
   try {
     const [[{ totalUsers }]] = await db.query('SELECT COUNT(*) as totalUsers FROM users');
-    const [[{ totalProducts }]] = await db.query('SELECT COUNT(*) as totalProducts FROM products WHERE status="active"');
+    const [[{ totalProducts }]] = await db.query('SELECT COUNT(*) as totalProducts FROM products');
     const [[{ totalOrders }]] = await db.query('SELECT COUNT(*) as totalOrders FROM orders');
     const [[{ totalRevenue }]] = await db.query('SELECT SUM(total) as totalRevenue FROM orders WHERE payment_status = "paid"');
     
@@ -651,9 +732,9 @@ app.get('/api/admin/users', authenticateToken, adminOnly, async (req, res) => {
 app.get('/api/admin/orders', authenticateToken, adminOnly, async (req, res) => {
   try {
     const [results] = await db.query(`
-      SELECT o.*, u.name as customer_name 
+      SELECT o.*, COALESCE(u.name, 'Unknown Customer') as customer_name 
       FROM orders o 
-      JOIN users u ON o.user_id = u.id 
+      LEFT JOIN users u ON o.user_id = u.id 
       ORDER BY o.created_at DESC
     `);
     res.json(results);
@@ -679,6 +760,7 @@ app.use((err, req, res, next) => {
   const errorDetails = {
     message: err.message || 'Internal Server Error',
     code: err.code || 'UNKNOWN_CODE',
+    sqlMessage: err.sqlMessage,
     path: req.path,
     method: req.method
   };
@@ -689,7 +771,8 @@ app.use((err, req, res, next) => {
   res.status(500).json({ 
     error: errorDetails.message,
     code: errorDetails.code,
-    details: process.env.NODE_ENV === 'development' ? err.stack : undefined
+    sqlMessage: errorDetails.sqlMessage,
+    details: process.env.NODE_ENV === 'development' || true ? err.stack : undefined // Force stack for debugging now
   });
 });
 

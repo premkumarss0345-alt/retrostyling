@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import AdminLayout from './AdminLayout';
+import './Dashboard.css';
 import {
     Users,
     ShoppingBag,
@@ -58,13 +59,25 @@ const Dashboard = () => {
         fetch(`${API_BASE_URL}/api/admin/stats`, {
             headers: { 'Authorization': `Bearer ${token}` }
         })
-            .then(res => res.json())
+            .then(res => {
+                if (!res.ok) throw new Error('Server returned ' + res.status);
+                return res.json();
+            })
             .then(data => {
-                if (data.stats) setStats(data.stats);
-                if (data.recentOrders) setRecentOrders(data.recentOrders);
+                if (data.stats && typeof data.stats === 'object') {
+                    setStats(data.stats);
+                }
+                if (Array.isArray(data.recentOrders)) {
+                    setRecentOrders(data.recentOrders);
+                } else {
+                    setRecentOrders([]);
+                }
                 setLoading(false);
             })
-            .catch(err => console.error(err));
+            .catch(err => {
+                console.error('Error fetching dashboard stats:', err);
+                setLoading(false);
+            });
     }, []);
 
     const containerVariants = {
@@ -177,16 +190,28 @@ const Dashboard = () => {
                                             <stop offset="95%" stopColor="#4F46E5" stopOpacity={0} />
                                         </linearGradient>
                                     </defs>
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
-                                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} />
-                                    <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} />
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
+                                    <XAxis
+                                        dataKey="name"
+                                        axisLine={false}
+                                        tickLine={false}
+                                        tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 12 }}
+                                    />
+                                    <YAxis
+                                        axisLine={false}
+                                        tickLine={false}
+                                        tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 12 }}
+                                    />
                                     <Tooltip
                                         contentStyle={{
+                                            backgroundColor: '#1C1C1E',
                                             borderRadius: '12px',
-                                            border: '1px solid #e2e8f0',
-                                            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
-                                            padding: '12px'
+                                            border: '1px solid rgba(255,255,255,0.1)',
+                                            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.5)',
+                                            padding: '12px',
+                                            color: '#fff'
                                         }}
+                                        itemStyle={{ color: '#fff' }}
                                     />
                                     <Area type="monotone" dataKey="sales" stroke="#4F46E5" strokeWidth={3} fillOpacity={1} fill="url(#colorSales)" />
                                 </AreaChart>
@@ -200,7 +225,7 @@ const Dashboard = () => {
                             <a href="/admin/orders" className="view-all">View All</a>
                         </div>
                         <div className="activity-list">
-                            {recentOrders.length > 0 ? (
+                            {Array.isArray(recentOrders) && recentOrders.length > 0 ? (
                                 recentOrders.map(order => (
                                     <div key={order.id} className="activity-item">
                                         <div className="order-initials">

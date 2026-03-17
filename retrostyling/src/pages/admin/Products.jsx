@@ -42,9 +42,19 @@ const AdminProducts = () => {
         setView('form');
     };
 
-    const handleEdit = (product) => {
-        setEditingProduct(product);
-        setView('form');
+    const handleEdit = async (product) => {
+        // Fetch full details including variants before editing
+        try {
+            const res = await fetch(`${API_BASE_URL}/api/products/${product.slug}`);
+            const fullProduct = await res.json();
+            setEditingProduct(fullProduct);
+            setView('form');
+        } catch (err) {
+            console.error("Error fetching product details:", err);
+            // Fallback to basic product if fetch fails
+            setEditingProduct(product);
+            setView('form');
+        }
     };
 
     const handleDelete = (id) => {
@@ -71,7 +81,7 @@ const AdminProducts = () => {
 
         // Backend expects specific fields. We map/filter here.
         // Generate slug from name if not provided
-        const slug = formData.name.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, '');
+        const slug = formData.slug || formData.name.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, '');
 
         const payload = {
             name: formData.name,
@@ -86,11 +96,12 @@ const AdminProducts = () => {
             is_new: formData.is_new ? 1 : 0,
             sku: formData.sku,
             brand: formData.brand,
-            cost_price: Number(formData.costPrice) || 0,
+            cost_price: Number(formData.cost_price || formData.costPrice) || 0,
             tax: Number(formData.tax) || 0,
-            low_stock_threshold: Number(formData.lowStockAlert) || 5,
-            track_inventory: formData.trackInventory ? 1 : 0,
-            status: formData.status
+            low_stock_threshold: Number(formData.low_stock_threshold || formData.lowStockAlert) || 5,
+            track_inventory: formData.track_inventory || formData.trackInventory ? 1 : 0,
+            status: formData.status,
+            variants: formData.variants || [] // Include variants!
         };
 
         fetch(url, {

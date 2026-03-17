@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { API_BASE_URL } from '../config';
 import {
     Search,
@@ -9,14 +9,10 @@ import {
     Menu,
     X,
     ChevronDown,
-    Phone,
-    Facebook,
-    Instagram,
-    Twitter,
     LogOut,
-    Sun,
-    Moon
+    ArrowRight
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import './Navbar.css';
 
 const Navbar = () => {
@@ -26,51 +22,47 @@ const Navbar = () => {
     const [isScrolled, setIsScrolled] = useState(false);
     const [categories, setCategories] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
+    const [currentNotice, setCurrentNotice] = useState(0);
     const navigate = useNavigate();
+    const location = useLocation();
 
-    const user = JSON.parse(localStorage.getItem('user') || 'null');
-    const [isDarkMode, setIsDarkMode] = useState(false);
+    const notices = [
+        "🎉 FREE SHIPPING ON ALL ORDERS ABOVE ₹999",
+        "🔥 SUMMER CLEARANCE: UP TO 50% OFF",
+        "🚀 NEW DROPS EVERY FRIDAY - STAY TUNED",
+        "✨ USE CODE 'RETRO10' FOR EXTRA 10% DISCOUNT"
+    ];
 
     useEffect(() => {
-        const theme = localStorage.getItem('theme') || 'light';
-        if (theme === 'dark') {
-            setIsDarkMode(true);
-            document.documentElement.setAttribute('data-theme', 'dark');
-        } else {
-            setIsDarkMode(false);
-            document.documentElement.setAttribute('data-theme', 'light');
-        }
+        const timer = setInterval(() => {
+            setCurrentNotice((prev) => (prev + 1) % notices.length);
+        }, 5000);
+        return () => clearInterval(timer);
     }, []);
 
-    const toggleTheme = () => {
-        const newMode = !isDarkMode;
-        setIsDarkMode(newMode);
-        const themeValue = newMode ? 'dark' : 'light';
-        document.documentElement.setAttribute('data-theme', themeValue);
-        localStorage.setItem('theme', themeValue);
-    };
+    const user = JSON.parse(localStorage.getItem('user') || 'null');
 
     useEffect(() => {
-        const handleScroll = () => setIsScrolled(window.scrollY > 40);
+        const handleScroll = () => setIsScrolled(window.scrollY > 50);
         window.addEventListener('scroll', handleScroll);
         fetchCategories();
         return () => window.removeEventListener('scroll', handleScroll);
     }, []);
+
+    useEffect(() => {
+        setIsMenuOpen(false);
+        setIsSearchOpen(false);
+        setIsProfileOpen(false);
+    }, [location.pathname]);
 
     const fetchCategories = async () => {
         try {
             const res = await fetch(`${API_BASE_URL}/api/categories`);
             if (!res.ok) throw new Error('Failed to fetch categories');
             const data = await res.json();
-            if (Array.isArray(data)) {
-                setCategories(data);
-            } else {
-                console.error('Categories data is not an array:', data);
-                setCategories([]);
-            }
+            if (Array.isArray(data)) setCategories(data);
         } catch (err) {
             console.error('Error fetching categories:', err);
-            setCategories([]);
         }
     };
 
@@ -89,148 +81,226 @@ const Navbar = () => {
         navigate('/login');
     };
 
+    const navLinks = [
+        { name: 'HOME', path: '/' },
+        { name: 'SHOP', path: '/shop' },
+        { name: 'ABOUT', path: '/about' }
+    ];
+
     return (
-        <header className={`header-wrapper ${isScrolled ? 'sticky' : ''}`}>
-            {/* 🔝 Top Bar */}
-            <div className="top-bar">
-                <div className="container top-bar-content">
-                    <div className="top-bar-left">
-                        <span className="promo-text">🎉 Free Shipping on Orders Above ₹999</span>
-                    </div>
-                    <div className="top-bar-right">
-                        <a href="tel:+919876543210" className="contact-link">
-                            <Phone size={14} /> +91 98765 43210
-                        </a>
-                        <div className="social-links-nav">
-                            <Facebook size={14} />
-                            <Instagram size={14} />
-                            <Twitter size={14} />
+        <>
+            <header className={`header-wrapper ${isScrolled ? 'sticky' : ''}`}>
+                <div className="notice-bar">
+                    <AnimatePresence mode="wait">
+                        <motion.p
+                            key={currentNotice}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -10 }}
+                            transition={{ duration: 0.5 }}
+                        >
+                            {notices[currentNotice]}
+                        </motion.p>
+                    </AnimatePresence>
+                </div>
+
+                <div className="main-nav-container">
+                    <div className="container header-container">
+                        <button className="mobile-toggle mobile-only" onClick={() => setIsMenuOpen(true)} aria-label="Open Menu">
+                            <Menu size={24} />
+                        </button>
+
+                        <Link to="/" className="logo">
+                            RETRO<span>STYLINGS</span>
+                        </Link>
+
+                        <nav className="desktop-nav desktop-only">
+                            <ul className="nav-links">
+                                {navLinks.map((link) => (
+                                    <li key={link.name}>
+                                        <Link to={link.path}>
+                                            {link.name}
+                                            {location.pathname === link.path && (
+                                                <motion.div
+                                                    layoutId="active-nav"
+                                                    className="active-indicator"
+                                                    transition={{ type: 'spring', duration: 0.6 }}
+                                                />
+                                            )}
+                                        </Link>
+                                    </li>
+                                ))}
+                                <li className="dropdown-parent">
+                                    <span className="nav-item">
+                                        CATEGORIES <ChevronDown size={14} />
+                                    </span>
+                                    <div className="mega-dropdown">
+                                        <div className="mega-grid">
+                                            <div className="mega-column">
+                                                <h4>Collections</h4>
+                                                <ul>
+                                                    {categories.map(cat => (
+                                                        <li key={cat.id}>
+                                                            <Link to={`/category/${cat.slug}`}>{cat.name}</Link>
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                            <div className="mega-column">
+                                                <h4>Highlights</h4>
+                                                <ul>
+                                                    <li><Link to="/shop?sale=true" style={{ color: 'var(--primary)' }}>Clearance Sale</Link></li>
+                                                    <li><Link to="/shop?new=true">New Arrivals</Link></li>
+                                                    <li><Link to="/shop?popular=true">Best Sellers</Link></li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </li>
+                            </ul>
+                        </nav>
+
+                        <div className="header-actions">
+                            <button className="action-btn desktop-only" onClick={() => setIsSearchOpen(true)}>
+                                <Search size={20} />
+                            </button>
+
+                            <Link to="/wishlist" className="action-btn">
+                                <Heart size={20} />
+                                <span className="dot"></span>
+                            </Link>
+
+                            <Link to="/cart" className="action-btn">
+                                <ShoppingBag size={20} />
+                                <span className="cart-count">3</span>
+                            </Link>
+
+                            <div className="user-profile">
+                                {user ? (
+                                    <div className="profile-container" onClick={() => setIsProfileOpen(!isProfileOpen)}>
+                                        <div className="nav-avatar">{user.name.charAt(0)}</div>
+                                        <AnimatePresence>
+                                            {isProfileOpen && (
+                                                <motion.div
+                                                    className="user-menu"
+                                                    initial={{ opacity: 0, y: 15 }}
+                                                    animate={{ opacity: 1, y: 0 }}
+                                                    exit={{ opacity: 0, y: 15 }}
+                                                >
+                                                    <div className="user-menu-header">
+                                                        <p>Connected as</p>
+                                                        <strong>{user.name}</strong>
+                                                    </div>
+                                                    <Link to="/profile">My Orders</Link>
+                                                    <Link to="/profile">Dashboard</Link>
+                                                    {user.role === 'admin' && <Link to="/admin" className="admin-tag">Access Hub</Link>}
+                                                    <button onClick={handleLogout} className="logout-btn">
+                                                        <LogOut size={16} /> SIGN OUT
+                                                    </button>
+                                                </motion.div>
+                                            )}
+                                        </AnimatePresence>
+                                    </div>
+                                ) : (
+                                    <Link to="/login" className="action-btn" title="Sign In">
+                                        <User size={20} />
+                                    </Link>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
+            </header>
 
-            {/* 🧭 Main Navigation */}
-            <div className="main-header">
-                <div className="container header-container">
+            <AnimatePresence>
+                {isMenuOpen && (
+                    <>
+                        <motion.div
+                            className="menu-overlay"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => setIsMenuOpen(false)}
+                        />
+                        <motion.div
+                            className="mobile-drawer"
+                            initial={{ x: '-100%' }}
+                            animate={{ x: 0 }}
+                            exit={{ x: '-100%' }}
+                            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                        >
+                            <div className="drawer-header">
+                                <Link to="/" className="logo">RETRO<span>STYLINGS</span></Link>
+                                <button onClick={() => setIsMenuOpen(false)}><X size={28} /></button>
+                            </div>
 
-                    {/* Left: Logo */}
-                    <Link to="/" className="logo">
-                        RETROSTYLINGS
-                    </Link>
+                            <div className="drawer-search">
+                                <form onSubmit={handleSearch}>
+                                    <Search size={18} />
+                                    <input
+                                        type="text"
+                                        placeholder="Type to search..."
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                    />
+                                </form>
+                            </div>
 
-                    {/* Center: Links */}
-                    <nav className={`navbar ${isMenuOpen ? 'open' : ''}`}>
-                        <ul className="navbar-list">
-                            <li><Link to="/" onClick={() => setIsMenuOpen(false)}>HOME</Link></li>
-                            <li><Link to="/shop" onClick={() => setIsMenuOpen(false)}>SHOP</Link></li>
-                            <li className="dropdown-root">
-                                <span className="nav-link">
-                                    CATEGORIES <ChevronDown size={14} />
-                                </span>
-                                <ul className="dropdown-menu">
+                            <nav className="mobile-nav">
+                                <ul>
+                                    {navLinks.map(link => (
+                                        <li key={link.name}><Link to={link.path}>{link.name}</Link></li>
+                                    ))}
+                                    <li className="mobile-cat-header">Product Categories</li>
                                     {categories.map(cat => (
-                                        <li key={cat.id}>
-                                            <Link to={`/category/${cat.slug}`} onClick={() => setIsMenuOpen(false)}>
-                                                {cat.name}
-                                            </Link>
+                                        <li key={cat.id} className="mobile-cat-item">
+                                            <Link to={`/category/${cat.slug}`}>{cat.name}</Link>
                                         </li>
                                     ))}
-                                    <li><hr /></li>
-                                    <li><Link to="/shop?sale=true" onClick={() => setIsMenuOpen(false)} className="sale-link">SALE</Link></li>
-                                    <li><Link to="/shop?new=true" onClick={() => setIsMenuOpen(false)} className="new-link">NEW ARRIVALS</Link></li>
+                                    <li><Link to="/contact">Support</Link></li>
                                 </ul>
-                            </li>
-                            <li><Link to="/about" onClick={() => setIsMenuOpen(false)}>ABOUT</Link></li>
-                            <li><Link to="/blog" onClick={() => setIsMenuOpen(false)}>BLOG</Link></li>
-                            <li><Link to="/contact" onClick={() => setIsMenuOpen(false)}>CONTACT</Link></li>
-                        </ul>
-                    </nav>
+                            </nav>
+                        </motion.div>
+                    </>
+                )}
+            </AnimatePresence>
 
-                    {/* Right: User Actions */}
-                    <div className="header-actions">
-                        <button
-                            className="action-icon-btn"
-                            onClick={() => setIsSearchOpen(!isSearchOpen)}
-                            title="Search"
-                        >
-                            <Search size={22} />
+            <AnimatePresence>
+                {isSearchOpen && (
+                    <motion.div
+                        className="full-search-overlay"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                    >
+                        <button className="close-search-btn" onClick={() => setIsSearchOpen(false)}>
+                            <X size={32} />
                         </button>
-
-                        <button
-                            className="action-icon-btn theme-toggle"
-                            onClick={toggleTheme}
-                            title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
-                        >
-                            {isDarkMode ? <Sun size={22} /> : <Moon size={22} />}
-                        </button>
-
-                        <Link to="/wishlist" className="action-icon-btn" title="Wishlist">
-                            <div className="icon-badge-root">
-                                <Heart size={22} />
-                                <span className="badge-count">2</span>
-                            </div>
-                        </Link>
-
-                        <Link to="/cart" className="action-icon-btn" title="Cart">
-                            <div className="icon-badge-root">
-                                <ShoppingBag size={22} />
-                                <span className="badge-count green">3</span>
-                            </div>
-                        </Link>
-
-                        <div className="user-profile-root">
-                            {user ? (
-                                <div className="profile-trigger" onClick={() => setIsProfileOpen(!isProfileOpen)}>
-                                    <div className="avatar-small">{user.name.charAt(0)}</div>
-                                    <ChevronDown size={14} />
-                                    {isProfileOpen && (
-                                        <ul className="profile-dropdown">
-                                            <li className="dropdown-header">Hello, {user.name}</li>
-                                            <li><Link to="/profile" onClick={() => setIsProfileOpen(false)}>My Orders</Link></li>
-                                            <li><Link to="/profile" onClick={() => setIsProfileOpen(false)}>Profile Details</Link></li>
-                                            {user.role === 'admin' && <li><Link to="/admin" onClick={() => setIsProfileOpen(false)}>Admin Panel</Link></li>}
-                                            <li><hr /></li>
-                                            <li onClick={handleLogout} className="logout-btn">
-                                                <LogOut size={16} /> Logout
-                                            </li>
-                                        </ul>
-                                    )}
+                        <div className="search-container">
+                            <form onSubmit={handleSearch}>
+                                <input
+                                    type="text"
+                                    placeholder="EXPLORE RETRO..."
+                                    autoFocus
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                />
+                                <button type="submit">SEARCH NOW</button>
+                            </form>
+                            <div className="search-hints">
+                                <p>Popular Tags</p>
+                                <div className="hints-grid">
+                                    <span>Streetwear</span>
+                                    <span>Vintage</span>
+                                    <span>Accessories</span>
+                                    <span>Summer Sale</span>
                                 </div>
-                            ) : (
-                                <Link to="/login" className="login-link-nav">
-                                    <User size={22} />
-                                    <span>Sign In</span>
-                                </Link>
-                            )}
+                            </div>
                         </div>
-
-                        <button className="menu-toggle-btn" onClick={() => setIsMenuOpen(!isMenuOpen)}>
-                            {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            {/* 🔍 Search Overlay */}
-            <div className={`search-overlay ${isSearchOpen ? 'active' : ''}`}>
-                <div className="container">
-                    <form className="search-overlay-form" onSubmit={handleSearch}>
-                        <input
-                            type="text"
-                            placeholder="SEARCH FOR PRODUCTS..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            autoFocus={isSearchOpen}
-                        />
-                        <button type="submit"><Search size={24} /></button>
-                        <button type="button" onClick={() => setIsSearchOpen(false)} className="close-search">
-                            <X size={24} />
-                        </button>
-                    </form>
-                </div>
-            </div>
-        </header >
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </>
     );
 };
 

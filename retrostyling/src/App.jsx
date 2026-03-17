@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
 import Navbar from './components/Navbar';
 import BottomNav from './components/BottomNav';
 import Footer from './components/Footer';
@@ -20,14 +20,23 @@ import AdminProducts from './pages/admin/Products';
 import AdminOrders from './pages/admin/Orders';
 import AdminUsers from './pages/admin/Users';
 import AdminHeroSlides from './pages/admin/HeroSlides';
+import AdminSettings from './pages/admin/Settings';
+import AdminCategories from './pages/admin/Categories';
 import ProtectedRoute from './components/ProtectedRoute';
 import './App.css';
+import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom'; // Added useLocation and Router
 
 function AppContent() {
   const location = useLocation();
   const isAdmin = location.pathname.startsWith('/admin');
 
-  return (
+  useEffect(() => {
+    // Force dark theme system-wide
+    document.documentElement.setAttribute('data-theme', 'dark');
+    localStorage.setItem('theme', 'dark');
+  }, []);
+
+  return ( // Added return statement for JSX
     <div className="app">
       {!isAdmin && <Navbar />}
       <Routes>
@@ -56,6 +65,11 @@ function AppContent() {
             <AdminProducts />
           </ProtectedRoute>
         } />
+        <Route path="/admin/categories" element={
+          <ProtectedRoute adminOnly={true}>
+            <AdminCategories />
+          </ProtectedRoute>
+        } />
         <Route path="/admin/orders" element={
           <ProtectedRoute adminOnly={true}>
             <AdminOrders />
@@ -69,6 +83,11 @@ function AppContent() {
         <Route path="/admin/hero-slides" element={
           <ProtectedRoute adminOnly={true}>
             <AdminHeroSlides />
+          </ProtectedRoute>
+        } />
+        <Route path="/admin/settings" element={
+          <ProtectedRoute adminOnly={true}>
+            <AdminSettings />
           </ProtectedRoute>
         } />
       </Routes>

@@ -1,16 +1,20 @@
 .product-card {
     position: relative;
-    background: var(--bg-soft);
-    border: var(--border);
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.05);
     border-radius: var(--radius);
     overflow: hidden;
     transition: var(--transition);
+    height: 100%;
+    display: flex;
+    flex-direction: column;
 }
 
 .product-card:hover {
-    transform: translateY(-8px);
+    transform: translateY(-10px);
     border-color: rgba(var(--primary-rgb), 0.3);
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6), 0 0 20px rgba(var(--primary-rgb), 0.1);
+    background: rgba(255, 255, 255, 0.04);
 }
 
 .card-banner {
@@ -33,54 +37,55 @@
 
 .card-badge {
     position: absolute;
-    top: 1rem;
-    left: 1rem;
-    padding: 0.4rem 0.8rem;
+    top: 1.25rem;
+    left: 1.25rem;
+    padding: 0.5rem 1rem;
     border-radius: var(--radius-sm);
-    font-size: 0.75rem;
+    font-size: 0.8rem;
     font-weight: 800;
-    color: var(--black);
     text-transform: uppercase;
     z-index: 10;
-    letter-spacing: 0.05em;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    letter-spacing: 1px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
 }
 
 .card-badge.red {
     background: var(--error);
-    color: white;
+    color: var(--white);
 }
 
 .card-badge.green {
     background: var(--primary);
+    color: var(--black);
 }
 
 .card-actions {
     position: absolute;
     bottom: -80px;
-    left: 1rem;
-    right: 1rem;
+    left: 1.25rem;
+    right: 1.25rem;
     display: flex;
-    gap: 0.5rem;
+    gap: 0.75rem;
     transition: var(--transition);
     z-index: 20;
 }
 
 .product-card:hover .card-actions {
-    bottom: 1rem;
+    bottom: 1.25rem;
 }
 
 .card-action-btn {
-    background: var(--glass);
-    backdrop-filter: blur(8px);
-    color: var(--text-main);
-    border: var(--glass-border);
-    width: 44px;
-    height: 44px;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+    color: var(--white);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    width: 50px;
+    height: 50px;
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: var(--radius-sm);
+    border-radius: 12px;
     transition: var(--transition);
 }
 
@@ -88,37 +93,39 @@
     background: var(--primary);
     color: var(--black);
     border-color: var(--primary);
-    transform: translateY(-3px);
+    transform: scale(1.1);
 }
 
 .cart-btn {
     flex: 1;
     gap: 0.75rem;
-    padding: 0 1.25rem;
-    width: auto;
+    border-radius: 12px;
 }
 
 .cart-btn p {
-    font-size: 0.85rem;
+    font-size: 0.9rem;
     font-weight: 800;
     text-transform: uppercase;
+    letter-spacing: 1px;
 }
 
 .card-content {
-    padding: 1.5rem;
+    padding: 1.75rem;
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
+    flex: 1;
+    background: linear-gradient(to bottom, transparent, rgba(0, 0, 0, 0.2));
 }
 
 .card-title {
-    font-size: 1rem;
+    font-size: 1.15rem;
     font-weight: 700;
-    letter-spacing: -0.01em;
+    margin-bottom: 0.25rem;
 }
 
 .card-title a {
-    color: var(--text-main);
+    color: var(--white);
     display: -webkit-box;
     -webkit-line-clamp: 1;
     line-clamp: 1;
@@ -129,26 +136,37 @@
 .card-price {
     display: flex;
     align-items: baseline;
-    gap: 0.75rem;
+    gap: 1rem;
 }
 
-.main-price,
 .discount-price {
-    font-size: 1.25rem;
+    font-size: 1.5rem;
     font-weight: 800;
     color: var(--primary);
 }
 
+.main-price {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--white);
+}
+
 .original-price {
-    font-size: 0.9rem;
+    font-size: 1rem;
     color: var(--text-muted);
     text-decoration: line-through;
-    font-weight: 600;
 }
 
 @media (max-width: 768px) {
     .card-actions {
         bottom: 1rem;
+        left: 0.75rem;
+        right: 0.75rem;
+    }
+
+    .card-action-btn {
+        width: 44px;
+        height: 44px;
     }
 
     .product-card:hover {

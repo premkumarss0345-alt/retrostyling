@@ -252,6 +252,97 @@ const ProductForm = ({ product, onSave, onCancel, categories }) => {
                             <label htmlFor="trackInventory">Track Inventory</label>
                         </div>
                     </div>
+
+                    {/* 🔹 Variants Section */}
+                    <div className="form-section full-width">
+                        <div className="section-header-flex">
+                            <h3>Product Variants</h3>
+                            <button
+                                type="button"
+                                className="btn-add-variant"
+                                onClick={() => {
+                                    const newVariant = { size: '', color: '', stock: 0, price_override: '' };
+                                    setFormData(prev => ({
+                                        ...prev,
+                                        variants: [...(prev.variants || []), newVariant]
+                                    }));
+                                }}
+                            >
+                                + Add Variant
+                            </button>
+                        </div>
+
+                        <div className="variants-list">
+                            {(formData.variants || []).map((variant, index) => (
+                                <div key={index} className="variant-row">
+                                    <div className="form-group">
+                                        <label>Size</label>
+                                        <input
+                                            type="text"
+                                            placeholder="S, M, L..."
+                                            value={variant.size}
+                                            onChange={(e) => {
+                                                const updated = [...formData.variants];
+                                                updated[index].size = e.target.value;
+                                                setFormData(prev => ({ ...prev, variants: updated }));
+                                            }}
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Color</label>
+                                        <input
+                                            type="text"
+                                            placeholder="Black, Blue..."
+                                            value={variant.color}
+                                            onChange={(e) => {
+                                                const updated = [...formData.variants];
+                                                updated[index].color = e.target.value;
+                                                setFormData(prev => ({ ...prev, variants: updated }));
+                                            }}
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Variant Stock</label>
+                                        <input
+                                            type="number"
+                                            value={variant.stock}
+                                            onChange={(e) => {
+                                                const updated = [...formData.variants];
+                                                updated[index].stock = e.target.value;
+                                                setFormData(prev => ({ ...prev, variants: updated }));
+                                            }}
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Price Override (₹)</label>
+                                        <input
+                                            type="number"
+                                            placeholder="Leave empty for base price"
+                                            value={variant.price_override}
+                                            onChange={(e) => {
+                                                const updated = [...formData.variants];
+                                                updated[index].price_override = e.target.value;
+                                                setFormData(prev => ({ ...prev, variants: updated }));
+                                            }}
+                                        />
+                                    </div>
+                                    <button
+                                        type="button"
+                                        className="btn-delete-variant"
+                                        onClick={() => {
+                                            const updated = formData.variants.filter((_, i) => i !== index);
+                                            setFormData(prev => ({ ...prev, variants: updated }));
+                                        }}
+                                    >
+                                        <X size={18} />
+                                    </button>
+                                </div>
+                            ))}
+                            {(!formData.variants || formData.variants.length === 0) && (
+                                <p className="text-dim">No variants added. Product will be sold as a single unit.</p>
+                            )}
+                        </div>
+                    </div>
                 </div>
 
                 <div className="form-actions-bar">

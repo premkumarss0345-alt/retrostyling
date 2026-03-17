@@ -12,7 +12,8 @@ import {
     Menu,
     X,
     Settings,
-    ChevronRight
+    ChevronRight,
+    Layers
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import './AdminLayout.css';
@@ -31,6 +32,7 @@ const AdminLayout = ({ children }) => {
     const navItems = [
         { path: '/admin', label: 'Dashboard', icon: LayoutDashboard },
         { path: '/admin/products', label: 'Products', icon: Shirt },
+        { path: '/admin/categories', label: 'Categories', icon: Layers },
         { path: '/admin/orders', label: 'Orders', icon: ShoppingBag },
         { path: '/admin/users', label: 'Users', icon: Users },
         { path: '/admin/hero-slides', label: 'Hero Slides', icon: Globe },

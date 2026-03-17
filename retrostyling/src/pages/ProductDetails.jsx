@@ -33,10 +33,44 @@ const ProductDetails = () => {
         }
     };
 
+    const handleAddToCart = async () => {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            alert("Please login to add items to cart");
+            return;
+        }
+
+        const activeVariant = product.variants?.find(v => v.size === selectedSize && v.color === selectedColor);
+
+        try {
+            const res = await fetch(`${API_BASE_URL}/api/cart`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    productId: product.id,
+                    variantId: activeVariant?.id,
+                    quantity: quantity
+                })
+            });
+            if (res.ok) {
+                alert("Successfully added to cart!");
+            }
+        } catch (err) {
+            console.error("Cart error:", err);
+        }
+    };
+
     if (loading) return <div className="container section">Loading product details...</div>;
     if (!product) return <div className="container section">Product not found.</div>;
 
-    const mainPrice = Number(product.on_sale) ? product.discount_price : product.price;
+    // Find the currently selected variant object
+    const activeVariant = product.variants?.find(v => v.size === selectedSize && v.color === selectedColor);
+
+    // Determine the display price (variant override if exists, else base product price)
+    const displayPrice = activeVariant?.price_override || (Number(product.on_sale) ? product.discount_price : product.price);
 
     return (
         <div className="product-details-page container section">
@@ -52,14 +86,16 @@ const ProductDetails = () => {
                     <h1 className="h2">{product.name}</h1>
 
                     <div className="product-price-section">
-                        {Number(product.on_sale) ? (
+                        {activeVariant?.price_override ? (
+                            <span className="current-price">₹{Number(activeVariant.price_override).toLocaleString()}</span>
+                        ) : Number(product.on_sale) ? (
                             <>
-                                <span className="current-price">₹{Number(product.discount_price).toFixed(2)}</span>
-                                <span className="old-price">₹{Number(product.price).toFixed(2)}</span>
+                                <span className="current-price">₹{Number(product.discount_price).toLocaleString()}</span>
+                                <span className="old-price">₹{Number(product.price).toLocaleString()}</span>
                                 <span className="sale-badge">SALE</span>
                             </>
                         ) : (
-                            <span className="current-price">₹{Number(product.price).toFixed(2)}</span>
+                            <span className="current-price">₹{Number(product.price).toLocaleString()}</span>
                         )}
                     </div>
 
@@ -105,7 +141,7 @@ const ProductDetails = () => {
                             <span>{quantity}</span>
                             <button onClick={() => setQuantity(quantity + 1)}>+</button>
                         </div>
-                        <button className="btn btn-primary add-to-cart-big">
+                        <button className="btn btn-primary add-to-cart-big" onClick={handleAddToCart}>
                             <ShoppingBag size={20} />
                             ADD TO CART
                         </button>

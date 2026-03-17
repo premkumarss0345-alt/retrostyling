@@ -8,15 +8,28 @@ const AdminUsers = () => {
 
     useEffect(() => {
         const token = localStorage.getItem('token');
+        setLoading(true);
         fetch(`${API_BASE_URL}/api/admin/users`, {
             headers: { 'Authorization': `Bearer ${token}` }
         })
-            .then(res => res.json())
+            .then(res => {
+                if (!res.ok) throw new Error('Server returned ' + res.status);
+                return res.json();
+            })
             .then(data => {
-                setUsers(data);
+                if (Array.isArray(data)) {
+                    setUsers(data);
+                } else {
+                    console.error('Expected array of users, got:', data);
+                    setUsers([]);
+                }
                 setLoading(false);
             })
-            .catch(err => console.error(err));
+            .catch(err => {
+                console.error('Error fetching users:', err);
+                setUsers([]);
+                setLoading(false);
+            });
     }, []);
 
     return (
@@ -37,7 +50,7 @@ const AdminUsers = () => {
                         </tr>
                     </thead>
                     <tbody>
-                        {users.map(user => (
+                        {Array.isArray(users) && users.map(user => (
                             <tr key={user.id}>
                                 <td>#{user.id}</td>
                                 <td>{user.name}</td>

@@ -12,15 +12,28 @@ const AdminOrders = () => {
 
     const fetchOrders = () => {
         const token = localStorage.getItem('token');
+        setLoading(true);
         fetch(`${API_BASE_URL}/api/admin/orders`, {
             headers: { 'Authorization': `Bearer ${token}` }
         })
-            .then(res => res.json())
+            .then(res => {
+                if (!res.ok) throw new Error('Server returned ' + res.status);
+                return res.json();
+            })
             .then(data => {
-                setOrders(data);
+                if (Array.isArray(data)) {
+                    setOrders(data);
+                } else {
+                    console.error('Expected array of orders, got:', data);
+                    setOrders([]);
+                }
                 setLoading(false);
             })
-            .catch(err => console.error(err));
+            .catch(err => {
+                console.error('Error fetching orders:', err);
+                setOrders([]);
+                setLoading(false);
+            });
     };
 
     const updateStatus = (id, status) => {
@@ -54,7 +67,7 @@ const AdminOrders = () => {
                         </tr>
                     </thead>
                     <tbody>
-                        {orders.map(order => (
+                        {Array.isArray(orders) && orders.map(order => (
                             <tr key={order.id}>
                                 <td>#{order.id}</td>
                                 <td>{order.customer_name}</td>
