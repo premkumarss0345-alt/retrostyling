@@ -1,186 +1,246 @@
 .product-details-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 4rem;
+    grid-template-columns: 1.2fr 1fr;
+    gap: clamp(2rem, 8vw, 6rem);
     align-items: start;
+    padding: 120px 0;
 }
 
 .main-image {
-    border-radius: 8px;
+    border-radius: var(--radius);
     overflow: hidden;
-    box-shadow: var(--shadow);
+    border: var(--border);
+    aspect-ratio: 4 / 5;
+    background: var(--bg-soft);
+}
+
+.main-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
 }
 
 .product-category-label {
     color: var(--primary);
-    font-weight: 700;
-    font-size: 0.85rem;
-    letter-spacing: 2px;
-    margin-bottom: 0.5rem;
+    font-weight: 800;
+    font-size: 0.9rem;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    margin-bottom: 1.5rem;
+    display: inline-block;
+}
+
+.product-info h1 {
+    font-size: clamp(2.5rem, 6vw, 4rem);
+    line-height: 1;
+    margin-bottom: 2rem;
+    text-transform: uppercase;
+    letter-spacing: -0.01em;
 }
 
 .product-price-section {
     display: flex;
-    align-items: center;
+    align-items: baseline;
     gap: 1.5rem;
-    margin: 1.5rem 0;
+    margin-bottom: 3rem;
+    padding-bottom: 3rem;
+    border-bottom: var(--border);
 }
 
 .current-price {
-    font-size: 2rem;
-    font-weight: 700;
-    color: var(--secondary);
+    font-size: 2.5rem;
+    font-weight: 900;
+    color: var(--primary);
 }
 
 .old-price {
-    font-size: 1.4rem;
-    color: #bbb;
+    font-size: 1.5rem;
+    color: var(--text-muted);
     text-decoration: line-through;
+    font-weight: 600;
 }
 
 .sale-badge {
-    background: var(--red);
-    color: white;
-    padding: 0.3rem 0.8rem;
-    border-radius: 4px;
+    background: var(--error);
+    color: var(--white);
+    padding: 0.5rem 1rem;
+    border-radius: var(--radius-sm);
     font-size: 0.75rem;
-    font-weight: 700;
+    font-weight: 800;
+    text-transform: uppercase;
 }
 
 .product-description {
-    color: var(--text-light);
+    color: var(--text-dim);
     line-height: 1.8;
-    margin-bottom: 2.5rem;
+    margin-bottom: 4rem;
+    font-size: 1.1rem;
+    font-weight: 500;
 }
 
 .variant-group {
-    margin-bottom: 2rem;
+    margin-bottom: 3rem;
 }
 
 .variant-group h3 {
-    font-size: 0.9rem;
-    font-weight: 700;
-    margin-bottom: 1rem;
-    letter-spacing: 1px;
+    font-size: 0.85rem;
+    font-weight: 800;
+    margin-bottom: 1.25rem;
+    text-transform: uppercase;
+    color: var(--white);
+    letter-spacing: 0.1em;
 }
 
 .variant-options {
     display: flex;
     gap: 1rem;
+    flex-wrap: wrap;
 }
 
 .variant-btn {
-    padding: 0.6rem 1.2rem;
-    border: 1px solid var(--border);
-    background: white;
-    border-radius: 4px;
-    font-family: inherit;
+    padding: 1rem 2rem;
+    border: 1px solid var(--border-bright);
+    background: var(--bg-soft);
+    color: var(--text-main);
+    border-radius: var(--radius-sm);
+    font-weight: 700;
     font-size: 0.9rem;
-    font-weight: 600;
-    cursor: pointer;
     transition: var(--transition);
 }
 
+.variant-btn:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
 .variant-btn.active {
-    border-color: var(--secondary);
-    background: var(--secondary);
-    color: white;
+    background: var(--primary);
+    border-color: var(--primary);
+    color: var(--black);
 }
 
 .purchase-section {
     display: flex;
     align-items: center;
-    gap: 1.5rem;
-    margin-top: 3rem;
-    padding-top: 2rem;
-    border-top: 1px solid var(--border);
+    gap: 2rem;
+    margin-top: 4rem;
 }
 
 .quantity-selector {
     display: flex;
     align-items: center;
-    border: 1px solid var(--border);
-    border-radius: 4px;
+    background: var(--bg-soft);
+    border: 1px solid var(--border-bright);
+    border-radius: var(--radius-sm);
+    height: 64px;
 }
 
 .quantity-selector button {
-    padding: 0.8rem 1.2rem;
+    width: 60px;
+    height: 100%;
     border: none;
     background: none;
-    font-size: 1.2rem;
-    cursor: pointer;
+    font-size: 1.52rem;
+    color: var(--white);
+    transition: var(--transition);
+}
+
+.quantity-selector button:hover {
+    color: var(--primary);
 }
 
 .quantity-selector span {
     padding: 0 1rem;
-    font-weight: 700;
+    font-weight: 800;
+    font-size: 1.25rem;
 }
 
 .add-to-cart-big {
     flex: 1;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 0.8rem;
-    padding: 1rem !important;
+    height: 64px;
+    font-weight: 800;
+    letter-spacing: 0.1em;
 }
 
 .wishlist-btn-round {
-    width: 50px;
-    height: 50px;
+    width: 64px;
+    height: 64px;
     border-radius: 50%;
-    border: 1px solid var(--border);
+    border: var(--border);
     display: flex;
     align-items: center;
     justify-content: center;
-    background: white;
-    color: var(--secondary);
-    cursor: pointer;
+    background: var(--bg-soft);
+    color: var(--white);
     transition: var(--transition);
 }
 
 .wishlist-btn-round:hover {
-    background: var(--red);
-    color: white;
-    border-color: var(--red);
+    background: var(--error);
+    color: var(--white);
+    border-color: var(--error);
 }
 
 .product-features-small {
-    margin-top: 3rem;
+    margin-top: 5rem;
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 2rem;
+    gap: 3rem;
+    padding: 4rem;
+    background: var(--bg-soft);
+    border-radius: var(--radius);
+    border: var(--border);
 }
 
 .feature-small {
     display: flex;
     align-items: center;
-    gap: 1rem;
+    gap: 1.5rem;
+}
+
+.feature-small svg {
+    color: var(--primary);
+    flex-shrink: 0;
 }
 
 .feature-small h4 {
-    font-size: 0.9rem;
-    margin-bottom: 0.1rem;
+    font-size: 1rem;
+    font-weight: 800;
+    margin-bottom: 0.25rem;
+    color: var(--white);
 }
 
 .feature-small p {
-    font-size: 0.8rem;
-    color: var(--text-light);
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    font-weight: 500;
 }
 
-@media (max-width: 992px) {
+@media (max-width: 1024px) {
     .product-details-grid {
         grid-template-columns: 1fr;
-        gap: 2.5rem;
+        padding: 60px 0;
     }
 
+    .main-image {
+        max-width: 600px;
+        margin: 0 auto;
+    }
+}
+
+@media (max-width: 768px) {
     .purchase-section {
-        flex-wrap: wrap;
+        flex-direction: column;
+        align-items: stretch;
     }
 
-    .add-to-cart-big {
+    .wishlist-btn-round {
         width: 100%;
-        order: 3;
-        flex: none;
+        border-radius: var(--radius-sm);
+    }
+
+    .product-features-small {
+        grid-template-columns: 1fr;
+        padding: 2rem;
     }
 }

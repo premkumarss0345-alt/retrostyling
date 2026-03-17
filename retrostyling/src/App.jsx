@@ -14,6 +14,7 @@ import OrderSuccess from './pages/OrderSuccess';
 import About from './pages/About';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
+import Contact from './pages/Contact';
 import AdminDashboard from './pages/admin/Dashboard';
 import AdminProducts from './pages/admin/Products';
 import AdminOrders from './pages/admin/Orders';
@@ -42,7 +43,7 @@ function AppContent() {
         <Route path="/orders" element={<div className="container section">My Orders (Combined in Profile)</div>} />
         <Route path="/about" element={<About />} />
         <Route path="/blog" element={<div className="container section"><h1>Our Blog</h1><p>Stay tuned for the latest fashion trends and updates.</p></div>} />
-        <Route path="/contact" element={<div className="container section"><h1>Contact Us</h1><p>Email: support@retrostylings.com</p></div>} />
+        <Route path="/contact" element={<Contact />} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/admin" element={

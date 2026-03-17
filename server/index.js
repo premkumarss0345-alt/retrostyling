@@ -23,9 +23,9 @@ const pool = mysql.createPool({
   database: process.env.DB_NAME,
   port: parseInt(process.env.DB_PORT) || 3306,
   waitForConnections: true,
-  connectionLimit: 5, // Reduced for shared hosting stability
+  connectionLimit: 15, // Balanced for shared hosting stability
   queueLimit: 0,
-  connectTimeout: 10000,
+  connectTimeout: 20000, // Longer timeout for remote DB
   enableKeepAlive: true,
   keepAliveInitialDelay: 10000
 });
@@ -323,7 +323,7 @@ app.get('/api/health', async (req, res) => {
 app.get('/api/products', async (req, res, next) => {
   const { category, minPrice, maxPrice, search } = req.query;
   const params = [];
-  let query = 'SELECT p.*, c.name as category_name FROM products p LEFT JOIN categories c ON p.category_id = c.id WHERE 1=1';
+  let query = 'SELECT p.*, c.name as category_name, c.image as category_image FROM products p LEFT JOIN categories c ON p.category_id = c.id WHERE 1=1';
   
   // Public check (simplistic)
   if (!req.headers['authorization']) {
@@ -374,7 +374,7 @@ app.get('/api/products', async (req, res, next) => {
 });
 
 // Get single product by slug
-app.get('/api/products/:slug', async (req, res) => {
+app.get('/api/products/:slug', async (req, res, next) => {
   try {
     const [products] = await db.query(
       'SELECT p.*, c.name as category_name FROM products p LEFT JOIN categories c ON p.category_id = c.id WHERE p.slug = ?', 
@@ -670,15 +670,20 @@ const PORT = process.env.PORT || 5000;
 
 // Global Error Handler
 app.use((err, req, res, next) => {
-  console.error('❌ GLOBAL_ERROR:', {
-    message: err.message,
-    code: err.code,
-    stack: err.stack,
-    path: req.path
-  });
+  const errorDetails = {
+    message: err.message || 'Internal Server Error',
+    code: err.code || 'UNKNOWN_CODE',
+    path: req.path,
+    method: req.method
+  };
+
+  console.error('❌ GLOBAL_ERROR:', errorDetails);
+  
+  // Return JSON error
   res.status(500).json({ 
-    error: err.message || 'Internal Server Error',
-    code: err.code || 'UNKNOWN_CODE'
+    error: errorDetails.message,
+    code: errorDetails.code,
+    details: process.env.NODE_ENV === 'development' ? err.stack : undefined
   });
 });
 

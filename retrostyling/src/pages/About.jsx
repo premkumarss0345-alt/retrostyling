@@ -49,7 +49,7 @@ const About = () => {
                         transition={{ duration: 0.6 }}
                         className="about-content"
                     >
-                        <h1 className="h1 title-centered">About <span style={{ color: 'var(--primary)' }}>Retro Stylings</span></h1>
+                        <h1 className="h1 title-centered text-center">About <span style={{ color: 'var(--primary)' }}>Retro Stylings</span></h1>
                         <p className="mission-text">
                             At Retro Stylings, we believe fashion should be accessible to everyone without compromising on quality.
                             Our mission is to bring you stylish, high-quality clothing at budget-friendly prices.
@@ -94,8 +94,7 @@ const About = () => {
                                 </div>
                                 <div className="team-info">
                                     <h3>{member.name}</h3>
-                                    {/* Optional: Add roles if known, otherwise just name */}
-                                    {/* <p className="team-role">{member.role}</p> */}
+                                    <p className="team-role">{member.role}</p>
 
                                     <div className="social-links">
                                         {member.socials.facebook && (

@@ -1,34 +1,20 @@
-/* Product Carousel Styles */
 .product-carousel-section {
-    padding-bottom: 3rem;
-    position: relative;
-    overflow: hidden;
-    background: var(--bg-soft);
+    background: var(--bg-main);
 }
 
 .carousel-header {
     display: flex;
     justify-content: space-between;
-    align-items: center;
-    margin-bottom: 2rem;
+    align-items: flex-end;
+    margin-bottom: 3.5rem;
 }
 
 .title-lg {
-    font-size: 2.5rem;
+    font-size: clamp(1.5rem, 4vw, 2.5rem);
     font-weight: 800;
     text-transform: uppercase;
-    color: var(--text);
-    position: relative;
-}
-
-.title-lg::after {
-    content: '';
-    position: absolute;
-    bottom: -10px;
-    left: 0;
-    width: 60px;
-    height: 4px;
-    background: var(--primary);
+    color: var(--white);
+    letter-spacing: -0.02em;
 }
 
 .carousel-nav {
@@ -37,31 +23,29 @@
 }
 
 .nav-btn {
-    width: 48px;
-    height: 48px;
+    width: 44px;
+    height: 44px;
     border-radius: 50%;
     border: 1px solid var(--border);
-    background: white;
-    color: var(--text);
+    background: var(--bg-soft);
+    color: var(--white);
     display: flex;
     align-items: center;
     justify-content: center;
-    cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: var(--transition);
 }
 
 .nav-btn:hover {
-    background: var(--text);
-    color: white;
-    transform: translateY(-2px);
-    box-shadow: var(--shadow);
+    background: var(--primary);
+    color: var(--black);
+    border-color: var(--primary);
+    transform: scale(1.1);
 }
 
 .carousel-viewport {
     overflow-x: auto;
     scroll-behavior: smooth;
-    padding-bottom: 2rem;
-    /* Hide scrollbar */
+    padding: 1rem 0 3rem;
     scrollbar-width: none;
     -ms-overflow-style: none;
 }
@@ -72,22 +56,18 @@
 
 .carousel-track {
     display: flex;
-    gap: 1.5rem;
+    gap: 2rem;
     width: max-content;
 }
 
 .carousel-item {
-    width: 300px;
+    width: 320px;
     flex-shrink: 0;
 }
 
 @media (max-width: 768px) {
-    .title-lg {
-        font-size: 1.8rem;
-    }
-
     .carousel-item {
-        width: 260px;
+        width: 280px;
     }
 
     .carousel-nav {

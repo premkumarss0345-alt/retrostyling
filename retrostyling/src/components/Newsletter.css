@@ -1,38 +1,50 @@
 .newsletter {
-    padding: 8rem 0;
-    background: #f8f8f8;
+    background: var(--bg-main);
 }
 
 .newsletter-card {
-    background-image: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), url('https://images.unsplash.com/photo-1558769132-cb1aea458c5e?q=80&w=2031&auto=format&fit=crop');
-    background-size: cover;
-    background-position: center;
-    padding: 5rem 2rem;
-    border-radius: 8px;
+    background: var(--bg-soft);
+    border: var(--border);
+    padding: clamp(3rem, 10vw, 6rem);
+    border-radius: var(--radius-lg);
     text-align: center;
-    color: white;
-    max-width: 900px;
-    margin: 0 auto;
+    position: relative;
+    overflow: hidden;
+}
+
+.newsletter-card::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle at center, rgba(var(--primary-rgb), 0.05) 0%, transparent 50%);
+    pointer-events: none;
 }
 
 .newsletter .card-title {
-    font-size: 2.2rem;
-    margin-bottom: 1rem;
+    margin-bottom: 1.5rem;
+    letter-spacing: -0.01em;
 }
 
 .newsletter .card-text {
-    max-width: 500px;
+    max-width: 550px;
     margin: 0 auto 3rem;
-    color: #ccc;
+    color: var(--text-dim);
+    font-size: 1.1rem;
+    font-weight: 500;
 }
 
 .card-form {
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: 1rem;
-    max-width: 600px;
+    gap: 1.5rem;
+    max-width: 650px;
     margin: 0 auto;
+    position: relative;
+    z-index: 1;
 }
 
 .input-wrapper {
@@ -43,26 +55,28 @@
 .mail-icon {
     position: absolute;
     top: 50%;
-    left: 1rem;
+    left: 1.25rem;
     transform: translateY(-50%);
-    color: var(--text-light);
+    color: var(--primary);
 }
 
 .card-form .input-field {
     width: 100%;
-    background: white;
-    padding: 1.2rem 1rem 1.2rem 3rem;
-    border: none;
-    border-radius: 4px;
-    font-family: inherit;
-    outline: none;
+    background: var(--bg-deep);
+    padding: 1.25rem 1.5rem 1.25rem 3.5rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-full);
+    font-weight: 500;
+}
+
+.card-form .input-field:focus {
+    border-color: var(--primary);
 }
 
 .submit-btn {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 1.2rem 2.5rem !important;
+    border-radius: var(--radius-full);
+    height: 60px;
+    min-width: 180px;
 }
 
 @media (max-width: 768px) {
@@ -70,7 +84,8 @@
         flex-direction: column;
     }
 
-    .newsletter-card {
-        padding: 3rem 1rem;
+    .input-wrapper,
+    .submit-btn {
+        width: 100%;
     }
 }

@@ -1,52 +1,92 @@
-@import url('https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 
 :root {
-  --primary: #4F46E5;
-  --primary-light: rgba(79, 70, 229, 0.1);
-  --primary-dark: #4338CA;
-  --secondary: #1a1a1a;
-  --text: #1E293B;
-  --text-light: #64748B;
-  --bg: #FFFFFF;
-  --bg-soft: #F8FAFC;
-  --border: #E2E8F0;
+  /* Color Palette - Default Dark */
+  --primary: #DFFF1B;
+  /* Real Lime Green */
+  --primary-rgb: 223, 255, 27;
+  --primary-dark: #c5e315;
+  --secondary: #8B5CF6;
+  --accent: #00F5FF;
+
+  --bg-deep: #050505;
+  --bg-main: #0A0A0B;
+  --bg-soft: #141415;
+  --bg-card: #1C1C1E;
+
+  --text-main: #FFFFFF;
+  --text-dim: #A1A1AA;
+  --text-muted: #71717A;
+
+  --border: rgba(255, 255, 255, 0.08);
+  --border-bright: rgba(255, 255, 255, 0.15);
+
   --white: #ffffff;
   --black: #000000;
-  --red: #EF4444;
-  --green: #10B981;
-  --orange: #F59E0B;
-  --indigo: #4F46E5;
+  --error: #FF4D4D;
+  --success: #00FF94;
+  --warning: #FFB300;
 
-  --ff-jost: 'Jost', sans-serif;
-  --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
-  --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  --glass: rgba(10, 10, 11, 0.8);
+  --glass-border: 1px solid rgba(255, 255, 255, 0.1);
+
+  /* Shared Properties */
+  --ff-main: 'Plus Jakarta Sans', sans-serif;
+  --ff-heading: 'Outfit', sans-serif;
+  --transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+  --shadow-glow: 0 0 20px rgba(223, 255, 27, 0.15);
+  --shadow-lg: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
   --radius-sm: 8px;
-  --radius: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 24px;
+  --radius: 16px;
+  --radius-lg: 24px;
+  --radius-full: 9999px;
 }
+
+[data-theme='light'] {
+  --bg-deep: #F8F9FA;
+  --bg-main: #FFFFFF;
+  --bg-soft: #F1F3F5;
+  --bg-card: #FFFFFF;
+
+  --text-main: #121212;
+  --text-dim: #4B5563;
+  --text-muted: #9CA3AF;
+
+  --border: rgba(0, 0, 0, 0.08);
+  --border-bright: rgba(0, 0, 0, 0.12);
+
+  --glass: rgba(255, 255, 255, 0.8);
+  --glass-border: 1px solid rgba(0, 0, 0, 0.1);
+
+  --shadow-lg: 0 25px 50px -12px rgba(0, 0, 0, 0.1);
+}
+
 
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+  -webkit-font-smoothing: antialiased;
 }
 
 body {
-  font-family: var(--ff-jost);
-  color: var(--text);
-  background-color: var(--bg);
+  font-family: var(--ff-main);
+  color: var(--text-main);
+  background-color: var(--bg-main);
   line-height: 1.6;
+  overflow-x: hidden;
 }
 
+::selection {
+  background: var(--primary);
+  color: var(--black);
+}
+
+/* Base Elements */
 a {
   text-decoration: none;
   color: inherit;
   transition: var(--transition);
-  word-break: break-word;
-  overflow-wrap: break-word;
 }
 
 ul {
@@ -61,130 +101,22 @@ button {
   transition: var(--transition);
 }
 
-.section {
-  padding-block: 80px;
-}
-
-.container {
-  max-width: 1200px;
-  margin-inline: auto;
-  padding-inline: 15px;
-}
-
-.w-100 {
-  width: 100%;
-}
-
-.h1 {
-  font-size: 3.5rem;
-}
-
-.h2 {
-  font-size: 2.5rem;
-}
-
-.h3 {
-  font-size: 1.8rem;
-}
-
-h1,
-h2,
-h3,
-h4 {
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-}
-
-/* Glassmorphism utility */
-.glass {
-  background: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-}
-
-/* Global Button Styles */
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  padding: 0.8rem 1.8rem;
+input,
+select,
+textarea {
+  font-family: inherit;
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  color: var(--text-main);
+  padding: 0.8rem 1rem;
   border-radius: var(--radius-sm);
-  font-weight: 700;
-  font-size: 0.9rem;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
   transition: var(--transition);
 }
 
-.btn-primary {
-  background-color: var(--primary);
-  color: var(--white);
-}
-
-.btn-primary:hover {
-  background-color: var(--primary-dark);
-  transform: translateY(-2px);
-  box-shadow: 0 5px 15px rgba(79, 70, 229, 0.3);
-}
-
-.back-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  color: var(--text-light);
-  font-weight: 600;
-  font-size: 0.9rem;
-  margin-bottom: 2rem;
-  cursor: pointer;
-}
-
-.back-link:hover {
-  color: var(--primary);
-}
-
-.flex-center {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.gap-1 {
-  gap: 0.25rem;
-}
-
-.gap-2 {
-  gap: 0.5rem;
-}
-
-.gap-3 {
-  gap: 0.75rem;
-}
-
-.gap-4 {
-  gap: 1rem;
-}
-
-.free-tag {
-  color: var(--green);
-  font-weight: 800;
-}
-
-.shipping-hint {
-  font-size: 0.8rem;
-  color: var(--orange);
-  margin-top: 0.5rem;
-  font-weight: 600;
-}
-
-.center-loading {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 400px;
-  font-weight: 600;
+input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(var(--primary-rgb), 0.1);
 }
 
 /* Typography Overrides */
@@ -194,37 +126,139 @@ h3,
 h4,
 h5,
 h6 {
-  font-family: inherit;
+  font-family: var(--ff-heading);
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+.h1 {
+  font-size: clamp(2.5rem, 8vw, 4.5rem);
+}
+
+.h2 {
+  font-size: clamp(2rem, 5vw, 3rem);
+}
+
+.h3 {
+  font-size: clamp(1.5rem, 3vw, 2rem);
+}
+
+/* Layout Utilities */
+.section {
+  padding-block: clamp(60px, 10vw, 120px);
+}
+
+.container {
+  max-width: 1400px;
+  margin-inline: auto;
+  padding-inline: clamp(20px, 5vw, 40px);
+}
+
+.flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.glass-card {
+  background: var(--glass);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: var(--glass-border);
+  border-radius: var(--radius);
+}
+
+/* Premium Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 1rem 2rem;
+  border-radius: var(--radius-full);
   font-weight: 700;
-  line-height: 1.2;
-  color: var(--text);
-  word-break: break-word;
-  overflow-wrap: break-word;
+  font-size: 0.95rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  transition: var(--transition);
+  position: relative;
+  overflow: hidden;
 }
 
-p {
-  word-break: break-word;
-  overflow-wrap: break-word;
+.btn-primary {
+  background-color: var(--primary);
+  color: var(--black);
+  box-shadow: var(--shadow-glow);
 }
 
-.text-light {
-  color: var(--text-light);
+.btn-primary:hover {
+  transform: translateY(-3px);
+  background-color: var(--white);
+  box-shadow: 0 10px 20px rgba(var(--primary-rgb), 0.2);
 }
 
-/* Scrollbar */
+.btn-outline {
+  background: transparent;
+  color: var(--text-main);
+  border: 1px solid var(--border-bright);
+}
+
+.btn-outline:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+/* Animation Utilities */
+.reveal {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: 0.8s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.reveal.active {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Scrollbar Customization */
 ::-webkit-scrollbar {
-  width: 8px;
+  width: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--bg-soft);
+  background: var(--bg-deep);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--border);
-  border-radius: 4px;
+  background: var(--bg-soft);
+  border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #cbd5e1;
+  background: var(--text-muted);
+}
+
+/* Image Utilities */
+.img-cover {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Loading States */
+.loading-spinner {
+  width: 30px;
+  height: 30px;
+  border: 3px solid rgba(var(--primary-rgb), 0.1);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }

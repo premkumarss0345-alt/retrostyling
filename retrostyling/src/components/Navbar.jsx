@@ -13,7 +13,9 @@ import {
     Facebook,
     Instagram,
     Twitter,
-    LogOut
+    LogOut,
+    Sun,
+    Moon
 } from 'lucide-react';
 import './Navbar.css';
 
@@ -27,6 +29,26 @@ const Navbar = () => {
     const navigate = useNavigate();
 
     const user = JSON.parse(localStorage.getItem('user') || 'null');
+    const [isDarkMode, setIsDarkMode] = useState(false);
+
+    useEffect(() => {
+        const theme = localStorage.getItem('theme') || 'light';
+        if (theme === 'dark') {
+            setIsDarkMode(true);
+            document.documentElement.setAttribute('data-theme', 'dark');
+        } else {
+            setIsDarkMode(false);
+            document.documentElement.setAttribute('data-theme', 'light');
+        }
+    }, []);
+
+    const toggleTheme = () => {
+        const newMode = !isDarkMode;
+        setIsDarkMode(newMode);
+        const themeValue = newMode ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', themeValue);
+        localStorage.setItem('theme', themeValue);
+    };
 
     useEffect(() => {
         const handleScroll = () => setIsScrolled(window.scrollY > 40);
@@ -135,6 +157,14 @@ const Navbar = () => {
                             <Search size={22} />
                         </button>
 
+                        <button
+                            className="action-icon-btn theme-toggle"
+                            onClick={toggleTheme}
+                            title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+                        >
+                            {isDarkMode ? <Sun size={22} /> : <Moon size={22} />}
+                        </button>
+
                         <Link to="/wishlist" className="action-icon-btn" title="Wishlist">
                             <div className="icon-badge-root">
                                 <Heart size={22} />
@@ -200,7 +230,7 @@ const Navbar = () => {
                     </form>
                 </div>
             </div>
-        </header>
+        </header >
     );
 };
 
