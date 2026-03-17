@@ -23,11 +23,17 @@ const pool = mysql.createPool({
   database: process.env.DB_NAME,
   port: parseInt(process.env.DB_PORT) || 3306,
   waitForConnections: true,
-  connectionLimit: 15, // Balanced for shared hosting stability
+  connectionLimit: 5, // Lowered to avoid hitting max_user_connections on shared hosting
+  maxIdle: 2, // Keep some connections warm but not too many
+  idleTimeout: 30000, 
   queueLimit: 0,
-  connectTimeout: 20000, // Longer timeout for remote DB
+  connectTimeout: 30000, // Even longer timeout
   enableKeepAlive: true,
   keepAliveInitialDelay: 10000
+});
+
+pool.on('error', (err) => {
+  console.error('🔥 Unexpected Pool Error:', err);
 });
 
 // Use promise-based wrapper or just use the pool directly
