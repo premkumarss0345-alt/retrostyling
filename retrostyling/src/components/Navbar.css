@@ -316,12 +316,71 @@
 
 @media (max-width: 1024px) {
     .navbar {
+        position: fixed;
+        top: 0;
+        right: -100%;
+        width: 100%;
+        max-width: 400px;
+        height: 100vh;
+        background: var(--bg-main);
+        z-index: 2000;
+        padding: 80px 2rem 2rem;
+        transition: 0.5s cubic-bezier(0.77, 0.2, 0.05, 1.0);
+        box-shadow: -10px 0 30px rgba(0, 0, 0, 0.5);
+        display: block !important;
+        overflow-y: auto;
+    }
+
+    .navbar.open {
+        right: 0;
+    }
+
+    .navbar-list {
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+
+    .navbar-list li {
+        width: 100%;
+        border-bottom: 1px solid var(--border-bright);
+        padding-bottom: 1rem;
+    }
+
+    .navbar-list a,
+    .nav-link {
+        font-size: 1.25rem;
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .dropdown-menu {
+        position: static;
+        transform: none;
+        opacity: 1;
+        visibility: visible;
+        background: var(--bg-deep);
+        border: none;
+        box-shadow: none;
+        margin-top: 1rem;
+        padding: 1rem;
         display: none;
     }
 
+    .dropdown-root:hover .dropdown-menu {
+        display: block;
+    }
+
     .menu-toggle-btn {
-        display: block !important;
-        color: var(--white);
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+        color: var(--text-main);
+        z-index: 2101;
+        background: var(--bg-soft);
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        border: var(--border);
     }
 }
 

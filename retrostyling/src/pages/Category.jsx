@@ -61,16 +61,7 @@ const CategoryPage = () => {
                 <div className="category-hero-overlay" />
 
                 <div className="container">
-                    <motion.div
-                        className="breadcrumb"
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: 0.5 }}
-                    >
-                        <Link to="/">Home</Link> <ChevronRight size={14} />
-                        <Link to="/shop">Shop</Link> <ChevronRight size={14} />
-                        <span>{displayName}</span>
-                    </motion.div>
+
 
                     <motion.h1
                         initial={{ opacity: 0, y: 30 }}

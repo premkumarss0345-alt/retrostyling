@@ -441,6 +441,42 @@
 
     .admin-header {
         padding: 0 1.5rem;
+        height: 70px;
+    }
+
+    .mobile-toggle {
+        display: block !important;
+        background: var(--bg-soft);
+        padding: 8px;
+        border-radius: 8px;
+        border: var(--border);
+        color: var(--text-main);
+    }
+
+    .mobile-close {
+        display: block !important;
+        position: absolute;
+        top: 2rem;
+        right: 1.5rem;
+    }
+
+    .header-search {
+        display: none !important;
+        /* Hide search bar on mobile to save space */
+    }
+}
+
+@media (max-width: 768px) {
+    .admin-content {
+        padding: 1.5rem;
+    }
+
+    .header-right {
+        gap: 1rem;
+    }
+
+    .admin-user-info .user-details {
+        display: none;
     }
 }
 

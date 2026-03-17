@@ -315,3 +315,47 @@
         grid-template-columns: 1fr;
     }
 }
+
+@media (max-width: 768px) {
+    .crm-header-section {
+        margin-bottom: 2rem;
+    }
+
+    .crm-stats-grid {
+        grid-template-columns: 1fr;
+        gap: 1.25rem;
+    }
+
+    .crm-stat-card {
+        padding: 1.5rem;
+    }
+
+    .stat-value {
+        font-size: 1.5rem;
+    }
+
+    .crm-chart-container,
+    .crm-activity-container {
+        padding: 1.5rem;
+    }
+
+    .pipeline-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 480px) {
+    .pipeline-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .crm-actions {
+        width: 100%;
+        flex-direction: column;
+    }
+
+    .crm-actions .btn-primary,
+    .crm-actions .btn-secondary {
+        width: 100%;
+    }
+}

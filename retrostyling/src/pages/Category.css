@@ -180,15 +180,43 @@
 /* Responsive */
 @media (max-width: 768px) {
     .category-hero {
-        height: 350px;
+        height: 300px;
+        margin-bottom: 2rem;
     }
 
     .category-hero h1 {
-        font-size: 3.5rem;
+        font-size: 2.8rem;
+    }
+
+    .category-hero .breadcrumb {
+        margin-bottom: 1rem;
+        gap: 0.5rem;
+        font-size: 0.8rem;
+    }
+
+    .item-count {
+        font-size: 0.85rem;
     }
 
     .category-product-grid {
-        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-        gap: 1.5rem;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+    }
+
+    .category-grid-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .category-product-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .category-hero h1 {
+        font-size: 2.2rem;
     }
 }

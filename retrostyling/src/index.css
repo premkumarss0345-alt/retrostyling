@@ -262,3 +262,37 @@ h6 {
     transform: rotate(360deg);
   }
 }
+
+/* Responsive Utilities */
+.desktop-only {
+  display: block;
+}
+
+.mobile-only {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .desktop-only {
+    display: none;
+  }
+
+  .mobile-only {
+    display: block;
+  }
+
+  .section {
+    padding-block: 60px;
+  }
+
+  .container {
+    padding-inline: 20px;
+  }
+}
+
+/* Helper for scrollable tables */
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
