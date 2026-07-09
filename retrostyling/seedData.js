@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getFirestore, collection, addDoc, serverTimestamp, setDoc, doc } from "firebase/firestore";
+import { getFirestore, collection, addDoc, serverTimestamp, setDoc, doc, getDocs, deleteDoc } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAwTGEf-VCbekJm6nb5FSs2cXyrL0TrsZE",
@@ -15,66 +15,139 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
 const categories = [
-  { id: 'cat1', name: 'T-Shirts', slug: 't-shirts', image: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&q=80&w=2000' },
-  { id: 'cat2', name: 'Hoodies', slug: 'hoodies', image: 'https://images.unsplash.com/photo-1556821840-3a63f95609a7?auto=format&fit=crop&q=80&w=2000' },
-  { id: 'cat3', name: 'Accessories', slug: 'accessories', image: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&q=80&w=2000' }
+  { id: 'cat_casual', name: 'Casual', slug: 'casual', image: 'https://images.unsplash.com/photo-1596755094514-f87034a7a241?w=400' },
+  { id: 'cat_formal', name: 'Formal', slug: 'formal', image: 'https://images.unsplash.com/photo-1598033129183-c4f50c7176c8?w=400' },
+  { id: 'cat_denim', name: 'Denim', slug: 'denim', image: 'https://images.unsplash.com/photo-1542272604-787c3835535d?w=400' }
 ];
 
 const products = [
   {
-    name: 'Vintage Oversized Tee',
-    slug: 'vintage-oversized-tee',
-    description: 'A premium quality oversized t-shirt with a vintage wash. Perfect for casual streetwear looks.',
-    price: 1299,
-    discount_price: 999,
+    name: 'Essential Summer Shirt',
+    slug: 'essential-summer-shirt',
+    description: 'Lightweight and breathable cotton shirt designed for hot summer days. Standard collar and button closure.',
+    price: 429,
+    discount_price: 390,
     on_sale: true,
     is_new: true,
-    category_id: 'cat1',
-    categoryName: 'T-Shirts',
-    categorySlug: 't-shirts',
+    category_id: 'cat_casual',
+    categoryName: 'Casual',
+    categorySlug: 'casual',
     stock: 50,
-    image: 'https://images.unsplash.com/photo-1576566588028-4147f3842f27?auto=format&fit=crop&q=80&w=1000',
+    image: 'https://images.unsplash.com/photo-1596755094514-f87034a7a241?q=80&w=1974&auto=format&fit=crop',
     status: 'active',
+    sku: 'ESS-01',
+    brand: 'Retro',
     variants: [
-      { size: 'S', color: 'Black', stock: 10 },
-      { size: 'M', color: 'Black', stock: 20 },
-      { size: 'L', color: 'Black', stock: 20 }
+      { size: 'M', color: 'White', stock: 25 },
+      { size: 'L', color: 'White', stock: 25 }
     ]
   },
   {
-    name: 'Retro Logo Hoodie',
-    slug: 'retro-logo-hoodie',
-    description: 'Cozy fleece-lined hoodie with our signature retro logo embroidery.',
-    price: 2499,
-    discount_price: 1999,
+    name: 'Officer Linen Shirt',
+    slug: 'officer-linen-shirt',
+    description: 'Sophisticated mandarin collar linen shirt. Premium quality, comfortable for business casual wear.',
+    price: 654,
+    discount_price: 600,
     on_sale: true,
     is_new: false,
-    category_id: 'cat2',
-    categoryName: 'Hoodies',
-    categorySlug: 'hoodies',
-    stock: 30,
-    image: 'https://images.unsplash.com/photo-1556821840-3a63f95609a7?auto=format&fit=crop&q=80&w=1000',
+    category_id: 'cat_formal',
+    categoryName: 'Formal',
+    categorySlug: 'formal',
+    stock: 40,
+    image: 'https://images.unsplash.com/photo-1598033129183-c4f50c7176c8?q=80&w=1974&auto=format&fit=crop',
     status: 'active',
+    sku: 'OLS-02',
+    brand: 'ClassicCo',
     variants: [
-      { size: 'M', color: 'Grey', stock: 15 },
-      { size: 'L', color: 'Grey', stock: 15 }
+      { size: 'S', color: 'White', stock: 15 },
+      { size: 'M', color: 'White', stock: 15 },
+      { size: 'L', color: 'White', stock: 10 }
     ]
   },
   {
-    name: 'Streetwear Cargo Pants',
-    slug: 'streetwear-cargo-pants',
-    description: 'Functional and stylish cargo pants with multi-pockets and adjustable ankle straps.',
-    price: 2999,
-    discount_price: 0,
-    on_sale: false,
+    name: 'Vertical Striped Shirt',
+    slug: 'vertical-striped-shirt',
+    description: 'Vibrant casual vertical striped button down shirt. Loose fit and relaxed vibe.',
+    price: 497,
+    discount_price: 452,
+    on_sale: true,
     is_new: true,
-    category_id: 'cat1',
-    categoryName: 'T-Shirts', // Putting it in t-shirts for now if I don't have a pants cat
-    categorySlug: 't-shirts',
-    stock: 25,
-    image: 'https://images.unsplash.com/photo-1594633312681-425c7b97ccd1?auto=format&fit=crop&q=80&w=1000',
+    category_id: 'cat_casual',
+    categoryName: 'Casual',
+    categorySlug: 'casual',
+    stock: 30,
+    image: 'https://images.unsplash.com/photo-1626497748470-3623761a3d81?q=80&w=1974&auto=format&fit=crop',
     status: 'active',
-    variants: []
+    sku: 'VSS-03',
+    brand: 'ModernStreet',
+    variants: [
+      { size: 'M', color: 'Blue/White', stock: 15 },
+      { size: 'L', color: 'Blue/White', stock: 15 }
+    ]
+  },
+  {
+    name: 'Classic Earth Brown',
+    slug: 'classic-earth-brown',
+    description: 'Comfortable cotton casual shirt in earth brown tone. Ideal for layering.',
+    price: 152,
+    discount_price: 140,
+    on_sale: true,
+    is_new: false,
+    category_id: 'cat_casual',
+    categoryName: 'Casual',
+    categorySlug: 'casual',
+    stock: 60,
+    image: 'https://images.unsplash.com/photo-1563243567-450a80dc955c?q=80&w=1964&auto=format&fit=crop',
+    status: 'active',
+    sku: 'CEB-04',
+    brand: 'Retro',
+    variants: [
+      { size: 'S', color: 'Brown', stock: 20 },
+      { size: 'M', color: 'Brown', stock: 20 },
+      { size: 'L', color: 'Brown', stock: 20 }
+    ]
+  },
+  {
+    name: 'Oxford Button Down',
+    slug: 'oxford-button-down',
+    description: 'Premium heavyweight Oxford fabric cotton shirt. Tailored fit with classic button-down collar.',
+    price: 899,
+    discount_price: 750,
+    on_sale: false,
+    is_new: false,
+    category_id: 'cat_formal',
+    categoryName: 'Formal',
+    categorySlug: 'formal',
+    stock: 25,
+    image: 'https://images.unsplash.com/photo-1594932224010-75b4367c4c5c?q=80&w=2080&auto=format&fit=crop',
+    status: 'active',
+    sku: 'OBD-05',
+    brand: 'ClassicCo',
+    variants: [
+      { size: 'M', color: 'Blue', stock: 15 },
+      { size: 'L', color: 'Blue', stock: 10 }
+    ]
+  },
+  {
+    name: 'Denim Utility Overshirt',
+    slug: 'denim-utility-overshirt',
+    description: 'Rugged and stylish denim utility overshirt with multiple storage pockets and dual stitching.',
+    price: 1299,
+    discount_price: 1100,
+    on_sale: true,
+    is_new: true,
+    category_id: 'cat_denim',
+    categoryName: 'Denim',
+    categorySlug: 'denim',
+    stock: 20,
+    image: 'https://images.unsplash.com/photo-1542272604-787c3835535d?q=80&w=1926&auto=format&fit=crop',
+    status: 'active',
+    sku: 'DUO-06',
+    brand: 'UrbanEdge',
+    variants: [
+      { size: 'M', color: 'Dark Blue', stock: 10 },
+      { size: 'L', color: 'Dark Blue', stock: 10 }
+    ]
   }
 ];
 
@@ -98,7 +171,16 @@ const slides = [
 ];
 
 async function seed() {
-  console.log("Starting seed...");
+  console.log("Wiping existing dummy data from Firebase...");
+  const collectionsToClear = ['products', 'categories', 'heroSlides', 'orders', 'rewards', 'reviews'];
+  for (const colName of collectionsToClear) {
+    const snap = await getDocs(collection(db, colName));
+    for (const d of snap.docs) {
+      await deleteDoc(d.ref);
+    }
+  }
+
+  console.log("Starting seed with real products data...");
   
   // Seed Categories
   for (const cat of categories) {
@@ -112,9 +194,11 @@ async function seed() {
 
   // Seed Products
   for (const prod of products) {
-    await addDoc(collection(db, "products"), {
+    const q = collection(db, "products");
+    await addDoc(q, {
       ...prod,
-      createdAt: serverTimestamp()
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
     });
     console.log(`Added product: ${prod.name}`);
   }
@@ -126,6 +210,38 @@ async function seed() {
       createdAt: serverTimestamp()
     });
     console.log(`Added slide: ${slide.title}`);
+  }
+
+  // Seed default Redeemable Rewards
+  const defaultRewards = [
+    { title: '₹100 Coupon', points: 1000, desc: 'Flat discount on any order', available: true },
+    { title: '₹250 Coupon', points: 2200, desc: 'Flat discount on any order', available: true },
+    { title: '₹500 Coupon', points: 4000, desc: 'Flat discount on any order', available: true },
+    { title: '₹1000 Coupon', points: 7500, desc: 'Flat discount on any order', available: true },
+    { title: 'Free Express Shipping', points: 800, desc: 'Free express shipping on your next order', available: true },
+    { title: 'Retro Oversized Hoodie', points: 12000, desc: 'Exclusive member merchandise', available: true },
+    { title: 'Vintage Logo T-Shirt', points: 8000, desc: 'Limited edition graphic tee', available: false }
+  ];
+  for (const reward of defaultRewards) {
+    await addDoc(collection(db, "rewards"), {
+      ...reward,
+      createdAt: serverTimestamp()
+    });
+    console.log(`Added reward: ${reward.title}`);
+  }
+
+  // Seed default Reviews
+  const defaultReviews = [
+    { product: 'Essential Summer Shirt', customer: 'Arjun Sharma', rating: 5, title: 'Absolutely love this!', body: 'The quality is outstanding. True to size and the fabric feels premium. Worth every rupee!', date: '2026-07-05', status: 'pending', helpful: 12 },
+    { product: 'Officer Linen Shirt', customer: 'Priya Nair', rating: 4, title: 'Great fit, minor delay', body: 'The shirt looks exactly like the photos. Delivery was a bit delayed but the product quality made up for it.', date: '2026-07-04', status: 'approved', helpful: 8 },
+    { product: 'Vertical Striped Shirt', customer: 'Kiran Kumar', rating: 2, title: 'Sizing issue', body: 'The shirt runs small. I ordered my usual size L but it was too tight. Had to return it.', date: '2026-07-03', status: 'pending', helpful: 3 }
+  ];
+  for (const rev of defaultReviews) {
+    await addDoc(collection(db, "reviews"), {
+      ...rev,
+      createdAt: serverTimestamp()
+    });
+    console.log(`Added review: ${rev.product} - ${rev.customer}`);
   }
 
   console.log("Seed completed!");

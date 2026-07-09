@@ -1,7 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import BottomNav from './components/BottomNav';
 import Footer from './components/Footer';
+import ProtectedRoute from './components/ProtectedRoute';
+import './App.css';
+
+/* ─── Customer Pages ─────────────────────────────────────── */
 import Home from './pages/Home';
 import Shop from './pages/Shop';
 import Category from './pages/Category';
@@ -15,6 +20,9 @@ import About from './pages/About';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Contact from './pages/Contact';
+import Rewards from './pages/Rewards';
+
+/* ─── Admin Pages ────────────────────────────────────────── */
 import AdminDashboard from './pages/admin/Dashboard';
 import AdminProducts from './pages/admin/Products';
 import AdminOrders from './pages/admin/Orders';
@@ -22,9 +30,18 @@ import AdminUsers from './pages/admin/Users';
 import AdminHeroSlides from './pages/admin/HeroSlides';
 import AdminSettings from './pages/admin/Settings';
 import AdminCategories from './pages/admin/Categories';
-import ProtectedRoute from './components/ProtectedRoute';
-import './App.css';
-import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom'; // Added useLocation and Router
+import AdminInventory from './pages/admin/Inventory';
+import AdminBrands from './pages/admin/Brands';
+import AdminCoupons from './pages/admin/Coupons';
+import AdminBanners from './pages/admin/Banners';
+import AdminReviews from './pages/admin/Reviews';
+import AdminReports from './pages/admin/Reports';
+import AdminMarketing from './pages/admin/Marketing';
+import AdminMediaLibrary from './pages/admin/MediaLibrary';
+import AdminAnalytics from './pages/admin/Analytics';
+import AdminSuperAdmin from './pages/admin/SuperAdmin';
+import AdminNotifications from './pages/admin/Notifications';
+import AdminCustomers from './pages/admin/Customers';
 
 function AppContent() {
   const location = useLocation();
@@ -33,15 +50,26 @@ function AppContent() {
   const showNav = !isAdmin && !isAuthPage;
 
   useEffect(() => {
-    // Force dark theme system-wide
     document.documentElement.setAttribute('data-theme', 'dark');
     localStorage.setItem('theme', 'dark');
   }, []);
 
-  return ( // Added return statement for JSX
+  const adminRoute = (path, Component) => (
+    <Route
+      path={path}
+      element={
+        <ProtectedRoute adminOnly={true}>
+          <Component />
+        </ProtectedRoute>
+      }
+    />
+  );
+
+  return (
     <div className="app">
       {showNav && <Navbar />}
       <Routes>
+        {/* ─── Customer Routes ─── */}
         <Route path="/" element={<Home />} />
         <Route path="/shop" element={<Shop />} />
         <Route path="/category/:slug" element={<Category />} />
@@ -51,47 +79,39 @@ function AppContent() {
         <Route path="/checkout" element={<Checkout />} />
         <Route path="/order-success" element={<OrderSuccess />} />
         <Route path="/profile" element={<Profile />} />
-        <Route path="/orders" element={<div className="container section">My Orders (Combined in Profile)</div>} />
+        <Route path="/orders" element={<Profile />} />
+        <Route path="/rewards" element={<Rewards />} />
         <Route path="/about" element={<About />} />
-        <Route path="/blog" element={<div className="container section"><h1>Our Blog</h1><p>Stay tuned for the latest fashion trends and updates.</p></div>} />
         <Route path="/contact" element={<Contact />} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
-        <Route path="/admin" element={
-          <ProtectedRoute adminOnly={true}>
-            <AdminDashboard />
-          </ProtectedRoute>
+        <Route path="/blog" element={
+          <div className="container section">
+            <h1>Our Blog</h1>
+            <p style={{ color: 'var(--text-muted)', marginTop: '1rem' }}>Stay tuned for the latest fashion trends and updates.</p>
+          </div>
         } />
-        <Route path="/admin/products" element={
-          <ProtectedRoute adminOnly={true}>
-            <AdminProducts />
-          </ProtectedRoute>
-        } />
-        <Route path="/admin/categories" element={
-          <ProtectedRoute adminOnly={true}>
-            <AdminCategories />
-          </ProtectedRoute>
-        } />
-        <Route path="/admin/orders" element={
-          <ProtectedRoute adminOnly={true}>
-            <AdminOrders />
-          </ProtectedRoute>
-        } />
-        <Route path="/admin/users" element={
-          <ProtectedRoute adminOnly={true}>
-            <AdminUsers />
-          </ProtectedRoute>
-        } />
-        <Route path="/admin/hero-slides" element={
-          <ProtectedRoute adminOnly={true}>
-            <AdminHeroSlides />
-          </ProtectedRoute>
-        } />
-        <Route path="/admin/settings" element={
-          <ProtectedRoute adminOnly={true}>
-            <AdminSettings />
-          </ProtectedRoute>
-        } />
+
+        {/* ─── Admin Routes ─── */}
+        {adminRoute('/admin', AdminDashboard)}
+        {adminRoute('/admin/products', AdminProducts)}
+        {adminRoute('/admin/categories', AdminCategories)}
+        {adminRoute('/admin/brands', AdminBrands)}
+        {adminRoute('/admin/inventory', AdminInventory)}
+        {adminRoute('/admin/orders', AdminOrders)}
+        {adminRoute('/admin/customers', AdminCustomers)}
+        {adminRoute('/admin/users', AdminUsers)}
+        {adminRoute('/admin/coupons', AdminCoupons)}
+        {adminRoute('/admin/banners', AdminBanners)}
+        {adminRoute('/admin/hero-slides', AdminHeroSlides)}
+        {adminRoute('/admin/reviews', AdminReviews)}
+        {adminRoute('/admin/media', AdminMediaLibrary)}
+        {adminRoute('/admin/marketing', AdminMarketing)}
+        {adminRoute('/admin/notifications', AdminNotifications)}
+        {adminRoute('/admin/reports', AdminReports)}
+        {adminRoute('/admin/analytics', AdminAnalytics)}
+        {adminRoute('/admin/settings', AdminSettings)}
+        {adminRoute('/admin/super-admin', AdminSuperAdmin)}
       </Routes>
       {showNav && <BottomNav />}
       {showNav && <Footer />}

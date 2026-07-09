@@ -1,548 +1,127 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Link, useNavigate } from 'react-router-dom';
 import { 
-  LayoutDashboard, ShoppingBag, Heart, MapPin, 
-  CreditCard, Shield, Bell, LogOut, Package, 
-  ChevronRight, Plus, Trash2, Edit2, Lock, Smartphone, Moon, Sun, Check, ExternalLink, X
+  ShoppingBag, Heart, MapPin, CreditCard, Shield, Bell, 
+  LogOut, Package, ChevronRight, Plus, Trash2, Edit2, Lock, 
+  Smartphone, Check, X, Award, Share2, Eye, RefreshCw, Zap, ArrowLeft, ArrowRight, Star, Trophy
 } from 'lucide-react';
 import { useAuth } from '../services/AuthContext';
-import './Profile.css';
-import Toast from '../components/Toast';
-import { useNavigate } from 'react-router-dom';
 import { addressService, orderService, wishlistService, cartService, productService } from '../services/firestoreService';
+import Toast from '../components/Toast';
+import './Profile.css';
 
-// helper for date formatting
+// Formatting helpers
 const formatDate = (ts) => {
   if (!ts) return '';
   const date = ts.toDate ? ts.toDate() : new Date(ts);
   return date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 };
 
-// --- SUB-COMPONENTS --- //
-
-const DashboardTab = ({ setTab, orders = [], wishlist = [], cartCount = 0 }) => {
-  const { currentUser, userProfile } = useAuth();
-  const displayName = currentUser?.displayName || userProfile?.name || 'Retro Fashionista';
-  const email = currentUser?.email || 'fashion@retro.com';
-
-  return (
-    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="tab-pane">
-      <div className="dash-profile-card">
-        <div className="dash-avatar">{displayName.charAt(0)}</div>
-        <div className="dash-info">
-          <h2>Welcome back, {displayName}!</h2>
-          <p>{email}</p>
-        </div>
-        <button className="btn btn-outline btn-sm" onClick={() => setTab('security')}>Edit Profile</button>
-      </div>
-
-      <div className="stats-grid">
-        <div className="stat-card">
-          <div className="stat-icon"><Package size={24} /></div>
-          <div>
-            <h3>{orders.length}</h3>
-            <p>Total Orders</p>
-          </div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-icon"><Heart size={24} /></div>
-          <div>
-            <h3>{wishlist.length}</h3>
-            <p>Wishlist Items</p>
-          </div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-icon"><ShoppingBag size={24} /></div>
-          <div>
-            <h3>{cartCount}</h3>
-            <p>Cart Items</p>
-          </div>
-        </div>
-      </div>
-
-      <div className="recent-orders-section">
-        <div className="section-header">
-          <h3>Recent Orders</h3>
-          <button className="link-btn" onClick={() => setTab('orders')}>View All <ChevronRight size={16}/></button>
-        </div>
-        {orders.length === 0 ? (
-          <div className="order-empty-state">No orders yet.</div>
-        ) : (
-          <div className="order-mini-list">
-            {orders.slice(0, 3).map(o => (
-              <div key={o.id} className="order-mini-card">
-                <div className="mini-card-left">
-                  <div className="order-icon"><Package size={20} /></div>
-                  <div>
-                    <h4>#{o.id.slice(-6).toUpperCase()}</h4>
-                    <p>{formatDate(o.createdAt)}</p>
-                  </div>
-                </div>
-                <div className="mini-card-right">
-                  <p className="price">₹{o.total?.toLocaleString()}</p>
-                  <span className={`status-pill pill-${o.orderStatus?.toLowerCase()}`}>{o.orderStatus}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </motion.div>
-  );
-};
-
-const OrdersTab = ({ orders = [] }) => {
-  const [expandedRow, setExpandedRow] = useState(null);
-
-  const toggleRow = (id) => {
-    setExpandedRow(expandedRow === id ? null : id);
-  };
-
-  return (
-    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="tab-pane">
-      <div className="section-header">
-        <h2>Order History</h2>
-        <p>Track your latest purchases and returns.</p>
-      </div>
-
-      {orders.length === 0 ? (
-        <div className="empty-state">
-          <Package size={48} />
-          <p>No orders placed yet.</p>
-        </div>
-      ) : (
-        <div className="orders-table-wrapper">
-          <table className="orders-table">
-            <thead>
-              <tr>
-                <th>Order ID</th>
-                <th>Date</th>
-                <th>Price</th>
-                <th>Status</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {orders.map((o) => (
-                <React.Fragment key={o.id}>
-                  <tr className="order-tr" onClick={() => toggleRow(o.id)}>
-                    <td className="font-bold">#{o.id.slice(-6).toUpperCase()}</td>
-                    <td>{formatDate(o.createdAt)}</td>
-                    <td className="font-bold">₹{o.total?.toLocaleString()}</td>
-                    <td><span className={`status-pill pill-${o.orderStatus?.toLowerCase()}`}>{o.orderStatus}</span></td>
-                    <td>
-                      <button className="icon-btn-small">
-                        <ChevronRight size={18} className={`chevron ${expandedRow === o.id ? 'rotate' : ''}`} />
-                      </button>
-                    </td>
-                  </tr>
-                  {expandedRow === o.id && (
-                    <tr className="order-expanded-tr">
-                      <td colSpan="5">
-                        <div className="order-detail-view">
-                           <div className="items-list">
-                             {o.items?.map((item, idx) => (
-                               <div key={idx} className="order-item-mini">
-                                  <img src={item.image} alt={item.name} />
-                                  <div>
-                                    <p className="font-bold">{item.name}</p>
-                                    <p className="text-sm">Qty: {item.quantity} | Size: {item.size}</p>
-                                  </div>
-                               </div>
-                             ))}
-                           </div>
-                           <div className="order-timeline">
-                            <div className={`timeline-step active`}>
-                              <div className="step-dot"><Check size={12}/></div>
-                              <p>Order Placed</p>
-                            </div>
-                            <div className="timeline-line active"></div>
-                            <div className={`timeline-step ${['processing', 'shipped', 'delivered'].includes(o.orderStatus) ? 'active' : ''}`}>
-                              <div className="step-dot"><Package size={12}/></div>
-                              <p>Processing</p>
-                            </div>
-                            <div className={`timeline-line ${['shipped', 'delivered'].includes(o.orderStatus) ? 'active' : ''}`}></div>
-                            <div className={`timeline-step ${['shipped', 'delivered'].includes(o.orderStatus) ? 'active' : ''}`}>
-                              <div className="step-dot"><MapPin size={12}/></div>
-                              <p>Shipped</p>
-                            </div>
-                            <div className={`timeline-line ${['delivered'].includes(o.orderStatus) ? 'active' : ''}`}></div>
-                            <div className={`timeline-step ${o.orderStatus === 'delivered' ? 'active' : o.orderStatus === 'cancelled' ? 'error' : ''}`}>
-                              <div className="step-dot">{o.orderStatus === 'cancelled' ? <X size={12}/> : <Check size={12}/>}</div>
-                              <p>{o.orderStatus?.charAt(0).toUpperCase() + o.orderStatus?.slice(1)}</p>
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </React.Fragment>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </motion.div>
-  );
-};
-
-const WishlistTab = ({ wishlist = [], onRemove, onMoveToCart }) => {
-  return (
-    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="tab-pane">
-       <div className="section-header">
-        <h2>Your Wishlist</h2>
-        <p>Items you've saved for later.</p>
-      </div>
-
-      {wishlist.length === 0 ? (
-        <div className="empty-state">
-           <Heart size={48} />
-           <p>Your wishlist is empty.</p>
-        </div>
-      ) : (
-        <div className="wishlist-grid">
-          {wishlist.map(w => (
-            <div key={w.id} className="wishlist-card">
-              <img src={w.image} alt={w.name} />
-              <div className="wishlist-info">
-                <h4>{w.name}</h4>
-                <p>₹{w.price?.toLocaleString()}</p>
-                <div className="wishlist-actions">
-                  <button className="btn btn-primary btn-sm w-100" onClick={() => onMoveToCart(w)}>Move to Cart</button>
-                  <button className="btn btn-outline btn-sm icon-mode" onClick={() => onRemove(w.id)}><Trash2 size={16}/></button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </motion.div>
-  );
-};
-
-const AddressTab = () => {
-  const [addresses, setAddresses] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [editingId, setEditingId] = useState(null);
-  const [formData, setFormData] = useState({ type: 'Home', name: '', street: '', city: '', zip: '', isDefault: false });
-
+// ─── FLASH SALE TIMER ──────────────────────────────────────────
+const FlashSaleTimer = () => {
+  const [timeLeft, setTimeLeft] = useState({ h: 2, m: 14, s: 45 });
   useEffect(() => {
-    loadAddresses();
+    const timer = setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev.s > 0) return { ...prev, s: prev.s - 1 };
+        if (prev.m > 0) return { h: prev.h, m: prev.m - 1, s: 59 };
+        if (prev.h > 0) return { h: prev.h - 1, m: 59, s: 59 };
+        return { h: 0, m: 0, s: 0 };
+      });
+    }, 1000);
+    return () => clearInterval(timer);
   }, []);
-
-  const loadAddresses = async () => {
-    setLoading(true);
-    try {
-      const data = await addressService.get();
-      setAddresses(data);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSave = async (e) => {
-    e.preventDefault();
-    try {
-      if (editingId) {
-        await addressService.update(editingId, formData);
-      } else {
-        await addressService.add(formData);
-      }
-      setShowForm(false);
-      loadAddresses();
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const handleDelete = async (id) => {
-    if (!window.confirm('Delete this address?')) return;
-    try {
-      await addressService.delete(id);
-      loadAddresses();
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const handleSetDefault = async (id) => {
-    try {
-      await addressService.setDefault(id);
-      loadAddresses();
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const openNew = () => {
-    setEditingId(null);
-    setFormData({ type: 'Home', name: '', street: '', city: '', zip: '', isDefault: false });
-    setShowForm(true);
-  };
-
-  const openEdit = (addr) => {
-    setEditingId(addr.id);
-    setFormData(addr);
-    setShowForm(true);
-  };
-
-  if (loading) return <div className="tab-pane">Loading addresses...</div>;
-
+  const pad = (n) => String(n).padStart(2, '0');
   return (
-    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="tab-pane">
-      <div className="flex-between mb-2">
-        <div>
-          <h2>Address Book</h2>
-          <p>Manage your delivery addresses.</p>
-        </div>
-        {!showForm && <button className="btn btn-primary btn-sm" onClick={openNew}><Plus size={16}/> Add New</button>}
-      </div>
-
-      {showForm ? (
-        <div className="settings-card">
-          <h3>{editingId ? 'Edit Address' : 'New Address'}</h3>
-          <form className="password-form" onSubmit={handleSave} style={{ maxWidth: '100%' }}>
-            <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-              <div className="form-group">
-                <label>Address Type</label>
-                <select value={formData.type} onChange={(e) => setFormData({...formData, type: e.target.value})}>
-                  <option value="Home">Home</option>
-                  <option value="Work">Work</option>
-                  <option value="Other">Other</option>
-                </select>
-              </div>
-              <div className="form-group">
-                <label>Full Name</label>
-                <input required type="text" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} placeholder="John Doe" />
-              </div>
-            </div>
-            <div className="form-group" style={{ marginTop: '1rem', marginBottom: '1rem' }}>
-              <label>Street Address</label>
-              <input required type="text" value={formData.street} onChange={(e) => setFormData({...formData, street: e.target.value})} placeholder="123 Retro Avenue, Apt 4B" />
-            </div>
-            <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-              <div className="form-group">
-                <label>City</label>
-                <input required type="text" value={formData.city} onChange={(e) => setFormData({...formData, city: e.target.value})} placeholder="Mumbai" />
-              </div>
-              <div className="form-group">
-                <label>Zip/Postal Code</label>
-                <input required type="text" value={formData.zip} onChange={(e) => setFormData({...formData, zip: e.target.value})} placeholder="400001" />
-              </div>
-            </div>
-            <div className="form-group flex-row" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '0.5rem', marginTop: '1.5rem' }}>
-              <input type="checkbox" id="isDefault" checked={formData.isDefault} onChange={(e) => setFormData({...formData, isDefault: e.target.checked})} />
-              <label htmlFor="isDefault" style={{ cursor: 'pointer' }}>Set as default address</label>
-            </div>
-            <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
-              <button type="submit" className="btn btn-primary">{editingId ? 'Update' : 'Save'} Address</button>
-              <button type="button" className="btn btn-outline" onClick={() => setShowForm(false)}>Cancel</button>
-            </div>
-          </form>
-        </div>
-      ) : (
-        <div className="address-grid">
-          {addresses.length === 0 ? (
-            <div style={{ color: 'var(--text-dim)' }}>No addresses saved yet.</div>
-          ) : (
-            addresses.map(a => (
-              <div key={a.id} className={`address-card ${a.isDefault ? 'default' : ''}`}>
-                {a.isDefault && <span className="default-badge">Default</span>}
-                <div className="addr-header">
-                  <h4>{a.type}</h4>
-                  <div className="addr-actions">
-                    <button onClick={() => openEdit(a)}><Edit2 size={16}/></button>
-                    <button onClick={() => handleDelete(a.id)}><Trash2 size={16}/></button>
-                  </div>
-                </div>
-                <p className="font-bold">{a.name}</p>
-                <p>{a.street}</p>
-                <p>{a.city}, {a.zip}</p>
-                {!a.isDefault && (
-                  <button className="link-btn" style={{ marginTop: '1rem', fontSize: '0.8rem' }} onClick={() => handleSetDefault(a.id)}>
-                    Set as Default
-                  </button>
-                )}
-              </div>
-            ))
-          )}
-        </div>
-      )}
-    </motion.div>
+    <div className="flash-timer">
+      <span>{pad(timeLeft.h)}</span>:<span>{pad(timeLeft.m)}</span>:<span>{pad(timeLeft.s)}</span>
+    </div>
   );
 };
 
-const PaymentTab = () => {
-  return (
-    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="tab-pane">
-      <div className="flex-between mb-2">
-        <div>
-          <h2>Payment Methods</h2>
-          <p>Manage your saved cards.</p>
-        </div>
-        <button className="btn btn-primary btn-sm"><Plus size={16}/> Add Card</button>
-      </div>
-
-      <div className="cards-grid">
-        {dummyCards.map(c => (
-          <div key={c.id} className={`payment-card ${c.isDefault ? 'default' : ''}`}>
-            <div className="card-chip"></div>
-            <div className="card-brand">{c.brand}</div>
-            <div className="card-number">**** **** **** {c.last4}</div>
-            <div className="card-footer">
-              <div>
-                <span>EXP</span>
-                <p>{c.exp}</p>
-              </div>
-              {c.isDefault && <span className="default-text">Default</span>}
-            </div>
-            <button className="card-delete"><Trash2 size={16}/></button>
-          </div>
-        ))}
-      </div>
-    </motion.div>
-  );
-};
-
-const SecurityTab = () => {
-  return (
-    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="tab-pane">
-      <div className="section-header">
-        <h2>Security Settings</h2>
-        <p>Keep your account secure.</p>
-      </div>
-
-      <div className="settings-card mb-2">
-        <h3><Lock size={18} /> Change Password</h3>
-        <form className="password-form" onSubmit={e => e.preventDefault()}>
-          <div className="form-group">
-            <label>Current Password</label>
-            <input type="password" placeholder="••••••••" />
-          </div>
-          <div className="form-group">
-            <label>New Password</label>
-            <input type="password" placeholder="••••••••" />
-          </div>
-          <button className="btn btn-primary">Update Password</button>
-        </form>
-      </div>
-
-      <div className="settings-card">
-        <div className="flex-between align-center">
-          <div>
-            <h3><Smartphone size={18} /> Two-Factor Authentication</h3>
-            <p className="text-sm">Add an extra layer of security to your account.</p>
-          </div>
-          <label className="toggle-switch">
-            <input type="checkbox" defaultChecked />
-            <span className="slider"></span>
-          </label>
-        </div>
-      </div>
-    </motion.div>
-  );
-};
-
-const NotificationsTab = () => {
-  return (
-    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="tab-pane">
-       <div className="section-header">
-        <h2>Notifications</h2>
-        <p>Manage what we send to your inbox.</p>
-      </div>
-
-      <div className="settings-card">
-        <div className="toggle-row">
-          <div>
-            <h4>Order Updates</h4>
-            <p>Email notifications for order status changes.</p>
-          </div>
-          <label className="toggle-switch">
-            <input type="checkbox" defaultChecked />
-            <span className="slider"></span>
-          </label>
-        </div>
-        <div className="divider"></div>
-        <div className="toggle-row">
-          <div>
-            <h4>Promotional Offers</h4>
-            <p>Get notified about sales and exclusive discounts.</p>
-          </div>
-          <label className="toggle-switch">
-            <input type="checkbox" />
-            <span className="slider"></span>
-          </label>
-        </div>
-        <div className="divider"></div>
-        <div className="toggle-row">
-          <div>
-            <h4>Account Activity</h4>
-            <p>Security alerts and login notifications.</p>
-          </div>
-          <label className="toggle-switch">
-            <input type="checkbox" defaultChecked />
-            <span className="slider"></span>
-          </label>
-        </div>
-      </div>
-    </motion.div>
-  );
-};
-
-// --- MAIN PROFILE PAGE --- //
-
+// ─── MAIN COMPONENT ─────────────────────────────────────────────
 const Profile = () => {
-  const [activeTab, setActiveTab ]        = useState('dashboard');
-  const [theme, setTheme]                 = useState('dark');
-  const [isMobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [orders, setOrders]               = useState([]);
-  const [wishlist, setWishlist]           = useState([]);
-  const [cartCount, setCartCount]         = useState(0);
-  const [loading, setLoading]             = useState(true);
+  const { currentUser, logout, userProfile } = useAuth();
+  const navigate = useNavigate();
 
-  const { currentUser, logout } = useAuth();
-  const navigate                = useNavigate();
+  // State variables
+  const [activeTab, setActiveTab] = useState('overview'); // overview, orders, wishlist, address, payment, rewards, security, notifications
+  const [orders, setOrders] = useState([]);
+  const [wishlist, setWishlist] = useState([]);
+  const [allProducts, setAllProducts] = useState([]);
+  const [cartCount, setCartCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [toast, setToast] = useState(null);
 
+  // Address sub-state
+  const [addresses, setAddresses] = useState([]);
+  const [addrLoading, setAddrLoading] = useState(false);
+  const [showAddrForm, setShowAddrForm] = useState(false);
+  const [editingAddrId, setEditingAddrId] = useState(null);
+  const [addrForm, setAddrForm] = useState({ type: 'Home', name: '', street: '', city: '', zip: '', isDefault: false });
+
+  // Payment mock state
+  const [cards, setCards] = useState([
+    { id: '1', brand: 'VISA', last4: '8842', exp: '12/28', isDefault: true, name: 'MUNEESWARAN P' },
+    { id: '2', brand: 'MasterCard', last4: '1095', exp: '08/29', isDefault: false, name: 'MUNEESWARAN P' }
+  ]);
+
+  // Load user details
   useEffect(() => {
-    const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
-    setTheme(currentTheme);
+    window.scrollTo(0, 0);
     if (currentUser) {
-      loadUserData();
+      loadData();
+    } else {
+      navigate('/login');
     }
   }, [currentUser]);
 
-  const loadUserData = async () => {
+  const showMsg = (text, type = 'success') => {
+    setToast({ text, type });
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  const loadData = async () => {
     setLoading(true);
     try {
-      const [o, wIds, cItems] = await Promise.all([
+      const [myOrders, wIds, cartItems, prods] = await Promise.all([
         orderService.getMyOrders(),
         wishlistService.get(),
-        cartService.get(currentUser.uid)
+        cartService.get(currentUser.uid),
+        productService.getAll()
       ]);
-
-      setOrders(o);
-      const wProducts = await productService.getByIds(wIds);
-      setWishlist(wProducts);
-      setCartCount(cItems.reduce((acc, i) => acc + i.quantity, 0));
+      setOrders(myOrders);
+      setAllProducts(prods);
+      
+      const wProds = await productService.getByIds(wIds);
+      setWishlist(wProds);
+      setCartCount(cartItems.reduce((acc, i) => acc + i.quantity, 0));
+      
+      // Load addresses
+      setAddrLoading(true);
+      const addrs = await addressService.get();
+      setAddresses(addrs);
     } catch (err) {
-      console.error('Failed to load user data', err);
+      console.error(err);
     } finally {
       setLoading(false);
+      setAddrLoading(false);
     }
   };
 
+  // Remove from Wishlist
   const handleRemoveWishlist = async (id) => {
     try {
       await wishlistService.remove(id);
       setWishlist(prev => prev.filter(p => p.id !== id));
+      showMsg('Removed from wishlist');
     } catch (err) {
       console.error(err);
     }
   };
 
+  // Move from Wishlist to Cart
   const handleMoveToCart = async (product) => {
     try {
       const variant = product.variants?.[0] || null;
@@ -550,98 +129,622 @@ const Profile = () => {
       await wishlistService.remove(product.id);
       setWishlist(prev => prev.filter(p => p.id !== product.id));
       setCartCount(prev => prev + 1);
+      showMsg('Item moved to cart!');
     } catch (err) {
       console.error(err);
     }
   };
 
-  const toggleTheme = () => {
-    const newTheme = theme === 'light' ? 'dark' : 'light';
-    setTheme(newTheme);
-    document.documentElement.setAttribute('data-theme', newTheme);
-  };
-
-  const handleLogout = async () => {
-    await logout();
-    navigate('/login');
-  };
-
-  const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
-    { id: 'orders', label: 'Orders', icon: <Package size={20} /> },
-    { id: 'wishlist', label: 'Wishlist', icon: <Heart size={20} /> },
-    { id: 'address', label: 'Address Book', icon: <MapPin size={20} /> },
-    { id: 'payment', label: 'Payment Methods', icon: <CreditCard size={20} /> },
-    { id: 'security', label: 'Security', icon: <Shield size={20} /> },
-    { id: 'notifications', label: 'Notifications', icon: <Bell size={20} /> },
-  ];
-
-  const renderContent = () => {
-    if (loading) return <div className="tab-pane">Loading account data...</div>;
-    
-    switch (activeTab) {
-      case 'dashboard': return <DashboardTab setTab={setActiveTab} orders={orders} wishlist={wishlist} cartCount={cartCount} />;
-      case 'orders': return <OrdersTab orders={orders} />;
-      case 'wishlist': return <WishlistTab wishlist={wishlist} onRemove={handleRemoveWishlist} onMoveToCart={handleMoveToCart} />;
-      case 'address': return <AddressTab />;
-      case 'payment': return <PaymentTab />;
-      case 'security': return <SecurityTab />;
-      case 'notifications': return <NotificationsTab />;
-      default: return <DashboardTab setTab={setActiveTab} orders={orders} wishlist={wishlist} cartCount={cartCount} />;
+  // Add Item to Cart Directly
+  const handleAddToCart = async (product) => {
+    try {
+      const variant = product.variants?.[0] || null;
+      await cartService.addItem(product, variant, 1);
+      setCartCount(prev => prev + 1);
+      showMsg('Added to cart!');
+    } catch (err) {
+      console.error(err);
     }
   };
 
+  // Address Handlers
+  const handleAddrSave = async (e) => {
+    e.preventDefault();
+    try {
+      if (editingAddrId) {
+        await addressService.update(editingAddrId, addrForm);
+        showMsg('Address updated successfully');
+      } else {
+        await addressService.add(addrForm);
+        showMsg('New address added');
+      }
+      setShowAddrForm(false);
+      const addrs = await addressService.get();
+      setAddresses(addrs);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleAddrDelete = async (id) => {
+    if (!window.confirm('Delete this address?')) return;
+    try {
+      await addressService.delete(id);
+      setAddresses(prev => prev.filter(a => a.id !== id));
+      showMsg('Address deleted');
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleSetDefaultAddr = async (id) => {
+    try {
+      await addressService.setDefault(id);
+      const addrs = await addressService.get();
+      setAddresses(addrs);
+      showMsg('Default address updated');
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // Quick Action menu details
+  const QUICK_ACTIONS = [
+    { id: 'orders', title: 'My Orders', desc: `${orders.length} active order(s)`, icon: Package },
+    { id: 'wishlist', title: 'Wishlist', desc: `${wishlist.length} item(s) saved`, icon: Heart },
+    { id: 'address', title: 'Addresses', desc: `${addresses.length} saved location(s)`, icon: MapPin },
+    { id: 'payment', title: 'Payments', desc: 'Manage credit cards & UPI', icon: CreditCard },
+    { id: 'rewards', title: 'Rewards', desc: '750 points available', icon: Award },
+    { id: 'notifications', title: 'Notifications', desc: 'Offers & order updates', icon: Bell },
+    { id: 'security', title: 'Security', desc: 'Password & authentication', icon: Shield },
+  ];
+
+  const displayName = currentUser?.displayName || userProfile?.name || 'Muneeswaran P';
+  const email = currentUser?.email || 'muneeswaranmd2004@gmail.com';
+
   return (
-    <div className="dashboard-page section">
-      <div className="container">
-        
-        {/* Mobile menu toggle */}
-        <div className="mobile-dash-header mobile-only">
-          <h2>My Account</h2>
-          <button className="btn btn-outline btn-sm" onClick={() => setMobileMenuOpen(!isMobileMenuOpen)}>
-            {isMobileMenuOpen ? 'Close Menu' : 'Menu'}
-          </button>
+    <div className="my-account-page">
+      {toast && <Toast text={toast.text} type={toast.type} onClose={() => setToast(null)} />}
+
+      <div className="account-container container">
+        {/* Breadcrumb */}
+        <div className="breadcrumb">
+          <Link to="/">Home</Link> <span>/</span> <span className="active">My Account</span>
         </div>
 
-        <div className="dash-unified-container">
-          {/* Sidebar */}
-          <aside className={`dash-sidebar ${isMobileMenuOpen ? 'open' : ''}`}>
-            <div className="sidebar-brand desktop-only">
-              <h3>My Account</h3>
+        {/* Welcome Section */}
+        <div className="welcome-banner">
+          <div className="welcome-profile-info">
+            <div className="welcome-avatar-wrapper">
+              <div className="welcome-avatar">{displayName.charAt(0)}</div>
+              <div className="membership-badge-tag">VIP Gold</div>
             </div>
-            
-            <nav className="dash-nav">
-              {menuItems.map(item => (
-                <button
-                  key={item.id}
-                  className={`dash-nav-item ${activeTab === item.id ? 'active' : ''}`}
-                  onClick={() => { setActiveTab(item.id); setMobileMenuOpen(false); }}
-                >
-                  {item.icon}
-                  {item.label}
+            <div>
+              <h1 className="welcome-title">Welcome back, {displayName.split(' ')[0]} 👋</h1>
+              <p className="welcome-subtitle">Manage your orders, wishlist, addresses, and profile all in one place.</p>
+            </div>
+          </div>
+          <div className="points-luxury-summary">
+            <div className="points-label">MEMBERSHIP BALANCE</div>
+            <div className="points-value">750 <span className="points-suffix">PTS</span></div>
+            <div className="points-footer">VIP Tier Progress: Gold Level</div>
+          </div>
+        </div>
+
+        {/* Dynamic Render Section */}
+        <AnimatePresence mode="wait">
+          {activeTab === 'overview' ? (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} key="overview">
+              {/* Quick Actions Grid */}
+              <div className="quick-actions-grid">
+                {QUICK_ACTIONS.map(act => (
+                  <div key={act.id} className="quick-card" onClick={() => setActiveTab(act.id)}>
+                    <div className="quick-card-icon"><act.icon size={22} /></div>
+                    <div className="quick-card-info">
+                      <h3>{act.title}</h3>
+                      <p>{act.desc}</p>
+                    </div>
+                  </div>
+                ))}
+                <div className="quick-card logout" onClick={async () => { await logout(); navigate('/login'); }}>
+                  <div className="quick-card-icon"><LogOut size={22} /></div>
+                  <div className="quick-card-info">
+                    <h3>Log Out</h3>
+                    <p>Securely log out of your account</p>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          ) : (
+            <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 16 }} key={activeTab}>
+              <div className="tab-container-card">
+                <button className="back-btn" onClick={() => setActiveTab('overview')}>
+                  <ArrowLeft size={16} /> Back to Overview
                 </button>
-              ))}
-            </nav>
 
-            <div className="dash-sidebar-footer">
-              <button className="dash-nav-item theme-toggle" onClick={toggleTheme}>
-                {theme === 'light' ? <Moon size={20}/> : <Sun size={20}/>}
-                <span>{theme === 'light' ? 'Dark Mode' : 'Light Mode'}</span>
-              </button>
-              <button className="dash-nav-item logout" onClick={handleLogout}>
-                <LogOut size={20} />
-                <span>Log Out</span>
-              </button>
+                {/* --- ORDERS TAB --- */}
+                {activeTab === 'orders' && (
+                  <div>
+                    <h2 className="tab-title">Order History</h2>
+                    <p className="tab-subtitle">Track your shipments and view past invoices.</p>
+                    {orders.length === 0 ? (
+                      <div className="empty-state">
+                        <Package size={48} className="empty-icon" />
+                        <h3>No Orders Yet</h3>
+                        <p>Items you buy will appear here. Start shopping our catalog.</p>
+                        <Link to="/shop" className="btn btn-primary mt-4">Explore Shop</Link>
+                      </div>
+                    ) : (
+                      <div className="orders-cards-list">
+                        {orders.map(o => (
+                          <div key={o.id} className="order-item-card">
+                            <div className="order-item-header">
+                              <div>
+                                <span className="order-id-label">ORDER ID:</span>
+                                <span className="order-id-val"> #{o.id.slice(-8).toUpperCase()}</span>
+                              </div>
+                              <div className="order-meta-info">
+                                <span>Placed on {formatDate(o.createdAt)}</span>
+                                <span className="sep">•</span>
+                                <span className="order-price-val">₹{o.total?.toLocaleString()}</span>
+                              </div>
+                            </div>
+                            <div className="order-item-body">
+                              <div className="order-products-mini">
+                                {o.items?.map((item, idx) => (
+                                  <div key={idx} className="mini-prod-row">
+                                    <img src={item.image || 'https://via.placeholder.com/60x80'} alt={item.name} />
+                                    <div>
+                                      <h4>{item.name}</h4>
+                                      <p className="text-muted text-sm">Qty: {item.quantity} {item.size ? `| Size: ${item.size}` : ''}</p>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                              <div className="order-tracking-timeline">
+                                <div className="tracking-status-label">
+                                  Status: <strong style={{ color: 'var(--primary)', textTransform: 'uppercase' }}>{o.orderStatus}</strong>
+                                </div>
+                                <div className="progress-bar-track">
+                                  <div 
+                                    className="progress-fill" 
+                                    style={{ 
+                                      width: o.orderStatus === 'delivered' ? '100%' : o.orderStatus === 'shipped' ? '65%' : o.orderStatus === 'processing' ? '35%' : '10%' 
+                                    }}
+                                  ></div>
+                                </div>
+                                <div className="tracking-steps-labels">
+                                  <span className="active">Placed</span>
+                                  <span className={['processing', 'shipped', 'delivered'].includes(o.orderStatus) ? 'active' : ''}>Processing</span>
+                                  <span className={['shipped', 'delivered'].includes(o.orderStatus) ? 'active' : ''}>Shipped</span>
+                                  <span className={o.orderStatus === 'delivered' ? 'active' : ''}>Delivered</span>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="order-item-footer">
+                              <button className="btn btn-outline btn-sm">Track Order</button>
+                              <button className="btn btn-primary btn-sm" onClick={() => showMsg('Items added to cart! (Buy again)')}>Buy Again</button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* --- WISHLIST TAB --- */}
+                {activeTab === 'wishlist' && (
+                  <div>
+                    <div className="wishlist-header-row">
+                      <div>
+                        <h2 className="tab-title">My Wishlist ({wishlist.length})</h2>
+                        <p className="tab-subtitle">Your curated selection of saved styles.</p>
+                      </div>
+                      <div className="wishlist-toolbar">
+                        <button className="btn btn-ghost btn-sm" onClick={() => showMsg('Link copied to clipboard!')}><Share2 size={14} /> Share List</button>
+                      </div>
+                    </div>
+
+                    {wishlist.length === 0 ? (
+                      <div className="empty-state">
+                        <Heart size={48} className="empty-icon" />
+                        <h3>Your Wishlist is Waiting</h3>
+                        <p>Save your favorite styles and discover them later.</p>
+                        <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem', justifyContent: 'center' }}>
+                          <Link to="/shop" className="btn btn-primary">Continue Shopping</Link>
+                          <Link to="/shop?filter=new" className="btn btn-outline">Explore New Arrivals</Link>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="wishlist-shop-grid">
+                        {wishlist.map(prod => (
+                          <div key={prod.id} className="shop-product-card">
+                            <div className="prod-img-wrapper">
+                              <img src={prod.image} alt={prod.name} className="main-img" />
+                              {prod.on_sale && <span className="discount-tag">-{Math.round(((prod.price - prod.discount_price)/prod.price)*100)}%</span>}
+                              <button className="remove-fav-btn" onClick={() => handleRemoveWishlist(prod.id)} title="Remove"><X size={15} /></button>
+                              <div className="prod-actions-overlay">
+                                <Link to={`/product/${prod.slug}`} className="overlay-act-btn"><Eye size={14} /></Link>
+                              </div>
+                            </div>
+                            <div className="prod-info-block">
+                              <div className="prod-brand">{prod.brand || 'RetroStylings'}</div>
+                              <h3 className="prod-title-heading">{prod.name}</h3>
+                              <div className="prod-prices">
+                                {prod.on_sale ? (
+                                  <>
+                                    <span className="curr-price">₹{prod.discount_price}</span>
+                                    <span className="orig-price">₹{prod.price}</span>
+                                  </>
+                                ) : (
+                                  <span className="curr-price">₹{prod.price}</span>
+                                )}
+                              </div>
+                              <button className="btn btn-primary btn-sm w-full mt-3" onClick={() => handleMoveToCart(prod)}>
+                                <ShoppingBag size={14} /> Add to Cart
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* --- ADDRESSES TAB --- */}
+                {activeTab === 'address' && (
+                  <div>
+                    <h2 className="tab-title">Address Book</h2>
+                    <p className="tab-subtitle">Manage your shipping and billing delivery addresses.</p>
+
+                    {showAddrForm ? (
+                      <form className="address-form-box" onSubmit={handleAddrSave}>
+                        <h3 className="sub-header-title">{editingAddrId ? 'Edit Address' : 'Add New Address'}</h3>
+                        <div className="form-grid-row">
+                          <div className="form-group-item">
+                            <label>Address Type</label>
+                            <select value={addrForm.type} onChange={e => setAddrForm({ ...addrForm, type: e.target.value })}>
+                              <option value="Home">Home 🏠</option>
+                              <option value="Work">Work 💼</option>
+                              <option value="Other">Other 📍</option>
+                            </select>
+                          </div>
+                          <div className="form-group-item">
+                            <label>Contact Name</label>
+                            <input required type="text" value={addrForm.name} onChange={e => setAddrForm({ ...addrForm, name: e.target.value })} placeholder="E.g. Muneeswaran" />
+                          </div>
+                        </div>
+                        <div className="form-group-item mt-3">
+                          <label>Street Address</label>
+                          <input required type="text" value={addrForm.street} onChange={e => setAddrForm({ ...addrForm, street: e.target.value })} placeholder="123 Street name, Building, Apartment" />
+                        </div>
+                        <div className="form-grid-row mt-3">
+                          <div className="form-group-item">
+                            <label>City</label>
+                            <input required type="text" value={addrForm.city} onChange={e => setAddrForm({ ...addrForm, city: e.target.value })} placeholder="Mumbai" />
+                          </div>
+                          <div className="form-group-item">
+                            <label>Zip/Postal Code</label>
+                            <input required type="text" value={addrForm.zip} onChange={e => setAddrForm({ ...addrForm, zip: e.target.value })} placeholder="400001" />
+                          </div>
+                        </div>
+                        <label className="checkbox-wrap mt-3">
+                          <input type="checkbox" checked={addrForm.isDefault} onChange={e => setAddrForm({ ...addrForm, isDefault: e.target.checked })} />
+                          Set as default delivery address
+                        </label>
+                        <div className="form-actions-buttons mt-4">
+                          <button type="submit" className="btn btn-primary">Save Address</button>
+                          <button type="button" className="btn btn-outline" onClick={() => setShowAddrForm(false)}>Cancel</button>
+                        </div>
+                      </form>
+                    ) : (
+                      <div className="addresses-list-grid">
+                        <div className="add-new-address-card" onClick={() => { setEditingAddrId(null); setAddrForm({ type: 'Home', name: '', street: '', city: '', zip: '', isDefault: false }); setShowAddrForm(true); }}>
+                          <Plus size={32} />
+                          <span>Add New Address</span>
+                        </div>
+                        {addresses.map(a => (
+                          <div key={a.id} className={`address-luxury-card ${a.isDefault ? 'default-active' : ''}`}>
+                            <div className="card-header-badge">
+                              <span className="badge badge-neutral">{a.type || 'Home'}</span>
+                              {a.isDefault && <span className="default-indicator">Default</span>}
+                            </div>
+                            <h3 className="recipient-name">{a.name}</h3>
+                            <p className="address-details">{a.street}, {a.city} - {a.zip}</p>
+                            <div className="address-actions-panel">
+                              <button onClick={() => { setEditingAddrId(a.id); setAddrForm(a); setShowAddrForm(true); }}><Edit2 size={13} /> Edit</button>
+                              <button onClick={() => handleAddrDelete(a.id)} className="delete"><Trash2 size={13} /> Delete</button>
+                              {!a.isDefault && <button onClick={() => handleSetDefaultAddr(a.id)} className="default-link">Set Default</button>}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* --- PAYMENT METHODS TAB --- */}
+                {activeTab === 'payment' && (
+                  <div>
+                    <h2 className="tab-title">Payment Methods</h2>
+                    <p className="tab-subtitle">Manage your saved credit/debit cards and secure wallets.</p>
+                    <div className="payments-cards-grid">
+                      {cards.map(c => (
+                        <div key={c.id} className="payment-credit-card">
+                          <div className="card-top-row">
+                            <span className="card-type-label">{c.brand.toUpperCase()}</span>
+                            <CreditCard size={20} />
+                          </div>
+                          <div className="card-number-hidden">•••• •••• •••• {c.last4}</div>
+                          <div className="card-bottom-row">
+                            <div>
+                              <span className="card-small-label">CARD HOLDER</span>
+                              <span className="card-bold-val">{c.name}</span>
+                            </div>
+                            <div>
+                              <span className="card-small-label">EXPIRES</span>
+                              <span className="card-bold-val">{c.exp}</span>
+                            </div>
+                          </div>
+                          <button className="remove-card-btn" onClick={() => { setCards(cards.filter(card => card.id !== c.id)); showMsg('Payment method removed'); }}><Trash2 size={14} /></button>
+                        </div>
+                      ))}
+                      <div className="add-payment-method-card" onClick={() => showMsg('Card addition feature coming soon!')}>
+                        <Plus size={24} />
+                        <span>Add New Card</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* --- REWARDS TAB --- */}
+                {activeTab === 'rewards' && (
+                  <div>
+                    <div className="wishlist-header-row">
+                      <div>
+                        <h2 className="tab-title">VIP Member Rewards</h2>
+                        <p className="tab-subtitle">Enjoy exclusive discounts, coupons, and premium tier privileges.</p>
+                      </div>
+                      <Link to="/rewards" className="btn btn-primary btn-sm" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', textDecoration: 'none' }}>
+                        <Trophy size={14} /> Open Full Rewards Center
+                      </Link>
+                    </div>
+                    
+                    <div className="rewards-layout-panel">
+                      {/* Luxury VIP membership card design */}
+                      <div className="luxury-member-card">
+                        <div className="lux-card-glow"></div>
+                        <div className="lux-header">
+                          <div className="lux-brand">RETROSTYLINGS</div>
+                          <div className="lux-badge"><Award size={20} /> GOLD MEMBER</div>
+                        </div>
+                        <div className="lux-body">
+                          <div className="lux-points-counter">750 <span className="lux-points-unit">PTS</span></div>
+                          <div className="lux-holder-name">MUNEESWARAN P</div>
+                        </div>
+                        <div className="lux-footer">
+                          <span>VIP ID: #RS-998842</span>
+                          <span>Member Since: 2025</span>
+                        </div>
+                      </div>
+
+                      <div className="rewards-details-content">
+                        <h3>Tier Progress</h3>
+                        <div className="tier-progress-container">
+                          <div className="tier-progress-labels">
+                            <span>Gold Tier</span>
+                            <span>Platinum Tier (1000 Pts)</span>
+                          </div>
+                          <div className="progress-bar-track neon-theme">
+                            <div className="progress-fill" style={{ width: '75%' }}></div>
+                          </div>
+                          <p className="tier-hint">You are only <strong>250 Points</strong> away from unlocking Platinum privileges (Free priority shipping & 15% flat store discounts).</p>
+                        </div>
+
+                        <h3 className="mt-4">Available Coupons</h3>
+                        <div className="coupons-grid-panel">
+                          <div className="reward-coupon-card">
+                            <div className="coupon-left">
+                              <h4>10%</h4>
+                              <p>OFF</p>
+                            </div>
+                            <div className="coupon-right">
+                              <h5>GOLDWELCOME</h5>
+                              <p>Valid on all casual wear drops.</p>
+                              <button className="btn btn-outline btn-xs" onClick={() => showMsg('Coupon copied to clipboard!')}>Copy Code</button>
+                            </div>
+                          </div>
+                          <div className="reward-coupon-card">
+                            <div className="coupon-left bg-secondary-theme">
+                              <h4>₹500</h4>
+                              <p>CASH</p>
+                            </div>
+                            <div className="coupon-right">
+                              <h5>RETRO500</h5>
+                              <p>On orders above ₹3,000.</p>
+                              <button className="btn btn-outline btn-xs" onClick={() => showMsg('Coupon copied to clipboard!')}>Copy Code</button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* --- NOTIFICATIONS TAB --- */}
+                {activeTab === 'notifications' && (
+                  <div>
+                    <h2 className="tab-title">Notification Settings</h2>
+                    <p className="tab-subtitle">Manage your preferred alert and alert update options.</p>
+                    <div className="settings-lux-switches">
+                      <div className="lux-switch-row">
+                        <div>
+                          <h4>Order Alerts</h4>
+                          <p>Receive push notifications and SMS updates regarding shipping status.</p>
+                        </div>
+                        <label className="toggle-switch">
+                          <input type="checkbox" defaultChecked />
+                          <span className="slider"></span>
+                        </label>
+                      </div>
+                      <div className="lux-switch-row">
+                        <div>
+                          <h4>Exclusive Sales & Offers</h4>
+                          <p>Stay updated on seasonal sales, promo codes, and loyalty drops.</p>
+                        </div>
+                        <label className="toggle-switch">
+                          <input type="checkbox" defaultChecked />
+                          <span className="slider"></span>
+                        </label>
+                      </div>
+                      <div className="lux-switch-row">
+                        <div>
+                          <h4>System Activity</h4>
+                          <p>Receive alerts concerning security logs and account logins.</p>
+                        </div>
+                        <label className="toggle-switch">
+                          <input type="checkbox" />
+                          <span className="slider"></span>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* --- SECURITY TAB --- */}
+                {activeTab === 'security' && (
+                  <div>
+                    <h2 className="tab-title">Security & Password</h2>
+                    <p className="tab-subtitle">Update your credentials and enhance account protections.</p>
+                    <div className="security-settings-box">
+                      <form className="password-update-form" onSubmit={e => { e.preventDefault(); showMsg('Password updated!'); }}>
+                        <div className="form-group-item">
+                          <label>Current Password</label>
+                          <input type="password" placeholder="••••••••" required />
+                        </div>
+                        <div className="form-group-item mt-3">
+                          <label>New Password</label>
+                          <input type="password" placeholder="••••••••" required />
+                        </div>
+                        <button type="submit" className="btn btn-primary mt-4">Change Password</button>
+                      </form>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* ─── FLASH SALE CAROUSEL ──────────────────────────────────── */}
+        <section className="dashboard-section mt-5">
+          <div className="section-header-standalone flex-between">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <div className="flash-label-tag">
+                <Zap size={14} fill="currentColor" /> FLASH SALE
+              </div>
+              <FlashSaleTimer />
             </div>
-          </aside>
+            <Link to="/shop?filter=sale" className="link-btn">View All <ChevronRight size={16}/></Link>
+          </div>
+          <div className="products-horizontal-scroller">
+            {allProducts.slice(0, 4).map(prod => (
+              <div key={prod.id} className="scroll-product-card">
+                <div className="scroll-img-box">
+                  <img src={prod.image} alt={prod.name} />
+                  <button className="btn btn-primary btn-sm add-quick-btn" onClick={() => handleAddToCart(prod)}>
+                    <ShoppingBag size={13} /> Add
+                  </button>
+                </div>
+                <div className="scroll-info">
+                  <h4>{prod.name}</h4>
+                  <div className="scroll-prices">
+                    <span className="price-sale">₹{prod.discount_price || prod.price}</span>
+                    {prod.on_sale && <span className="price-old">₹{prod.price}</span>}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
 
-          {/* Main Content Area */}
-          <main className="dash-content-area">
-            <AnimatePresence mode="wait">
-              {renderContent()}
-            </AnimatePresence>
-          </main>
-        </div>
+        {/* ─── RECOMMENDED FOR YOU (AI RECOMMENDATION) ───────────────── */}
+        <section className="dashboard-section mt-5">
+          <div className="section-header-standalone">
+            <h2 className="section-title">Recommended For You</h2>
+            <p className="section-subtitle">Curated styles based on your shopping preferences</p>
+          </div>
+          <div className="products-horizontal-scroller">
+            {allProducts.slice(1, 5).map(prod => (
+              <div key={prod.id} className="scroll-product-card">
+                <div className="scroll-img-box">
+                  <img src={prod.image} alt={prod.name} />
+                  <button className="btn btn-primary btn-sm add-quick-btn" onClick={() => handleAddToCart(prod)}>
+                    <ShoppingBag size={13} /> Add
+                  </button>
+                </div>
+                <div className="scroll-info">
+                  <h4>{prod.name}</h4>
+                  <div className="scroll-prices">
+                    <span className="price-sale">₹{prod.discount_price || prod.price}</span>
+                    {prod.on_sale && <span className="price-old">₹{prod.price}</span>}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* ─── RECENTLY VIEWED ───────────────────────────────────────── */}
+        <section className="dashboard-section mt-5">
+          <div className="section-header-standalone">
+            <h2 className="section-title">Recently Viewed</h2>
+            <p className="section-subtitle">Styles you viewed during this session</p>
+          </div>
+          <div className="products-horizontal-scroller">
+            {allProducts.slice(2, 6).map(prod => (
+              <div key={prod.id} className="scroll-product-card">
+                <div className="scroll-img-box">
+                  <img src={prod.image} alt={prod.name} />
+                  <button className="btn btn-primary btn-sm add-quick-btn" onClick={() => handleAddToCart(prod)}>
+                    <ShoppingBag size={13} /> Add
+                  </button>
+                </div>
+                <div className="scroll-info">
+                  <h4>{prod.name}</h4>
+                  <div className="scroll-prices">
+                    <span className="price-sale">₹{prod.discount_price || prod.price}</span>
+                    {prod.on_sale && <span className="price-old">₹{prod.price}</span>}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* ─── CONTINUE SHOPPING CATEGORIES ─────────────────────────── */}
+        <section className="dashboard-section mt-5 mb-5">
+          <div className="section-header-standalone">
+            <h2 className="section-title">Continue Shopping</h2>
+            <p className="section-subtitle">Navigate through your favorite style categories</p>
+          </div>
+          <div className="categories-luxury-grid">
+            {[
+              { name: 'Oversized T-Shirts', image: 'https://images.unsplash.com/photo-1576566588028-4147f3842f27?w=400', slug: 't-shirts' },
+              { name: 'Hoodies', image: 'https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=400', slug: 'hoodies' },
+              { name: 'Sneakers', image: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400', slug: 'footwear' },
+              { name: 'Accessories', image: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400', slug: 'accessories' }
+            ].map(cat => (
+              <Link to={`/shop?category=${cat.slug}`} key={cat.name} className="category-luxury-card">
+                <img src={cat.image} alt={cat.name} className="img-cover" />
+                <div className="category-overlay-content">
+                  <h3>{cat.name}</h3>
+                  <span className="shop-link-text">Shop Collection <ArrowRight size={14} /></span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
       </div>
     </div>
   );

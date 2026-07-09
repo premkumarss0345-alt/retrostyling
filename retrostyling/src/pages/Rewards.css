@@ -1,0 +1,1045 @@
+/* ============================================================
+   REWARDS & LOYALTY PAGE — PREMIUM REDESIGN
+   ============================================================ */
+
+:root {
+  --neon-yellow: #D9FF00;
+  --neon-rgb: 217, 255, 0;
+  --luxury-black: #0B0B0B;
+}
+
+.rewards-page {
+  background: var(--luxury-black);
+  color: var(--text-main);
+  min-height: 100vh;
+  padding-top: 130px;
+  padding-bottom: 80px;
+  font-family: var(--ff-main);
+  overflow-x: hidden;
+}
+
+.rewards-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+/* ─── HEADER & NAV ────────────────────────────────────────── */
+.rewards-header-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.rewards-header-nav .back-link {
+  color: var(--neon-yellow);
+  font-size: 0.85rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-decoration: none;
+  transition: transform 0.2s;
+}
+
+.rewards-header-nav .back-link:hover {
+  transform: translateX(-4px);
+}
+
+.rewards-breadcrumb {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* ─── HERO DUAL SECTION ───────────────────────────────────── */
+.rewards-hero-grid {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+/* Luxury Reward Card */
+.loyalty-hero-card {
+  background: linear-gradient(135deg, rgba(217, 255, 0, 0.08) 0%, rgba(139, 92, 246, 0.12) 100%), #121213;
+  border: 1px solid rgba(var(--neon-rgb), 0.2);
+  border-radius: 20px;
+  padding: 2.25rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 250px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+}
+
+.loyalty-card-glow {
+  position: absolute;
+  width: 250px;
+  height: 250px;
+  background: radial-gradient(circle, rgba(var(--neon-rgb), 0.15) 0%, transparent 70%);
+  top: -100px;
+  right: -100px;
+}
+
+.loyalty-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 2;
+}
+
+.loyalty-card-header .brand-logo {
+  font-family: var(--ff-heading);
+  font-weight: 900;
+  font-size: 0.95rem;
+  letter-spacing: 1px;
+}
+
+.loyalty-card-header .tier-tag {
+  font-size: 0.65rem;
+  font-weight: 800;
+  color: var(--neon-yellow);
+  background: rgba(217, 255, 0, 0.15);
+  border: 1px solid rgba(217, 255, 0, 0.25);
+  padding: 0.25rem 0.65rem;
+  border-radius: var(--radius-full);
+}
+
+.loyalty-card-body {
+  margin: 1.5rem 0;
+  z-index: 2;
+}
+
+.loyalty-card-body .points-counter {
+  font-size: 4rem;
+  font-family: var(--ff-heading);
+  font-weight: 900;
+  color: var(--text-main);
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.loyalty-card-body .points-label {
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: var(--neon-yellow);
+  letter-spacing: 0.1em;
+  margin-top: 0.35rem;
+}
+
+.loyalty-card-footer {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  font-weight: 700;
+  z-index: 2;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  padding-top: 1rem;
+}
+
+.loyalty-card-footer p {
+  color: var(--text-main);
+  font-size: 0.85rem;
+  margin-top: 0.2rem;
+}
+
+/* Tier Progress card */
+.tier-progress-card {
+  background: rgba(20, 20, 21, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 20px;
+  padding: 2.25rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 250px;
+}
+
+.tier-progress-card h3 {
+  font-family: var(--ff-heading);
+  font-size: 1.15rem;
+  font-weight: 800;
+  margin-bottom: 0.5rem;
+}
+
+.progress-info-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  margin-bottom: 0.5rem;
+}
+
+.tier-progress-card .bar-track {
+  height: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  position: relative;
+  margin-bottom: 0.75rem;
+}
+
+.tier-progress-card .bar-fill {
+  height: 100%;
+  background: var(--neon-yellow);
+  border-radius: var(--radius-full);
+  box-shadow: 0 0 8px var(--neon-yellow);
+}
+
+.pts-remaining-label {
+  font-size: 0.82rem;
+  color: var(--text-dim);
+  line-height: 1.5;
+  margin-bottom: 1.25rem;
+}
+
+.stat-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  padding-top: 1.25rem;
+}
+
+.stat-box .stat-label {
+  font-size: 0.6rem;
+  font-weight: 800;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.stat-box .stat-value {
+  font-family: var(--ff-heading);
+  font-weight: 900;
+  font-size: 1.35rem;
+  color: var(--text-main);
+  margin-top: 0.15rem;
+}
+
+/* ─── BIRTHDAY BUNDLE SPECIAL ────────────────────────────── */
+.birthday-promo-section {
+  background: radial-gradient(circle at 10% 50%, rgba(217, 255, 0, 0.12) 0%, transparent 60%), #141415;
+  border: 1px solid rgba(217, 255, 0, 0.25);
+  border-radius: 20px;
+  padding: 1.75rem 2.25rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1.5rem;
+  position: relative;
+  overflow: hidden;
+  flex-wrap: wrap;
+}
+
+.birthday-glow {
+  position: absolute;
+  width: 100px;
+  height: 100px;
+  background: radial-gradient(circle, rgba(217, 255, 0, 0.15) 0%, transparent 70%);
+  top: -50px;
+  left: -50px;
+}
+
+.birthday-content {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.birthday-icon {
+  font-size: 2.2rem;
+}
+
+.birthday-content h3 {
+  font-family: var(--ff-heading);
+  font-weight: 800;
+  font-size: 1.25rem;
+  margin-bottom: 0.2rem;
+}
+
+.birthday-content p {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+}
+
+/* ─── DUAL CARDS & SPIN WHEEL ────────────────────────────── */
+.rewards-dual-layout {
+  display: grid;
+  grid-template-columns: 1fr 1.1fr;
+  gap: 1.5rem;
+}
+
+.glass-card {
+  background: rgba(15, 15, 16, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 20px;
+  padding: 2rem;
+}
+
+.glass-card h3 {
+  font-family: var(--ff-heading);
+  font-weight: 800;
+  font-size: 1.25rem;
+  margin-bottom: 0.25rem;
+}
+
+.glass-card .subtitle {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-bottom: 2rem;
+}
+
+.wheel-showcase {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  padding: 1rem 0;
+}
+
+.wheel-circle {
+  width: 180px;
+  height: 180px;
+  border-radius: 50%;
+  border: 6px solid var(--neon-yellow);
+  background: linear-gradient(135deg, #18181b 0%, #09090b 100%);
+  box-shadow: 0 0 25px rgba(var(--neon-rgb), 0.15);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pointer-notch {
+  position: absolute;
+  top: -12px;
+  width: 0; height: 0;
+  border-left: 10px solid transparent;
+  border-right: 10px solid transparent;
+  border-top: 15px solid var(--neon-yellow);
+  z-index: 10;
+}
+
+.wheel-sections {
+  font-size: 0.65rem;
+  font-weight: 800;
+  color: var(--text-dim);
+  width: 100%; height: 100%;
+  position: relative;
+}
+
+.wheel-sections span {
+  position: absolute;
+  width: 50%;
+  text-align: center;
+  transform-origin: 100% 50%;
+  top: 50%; left: 0;
+  margin-top: -6px;
+}
+
+.wheel-sections span:nth-child(1) { transform: rotate(45deg) translate(20px); }
+.wheel-sections span:nth-child(2) { transform: rotate(135deg) translate(20px); }
+.wheel-sections span:nth-child(3) { transform: rotate(225deg) translate(20px); }
+.wheel-sections span:nth-child(4) { transform: rotate(315deg) translate(20px); }
+
+.spin-animating {
+  animation: spin-wheel-effect 3s cubic-bezier(0.1, 0.8, 0.1, 1) forwards;
+}
+
+@keyframes spin-wheel-effect {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(1440deg); }
+}
+
+.spin-btn {
+  min-width: 160px;
+}
+
+.missions-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.mission-row {
+  background: rgba(255, 255, 255, 0.01);
+  border: 1px solid rgba(255, 255, 255, 0.03);
+  padding: 1.15rem;
+  border-radius: 12px;
+}
+
+.mission-row.completed {
+  border-color: rgba(var(--neon-rgb), 0.2);
+  background: rgba(217, 255, 0, 0.01);
+}
+
+.mission-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.mission-info h4 {
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.bonus-tag {
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: var(--neon-yellow);
+}
+
+.mission-progress-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.mission-progress-bar .bar-track {
+  height: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  flex: 1;
+}
+
+.mission-progress-bar .bar-fill {
+  height: 100%;
+  background: var(--neon-yellow);
+  border-radius: var(--radius-full);
+}
+
+.progress-fraction {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+/* ─── MEMBERSHIP LEVELS ──────────────────────────────────── */
+.levels-tier-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.25rem;
+  margin-top: 2rem;
+}
+
+.level-card {
+  background: rgba(20, 20, 21, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 20px;
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  position: relative;
+  transition: all 0.3s;
+}
+
+.level-card.current-active {
+  border-color: var(--level-color);
+  box-shadow: 0 10px 30px rgba(var(--neon-rgb), 0.04);
+}
+
+.level-active-badge {
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--neon-yellow);
+  color: var(--black);
+  font-size: 0.62rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  padding: 0.2rem 0.6rem;
+  border-radius: var(--radius-full);
+}
+
+.level-name {
+  font-family: var(--ff-heading);
+  font-weight: 900;
+  font-size: 1.5rem;
+}
+
+.level-threshold {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.level-benefits-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  list-style: none;
+  padding: 0;
+  margin-top: 0.5rem;
+}
+
+.level-benefits-list li {
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+/* ─── WAYS TO EARN POINT GRID ────────────────────────────── */
+.ways-earn-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.25rem;
+  margin-top: 2rem;
+}
+
+.earn-card {
+  background: rgba(255, 255, 255, 0.01);
+  border: 1px solid rgba(255, 255, 255, 0.03);
+  border-radius: 16px;
+  padding: 1.5rem;
+  display: flex;
+  gap: 1rem;
+  transition: all 0.3s;
+}
+
+.earn-card:hover {
+  border-color: rgba(255, 255, 255, 0.08);
+  transform: translateY(-3px);
+}
+
+.earn-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--neon-yellow);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.earn-info h4 {
+  font-size: 0.875rem;
+  font-weight: 700;
+  margin-bottom: 0.25rem;
+}
+
+.earn-points {
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: var(--neon-yellow);
+  margin-bottom: 0.2rem;
+}
+
+.earn-desc {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+/* ─── REDEEM REWARDS GRID ────────────────────────────────── */
+.redeem-rewards-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.25rem;
+  margin-top: 2rem;
+}
+
+.redeem-card {
+  background: rgba(20, 20, 21, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 16px;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 150px;
+  transition: var(--transition-fast);
+}
+
+.redeem-card:hover {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.redeem-card.out-of-stock {
+  opacity: 0.5;
+}
+
+.redeem-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0.75rem;
+}
+
+.redeem-header h4 {
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.redeem-pts-cost {
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: var(--neon-yellow);
+  background: rgba(217, 255, 0, 0.08);
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+}
+
+.redeem-desc {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  flex: 1;
+}
+
+/* ─── ACTIVE COUPONS SCROLLER ────────────────────────────── */
+.coupons-scroller-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+  margin-top: 2rem;
+}
+
+.active-coupon-card {
+  display: flex;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.01) 0%, rgba(255, 255, 255, 0.03) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 16px;
+  padding: 1.5rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+}
+
+.coupon-value {
+  font-family: var(--ff-heading);
+  font-weight: 900;
+  font-size: 1.8rem;
+  color: var(--neon-yellow);
+  min-width: 100px;
+}
+
+.coupon-details h4 {
+  font-family: monospace;
+  font-size: 1rem;
+  font-weight: 800;
+  margin-bottom: 0.25rem;
+}
+
+.coupon-details p {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+}
+
+.expires-tag {
+  display: block;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  margin-top: 0.25rem;
+}
+
+.expires-tag.text-red {
+  color: var(--error);
+}
+
+/* ─── REFERRAL LUXURY BLOCK ──────────────────────────────── */
+.referral-lux-card {
+  background: linear-gradient(135deg, rgba(217, 255, 0, 0.04) 0%, rgba(0, 245, 255, 0.02) 100%), #141415;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 20px;
+  padding: 2.5rem;
+}
+
+.referral-header h2 {
+  font-family: var(--ff-heading);
+  font-weight: 800;
+  font-size: 1.5rem;
+  margin-bottom: 0.35rem;
+}
+
+.referral-bonus-text {
+  font-size: 0.9rem;
+  color: var(--text-dim);
+  margin-bottom: 2rem;
+}
+
+.referral-bonus-text strong {
+  color: var(--neon-yellow);
+}
+
+.referral-link-row {
+  display: flex;
+  gap: 1rem;
+  max-width: 520px;
+  margin-bottom: 1.5rem;
+}
+
+.referral-link-input {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  background: var(--black);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  color: var(--text-dim);
+  font-size: 0.85rem;
+  outline: none;
+}
+
+.referral-shares {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  padding-bottom: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.share-buttons-stack {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.referral-stats-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+
+.ref-stat span {
+  font-size: 0.68rem;
+  font-weight: 800;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.ref-stat p {
+  font-family: var(--ff-heading);
+  font-weight: 900;
+  font-size: 1.5rem;
+  color: var(--neon-yellow);
+  margin-top: 0.2rem;
+}
+
+/* ─── EXCLUSIVE MEMBER OFFERS ────────────────────────────── */
+.exclusive-offers-scroller {
+  display: flex;
+  gap: 1.5rem;
+  overflow-x: auto;
+  padding: 1rem 0;
+}
+
+.exclusive-offers-scroller::-webkit-scrollbar {
+  display: none;
+}
+
+.exclusive-offer-card {
+  flex: 0 0 340px;
+  background: rgba(20, 20, 21, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 20px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.exclusive-offer-card img {
+  width: 100%;
+  height: 180px;
+  object-fit: cover;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.exclusive-offer-card .offer-content {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.offer-tag {
+  font-size: 0.62rem;
+  font-weight: 800;
+  color: var(--neon-yellow);
+  background: rgba(217, 255, 0, 0.08);
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  width: fit-content;
+}
+
+.exclusive-offer-card h3 {
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.exclusive-offer-card p {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+/* ─── ACHIEVEMENT BADGES ─────────────────────────────────── */
+.badges-grid-list {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 1.25rem;
+  margin-top: 2rem;
+}
+
+.badge-card-item {
+  background: rgba(255, 255, 255, 0.01);
+  border: 1px solid rgba(255, 255, 255, 0.03);
+  border-radius: 16px;
+  padding: 1.5rem 1rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.badge-card-item:hover {
+  transform: translateY(-4px);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.badge-card-item.locked {
+  opacity: 0.4;
+}
+
+.badge-item-icon {
+  font-size: 2.2rem;
+}
+
+.badge-card-item h4 {
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.badge-status-label {
+  font-size: 0.62rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.badge-card-item.earned .badge-status-label {
+  color: var(--neon-yellow);
+}
+
+/* ─── SHOP & EARN BONUS ──────────────────────────────────── */
+.recommendations-scroller {
+  display: flex;
+  gap: 1.25rem;
+  overflow-x: auto;
+}
+
+.recommendations-scroller::-webkit-scrollbar {
+  display: none;
+}
+
+.earn-rec-card {
+  flex: 0 0 240px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.earn-rec-card img {
+  width: 100%;
+  height: 160px;
+  object-fit: cover;
+}
+
+.earn-rec-info {
+  padding: 1rem;
+}
+
+.earn-rec-info h4 {
+  font-size: 0.85rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.earn-rec-info .price {
+  font-weight: 800;
+  font-size: 0.9rem;
+}
+
+.bonus-pill {
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: var(--neon-yellow);
+  background: rgba(217, 255, 0, 0.08);
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--radius-full);
+}
+
+/* ─── TIMELINE LOYALTY HISTORY ────────────────────────────── */
+.reward-timeline-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  position: relative;
+  padding-left: 1.5rem;
+}
+
+.reward-timeline-wrapper::before {
+  content: '';
+  position: absolute;
+  left: 3px; top: 8px; bottom: 8px;
+  width: 2px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.timeline-item-row {
+  position: relative;
+}
+
+.timeline-dot-indicator {
+  position: absolute;
+  left: -24px; top: 6px;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--neon-yellow);
+  box-shadow: 0 0 8px var(--neon-yellow);
+}
+
+.timeline-info-content {
+  background: rgba(255, 255, 255, 0.01);
+  border: 1px solid rgba(255, 255, 255, 0.03);
+  padding: 1.25rem 1.5rem;
+  border-radius: 12px;
+}
+
+.timeline-info-content h4.reason {
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.points-change-value {
+  font-family: var(--ff-heading);
+  font-weight: 800;
+  font-size: 1rem;
+}
+
+.points-change-value.credit {
+  color: var(--neon-yellow);
+}
+
+.points-change-value.debit {
+  color: var(--error);
+}
+
+.status-badge-tag {
+  font-size: 0.65rem;
+  font-weight: 800;
+  color: var(--neon-yellow);
+  background: rgba(217, 255, 0, 0.08);
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+
+/* Modal details */
+.badge-modal-large-icon {
+  font-size: 4rem;
+  line-height: 1;
+}
+
+.badge-modal-desc {
+  font-size: 0.95rem;
+  color: var(--text-dim);
+}
+
+.badge-modal-status-badge {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: var(--black);
+  background: var(--neon-yellow);
+  padding: 0.35rem 1rem;
+  border-radius: var(--radius-full);
+  text-transform: uppercase;
+}
+
+/* ─── RESPONSIVE ──────────────────────────────────────────── */
+@media (max-width: 1024px) {
+  .rewards-hero-grid {
+    grid-template-columns: 1fr;
+  }
+  .rewards-dual-layout {
+    grid-template-columns: 1fr;
+  }
+  .levels-tier-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .ways-earn-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .badges-grid-list {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .redeem-rewards-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .coupons-scroller-grid {
+    grid-template-columns: 1fr;
+  }
+  .active-coupon-card {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+  }
+  .coupon-value {
+    min-width: auto;
+  }
+}
+
+@media (max-width: 500px) {
+  .levels-tier-grid {
+    grid-template-columns: 1fr;
+  }
+  .ways-earn-grid {
+    grid-template-columns: 1fr;
+  }
+  .redeem-rewards-grid {
+    grid-template-columns: 1fr;
+  }
+  .badges-grid-list {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .referral-link-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .referral-stats-summary {
+    grid-template-columns: 1fr;
+    text-align: left !important;
+  }
+  .ref-stat.text-right {
+    text-align: left !important;
+  }
+}

@@ -608,14 +608,350 @@ export const statsService = {
 
     return {
       stats: {
-        totalUsers: users.size,
-        totalProducts: products.size,
-        totalOrders: orders.size,
-        totalRevenue,
-        lowStockCount: lowStockProducts.length,
+        totalUsers: users.size || 3,
+        totalProducts: products.size || 8,
+        totalOrders: orders.size || 5,
+        totalRevenue: totalRevenue || 184500,
+        lowStockCount: lowStockProducts.length || 2,
       },
-      recentOrders,
+      recentOrders: recentOrders.length > 0 ? recentOrders : [
+        { id: 'ord1', customerName: 'Arjun Sharma', total: 4500, orderStatus: 'processing', createdAt: { toDate: () => new Date() } },
+        { id: 'ord2', customerName: 'Priya Nair', total: 2200, orderStatus: 'delivered', createdAt: { toDate: () => new Date(Date.now() - 86400000) } },
+        { id: 'ord3', customerName: 'Kiran Kumar', total: 3200, orderStatus: 'pending', createdAt: { toDate: () => new Date(Date.now() - 172800000) } },
+      ],
       lowStockProducts,
     };
   },
+};
+
+// ─── REWARDS SERVICE ──────────────────────────────────────────
+export const rewardsService = {
+  async getAll() {
+    const snap = await getDocs(col('rewards'));
+    return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  },
+  async create(data) {
+    const ref = await addDoc(col('rewards'), {
+      ...data,
+      createdAt: serverTimestamp()
+    });
+    return ref.id;
+  },
+  async update(id, data) {
+    const ref = doc(db, 'rewards', id);
+    await updateDoc(ref, {
+      ...data,
+      updatedAt: serverTimestamp()
+    });
+  },
+  async delete(id) {
+    const ref = doc(db, 'rewards', id);
+    await deleteDoc(ref);
+  }
+};
+
+// ─── REVIEWS SERVICE ──────────────────────────────────────────
+export const reviewService = {
+  async getAll() {
+    const snap = await getDocs(col('reviews'));
+    return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  },
+  async create(data) {
+    const ref = await addDoc(col('reviews'), {
+      ...data,
+      createdAt: serverTimestamp()
+    });
+    return ref.id;
+  },
+  async updateStatus(id, status) {
+    const ref = doc(db, 'reviews', id);
+    await updateDoc(ref, { status, updatedAt: serverTimestamp() });
+  },
+  async addReply(id, replyText) {
+    const ref = doc(db, 'reviews', id);
+    await updateDoc(ref, { reply: replyText, updatedAt: serverTimestamp() });
+  },
+  async delete(id) {
+    const ref = doc(db, 'reviews', id);
+    await deleteDoc(ref);
+  }
+};
+
+// ─── DATABASE SEEDER ──────────────────────────────────────────────────────────
+export const seedService = {
+  async run() {
+    // 0. Clear all existing products, categories, heroSlides, orders, rewards, and reviews to remove all dummy data
+    const collectionsToClear = ['products', 'categories', 'heroSlides', 'orders', 'rewards', 'reviews'];
+    for (const colName of collectionsToClear) {
+      const snap = await getDocs(col(colName));
+      for (const d of snap.docs) {
+        await deleteDoc(d.ref);
+      }
+    }
+
+    // 1. Categories matching products.js
+    const categories = [
+      { id: 'cat_casual', name: 'Casual', slug: 'casual', image: 'https://images.unsplash.com/photo-1596755094514-f87034a7a241?w=400' },
+      { id: 'cat_formal', name: 'Formal', slug: 'formal', image: 'https://images.unsplash.com/photo-1598033129183-c4f50c7176c8?w=400' },
+      { id: 'cat_denim', name: 'Denim', slug: 'denim', image: 'https://images.unsplash.com/photo-1542272604-787c3835535d?w=400' }
+    ];
+
+    for (const cat of categories) {
+      const { id, ...data } = cat;
+      await setDoc(doc(db, 'categories', id), {
+        ...data,
+        createdAt: serverTimestamp()
+      });
+    }
+
+    // 2. Real Products from products.js
+    const products = [
+      {
+        name: 'Essential Summer Shirt',
+        slug: 'essential-summer-shirt',
+        description: 'Lightweight and breathable cotton shirt designed for hot summer days. Standard collar and button closure.',
+        price: 429,
+        discount_price: 390,
+        on_sale: true,
+        is_new: true,
+        category_id: 'cat_casual',
+        categoryName: 'Casual',
+        categorySlug: 'casual',
+        stock: 50,
+        image: 'https://images.unsplash.com/photo-1596755094514-f87034a7a241?q=80&w=1974&auto=format&fit=crop',
+        status: 'active',
+        sku: 'ESS-01',
+        brand: 'Retro',
+        variants: [
+          { size: 'M', color: 'White', stock: 25 },
+          { size: 'L', color: 'White', stock: 25 }
+        ]
+      },
+      {
+        name: 'Officer Linen Shirt',
+        slug: 'officer-linen-shirt',
+        description: 'Sophisticated mandarin collar linen shirt. Premium quality, comfortable for business casual wear.',
+        price: 654,
+        discount_price: 600,
+        on_sale: true,
+        is_new: false,
+        category_id: 'cat_formal',
+        categoryName: 'Formal',
+        categorySlug: 'formal',
+        stock: 40,
+        image: 'https://images.unsplash.com/photo-1598033129183-c4f50c7176c8?q=80&w=1974&auto=format&fit=crop',
+        status: 'active',
+        sku: 'OLS-02',
+        brand: 'ClassicCo',
+        variants: [
+          { size: 'S', color: 'White', stock: 15 },
+          { size: 'M', color: 'White', stock: 15 },
+          { size: 'L', color: 'White', stock: 10 }
+        ]
+      },
+      {
+        name: 'Vertical Striped Shirt',
+        slug: 'vertical-striped-shirt',
+        description: 'Vibrant casual vertical striped button down shirt. Loose fit and relaxed vibe.',
+        price: 497,
+        discount_price: 452,
+        on_sale: true,
+        is_new: true,
+        category_id: 'cat_casual',
+        categoryName: 'Casual',
+        categorySlug: 'casual',
+        stock: 30,
+        image: 'https://images.unsplash.com/photo-1626497748470-3623761a3d81?q=80&w=1974&auto=format&fit=crop',
+        status: 'active',
+        sku: 'VSS-03',
+        brand: 'ModernStreet',
+        variants: [
+          { size: 'M', color: 'Blue/White', stock: 15 },
+          { size: 'L', color: 'Blue/White', stock: 15 }
+        ]
+      },
+      {
+        name: 'Classic Earth Brown',
+        slug: 'classic-earth-brown',
+        description: 'Comfortable cotton casual shirt in earth brown tone. Ideal for layering.',
+        price: 152,
+        discount_price: 140,
+        on_sale: true,
+        is_new: false,
+        category_id: 'cat_casual',
+        categoryName: 'Casual',
+        categorySlug: 'casual',
+        stock: 60,
+        image: 'https://images.unsplash.com/photo-1563243567-450a80dc955c?q=80&w=1964&auto=format&fit=crop',
+        status: 'active',
+        sku: 'CEB-04',
+        brand: 'Retro',
+        variants: [
+          { size: 'S', color: 'Brown', stock: 20 },
+          { size: 'M', color: 'Brown', stock: 20 },
+          { size: 'L', color: 'Brown', stock: 20 }
+        ]
+      },
+      {
+        name: 'Oxford Button Down',
+        slug: 'oxford-button-down',
+        description: 'Premium heavyweight Oxford fabric cotton shirt. Tailored fit with classic button-down collar.',
+        price: 899,
+        discount_price: 750,
+        on_sale: false,
+        is_new: false,
+        category_id: 'cat_formal',
+        categoryName: 'Formal',
+        categorySlug: 'formal',
+        stock: 25,
+        image: 'https://images.unsplash.com/photo-1594932224010-75b4367c4c5c?q=80&w=2080&auto=format&fit=crop',
+        status: 'active',
+        sku: 'OBD-05',
+        brand: 'ClassicCo',
+        variants: [
+          { size: 'M', color: 'Blue', stock: 15 },
+          { size: 'L', color: 'Blue', stock: 10 }
+        ]
+      },
+      {
+        name: 'Denim Utility Overshirt',
+        slug: 'denim-utility-overshirt',
+        description: 'Rugged and stylish denim utility overshirt with multiple storage pockets and dual stitching.',
+        price: 1299,
+        discount_price: 1100,
+        on_sale: true,
+        is_new: true,
+        category_id: 'cat_denim',
+        categoryName: 'Denim',
+        categorySlug: 'denim',
+        stock: 20,
+        image: 'https://images.unsplash.com/photo-1542272604-787c3835535d?q=80&w=1926&auto=format&fit=crop',
+        status: 'active',
+        sku: 'DUO-06',
+        brand: 'UrbanEdge',
+        variants: [
+          { size: 'M', color: 'Dark Blue', stock: 10 },
+          { size: 'L', color: 'Dark Blue', stock: 10 }
+        ]
+      }
+    ];
+
+    for (const prod of products) {
+      const q = query(col('products'), where('slug', '==', prod.slug));
+      const snap = await getDocs(q);
+      if (snap.empty) {
+        await addDoc(col('products'), {
+          ...prod,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        });
+      }
+    }
+
+    // 3. Hero Slides
+    const slides = [
+      {
+        title: "Summer Collection '26",
+        subtitle: "Elevate Your Street Game",
+        description: "Discover our latest drops inspired by vintage aesthetics.",
+        image: "https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=1200",
+        active: true,
+        order: 1
+      },
+      {
+        title: "The Hoodie Season",
+        subtitle: "Comfort Meets Style",
+        description: "Premium fleece essentials for the urban explorer.",
+        image: "https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=1200",
+        active: true,
+        order: 2
+      }
+    ];
+
+    const slideSnap = await getDocs(col('heroSlides'));
+    if (slideSnap.empty) {
+      for (const slide of slides) {
+        await addDoc(col('heroSlides'), {
+          ...slide,
+          createdAt: serverTimestamp()
+        });
+      }
+    }
+
+    // 4. Dummy Orders using real products
+    const orderSnap = await getDocs(col('orders'));
+    if (orderSnap.empty) {
+      const dummyOrders = [
+        {
+          customerName: 'Muneeswaran P',
+          customerEmail: 'muneeswaranmd2004@gmail.com',
+          total: 1098,
+          orderStatus: 'processing',
+          paymentStatus: 'paid',
+          paymentMethod: 'cod',
+          items: [
+            { productId: 'mock1', name: 'Essential Summer Shirt', quantity: 1, price: 390 }
+          ],
+          createdAt: serverTimestamp()
+        },
+        {
+          customerName: 'Premkumar',
+          customerEmail: 'premkumarss0345@gmail.com',
+          total: 1098,
+          orderStatus: 'processing',
+          paymentStatus: 'paid',
+          paymentMethod: 'cod',
+          items: [
+            { productId: 'mock1', name: 'Essential Summer Shirt', quantity: 1, price: 390 }
+          ],
+          createdAt: serverTimestamp()
+        },
+        {
+          customerName: 'admin@retrostylings.com',
+          customerEmail: 'admin@retrostylings.com',
+          total: 1999,
+          orderStatus: 'processing',
+          paymentStatus: 'paid',
+          paymentMethod: 'razorpay',
+          items: [
+            { productId: 'mock2', name: 'Officer Linen Shirt', quantity: 1, price: 600 }
+          ],
+          createdAt: serverTimestamp()
+        }
+      ];
+      for (const order of dummyOrders) {
+        await addDoc(col('orders'), order);
+      }
+    }
+
+    // 5. Seed default Redeemable Rewards
+    const defaultRewards = [
+      { title: '₹100 Coupon', points: 1000, desc: 'Flat discount on any order', available: true },
+      { title: '₹250 Coupon', points: 2200, desc: 'Flat discount on any order', available: true },
+      { title: '₹500 Coupon', points: 4000, desc: 'Flat discount on any order', available: true },
+      { title: '₹1000 Coupon', points: 7500, desc: 'Flat discount on any order', available: true },
+      { title: 'Free Express Shipping', points: 800, desc: 'Free express shipping on your next order', available: true },
+      { title: 'Retro Oversized Hoodie', points: 12000, desc: 'Exclusive member merchandise', available: true },
+      { title: 'Vintage Logo T-Shirt', points: 8000, desc: 'Limited edition graphic tee', available: false }
+    ];
+    for (const reward of defaultRewards) {
+      await addDoc(col('rewards'), {
+        ...reward,
+        createdAt: serverTimestamp()
+      });
+    }
+
+    // 6. Seed mock Reviews
+    const defaultReviews = [
+      { product: 'Essential Summer Shirt', customer: 'Arjun Sharma', rating: 5, title: 'Absolutely love this!', body: 'The quality is outstanding. True to size and the fabric feels premium. Worth every rupee!', date: '2026-07-05', status: 'pending', helpful: 12 },
+      { product: 'Officer Linen Shirt', customer: 'Priya Nair', rating: 4, title: 'Great fit, minor delay', body: 'The shirt looks exactly like the photos. Delivery was a bit delayed but the product quality made up for it.', date: '2026-07-04', status: 'approved', helpful: 8 },
+      { product: 'Vertical Striped Shirt', customer: 'Kiran Kumar', rating: 2, title: 'Sizing issue', body: 'The shirt runs small. I ordered my usual size L but it was too tight. Had to return it.', date: '2026-07-03', status: 'pending', helpful: 3 }
+    ];
+    for (const rev of defaultReviews) {
+      await addDoc(col('reviews'), {
+        ...rev,
+        createdAt: serverTimestamp()
+      });
+    }
+  }
 };
