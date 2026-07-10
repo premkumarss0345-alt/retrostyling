@@ -1,0 +1,424 @@
+/* ─── Return Policy Page ─────────────────────────────────────── */
+
+.rp-page {
+  min-height: 100vh;
+  background: var(--bg-main);
+}
+
+/* Hero */
+.rp-hero {
+  position: relative;
+  padding: 5rem 0 3.5rem;
+  text-align: center;
+  overflow: hidden;
+}
+
+.rp-hero-glow {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(223, 255, 27, 0.07), transparent 70%);
+  pointer-events: none;
+}
+
+.rp-hero-content {
+  position: relative;
+  z-index: 1;
+}
+
+.rp-hero-icon {
+  width: 72px;
+  height: 72px;
+  background: var(--primary-light);
+  border: 1px solid var(--border-primary);
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1.5rem;
+  color: var(--primary);
+}
+
+.rp-hero-title {
+  font-family: var(--ff-heading);
+  font-size: clamp(2rem, 5vw, 3rem);
+  font-weight: 800;
+  color: var(--white);
+  margin-bottom: 0.75rem;
+  letter-spacing: -0.02em;
+}
+
+.rp-hero-subtitle {
+  font-size: 1.1rem;
+  color: var(--text-dim);
+  max-width: 500px;
+  margin: 0 auto 2rem;
+  line-height: 1.6;
+}
+
+.rp-hero-badges {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.rp-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.9rem;
+  background: var(--bg-card);
+  border: var(--glass-border);
+  border-radius: 100px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-light);
+}
+
+/* Body */
+.rp-body {
+  padding-bottom: 5rem;
+}
+
+/* Quick Cards */
+.rp-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 3rem;
+}
+
+.rp-card {
+  background: var(--bg-card);
+  border: var(--glass-border);
+  border-radius: var(--radius-md);
+  padding: 1.75rem 1.5rem;
+  text-align: center;
+  transition: transform 0.2s, border-color 0.2s;
+}
+
+.rp-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--border-bright);
+}
+
+.rp-card svg {
+  color: var(--text-dim);
+  margin-bottom: 0.75rem;
+}
+
+.rp-card--primary svg { color: var(--primary); }
+.rp-card--accent svg { color: var(--accent); }
+
+.rp-card h3 {
+  font-family: var(--ff-heading);
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--white);
+  margin-bottom: 0.35rem;
+}
+
+.rp-card p {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.rp-card--primary { border-color: rgba(223, 255, 27, 0.2); }
+.rp-card--accent { border-color: rgba(0, 245, 255, 0.2); }
+
+/* Sections */
+.rp-section {
+  margin-bottom: 3rem;
+}
+
+.rp-section-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.rp-section-header h2 {
+  font-family: var(--ff-heading);
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--white);
+}
+
+.rp-section-icon { color: var(--primary); }
+.rp-section-icon.success { color: var(--success); }
+.rp-section-icon.danger { color: var(--error); }
+
+/* Conditions List */
+.rp-conditions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.rp-condition-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.9rem 1.25rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--text-light);
+}
+
+.rp-condition--ok {
+  background: rgba(34, 197, 94, 0.06);
+  border: 1px solid rgba(34, 197, 94, 0.15);
+}
+
+.rp-condition--no {
+  background: rgba(255, 77, 77, 0.06);
+  border: 1px solid rgba(255, 77, 77, 0.15);
+}
+
+.rp-cond-icon { flex-shrink: 0; margin-top: 0.15rem; }
+.rp-condition--ok .rp-cond-icon { color: var(--success); }
+.rp-condition--no .rp-cond-icon { color: var(--error); }
+
+/* Non-returnable callout */
+.rp-nr-callout {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.85rem 1.2rem;
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  border-radius: var(--radius-sm);
+  color: var(--warning);
+  font-size: 0.85rem;
+  font-weight: 500;
+  margin-bottom: 1rem;
+}
+
+/* Timeline */
+.rp-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.rp-timeline-step {
+  display: flex;
+  gap: 1.25rem;
+  align-items: flex-start;
+}
+
+.rp-timeline-left {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.rp-step-num {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--primary-light);
+  border: 2px solid var(--primary);
+  color: var(--primary);
+  font-weight: 800;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.rp-step-line {
+  width: 2px;
+  flex: 1;
+  min-height: 32px;
+  background: linear-gradient(to bottom, var(--primary), var(--border));
+  margin: 4px 0;
+}
+
+.rp-timeline-right {
+  padding-bottom: 2rem;
+  padding-top: 0.4rem;
+}
+
+.rp-timeline-right h4 {
+  font-weight: 700;
+  color: var(--white);
+  margin-bottom: 0.25rem;
+}
+
+.rp-timeline-right p {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+}
+
+/* Refund Methods */
+.rp-refund-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+.rp-refund-card {
+  background: var(--bg-card);
+  border: var(--glass-border);
+  border-radius: var(--radius-md);
+  padding: 1.75rem 1.5rem;
+  cursor: default;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+
+.rp-refund-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--accent-color, var(--primary));
+}
+
+.rp-refund-card:hover {
+  border-color: var(--border-bright);
+}
+
+.rp-refund-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-sm);
+  background: rgba(var(--accent-color, 223, 255, 27), 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1rem;
+  color: var(--accent-color, var(--primary));
+}
+
+.rp-refund-card h4 {
+  font-weight: 700;
+  color: var(--white);
+  margin-bottom: 0.4rem;
+}
+
+.rp-refund-card p {
+  font-size: 0.84rem;
+  color: var(--text-dim);
+  line-height: 1.5;
+}
+
+/* Exchange */
+.rp-exchange-section {
+  background: var(--bg-card);
+  border: var(--glass-border);
+  border-radius: var(--radius-md);
+  padding: 2rem;
+}
+
+.rp-exchange-points {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.rp-ep {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  font-size: 0.9rem;
+  color: var(--text-light);
+}
+
+.rp-ep svg { color: var(--success); flex-shrink: 0; }
+.rp-ep svg.danger { color: var(--error); }
+
+/* FAQs */
+.rp-faqs {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.rp-faq-item {
+  background: var(--bg-card);
+  border: var(--glass-border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+
+.rp-faq-item.open {
+  border-color: var(--border-primary);
+}
+
+.rp-faq-q {
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 1.1rem 1.25rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  text-align: left;
+  color: var(--white);
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.rp-faq-q:hover { color: var(--primary); }
+
+.rp-faq-a {
+  overflow: hidden;
+}
+
+.rp-faq-a p {
+  padding: 0 1.25rem 1.1rem;
+  font-size: 0.88rem;
+  color: var(--text-dim);
+  line-height: 1.7;
+}
+
+/* CTA */
+.rp-cta-section {
+  background: linear-gradient(135deg, rgba(223, 255, 27, 0.08), rgba(139, 92, 246, 0.08));
+  border: 1px solid rgba(223, 255, 27, 0.2);
+  border-radius: var(--radius-lg);
+  padding: 3rem 2rem;
+  text-align: center;
+  margin-top: 1rem;
+}
+
+.rp-cta-section h3 {
+  font-family: var(--ff-heading);
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: var(--white);
+  margin-bottom: 0.5rem;
+}
+
+.rp-cta-section p {
+  color: var(--text-dim);
+  margin-bottom: 2rem;
+}
+
+.rp-cta-btns {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 640px) {
+  .rp-hero { padding: 3.5rem 0 2.5rem; }
+  .rp-cards-grid { grid-template-columns: 1fr 1fr; }
+  .rp-refund-grid { grid-template-columns: 1fr; }
+}

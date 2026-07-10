@@ -6,7 +6,7 @@ import {
   Share2, Copy, Check, MessageSquare, ArrowRight, ArrowLeft, RefreshCw, Info, Lock
 } from 'lucide-react';
 import Toast from '../components/Toast';
-import { rewardsService } from '../services/firestoreService';
+import { rewardsService, shippingSettingsService } from '../services/firestoreService';
 import './Rewards.css';
 
 // ─── DATA DEFINITIONS ─────────────────────────────────────────
@@ -73,7 +73,8 @@ const RECOMMENDED_EARNING = [
 ];
 
 const Rewards = () => {
-  const [points, setPoints] = useState(2450);
+  const [rewardData, setRewardData] = useState({ points: 0, tier: 'Bronze', vipId: 'N/A', memberSince: new Date().getFullYear() });
+  const [history, setHistory] = useState([]);
   const [spinUsed, setSpinUsed] = useState(false);
   const [spinning, setSpinning] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -82,7 +83,16 @@ const Rewards = () => {
   const [birthdayClaimed, setBirthdayClaimed] = useState(false);
   const [redeemOptions, setRedeemOptions] = useState(REDEEM_OPTIONS);
 
+  const [hideRewards, setHideRewards] = useState(false);
+  const [settingsLoading, setSettingsLoading] = useState(true);
+
   useEffect(() => {
+    shippingSettingsService.get().then(s => {
+      if (s && s.hideRewards) {
+        setHideRewards(true);
+      }
+      setSettingsLoading(false);
+    }).catch(() => setSettingsLoading(false));
     loadRewards();
   }, []);
 
@@ -95,6 +105,14 @@ const Rewards = () => {
     } catch (err) {
       console.error(err);
     }
+    try {
+      const rDetails = await rewardsService.getCustomerPoints();
+      setRewardData(rDetails);
+    } catch (_) {}
+    try {
+      const hist = await rewardsService.getHistory();
+      setHistory(hist);
+    } catch (_) {}
   };
 
   const showMsg = (text, type = 'success') => {
@@ -117,7 +135,7 @@ const Rewards = () => {
     setSpinning(true);
     
     // Simulate wheel spin rotation
-    setTimeout(() => {
+    setTimeout(async () => {
       setSpinning(false);
       setSpinUsed(true);
       const prizes = [
@@ -128,11 +146,64 @@ const Rewards = () => {
       ];
       const win = prizes[Math.floor(Math.random() * prizes.length)];
       if (win.pts > 0) {
-        setPoints(p => p + win.pts);
+        try {
+          const newPoints = await rewardsService.addPoints(win.pts, `Daily Spin & Win Prize`);
+          setRewardData(prev => ({ ...prev, points: newPoints }));
+          const hist = await rewardsService.getHistory();
+          setHistory(hist);
+        } catch (_) {}
       }
       showMsg(`Congratulations! You won: ${win.name}!`);
     }, 3000);
   };
+
+  const getNextTierDetails = (pts) => {
+    if (pts >= 5000) {
+      return { next: 'Platinum (Max Tier)', progress: 100, remaining: 0, label: 'Ultimate Member status achieved' };
+    }
+    if (pts >= 2500) {
+      const remaining = 5000 - pts;
+      const progress = ((pts - 2500) / 2500) * 100;
+      return { next: 'Platinum (5,000 Pts)', progress, remaining, label: `${remaining} Points to Platinum Member` };
+    }
+    if (pts >= 1000) {
+      const remaining = 2500 - pts;
+      const progress = ((pts - 1000) / 1500) * 100;
+      return { next: 'Gold (2,500 Pts)', progress, remaining, label: `${remaining} Points to Gold Member` };
+    }
+    const remaining = 1000 - pts;
+    const progress = (pts / 1000) * 100;
+    return { next: 'Silver (1,000 Pts)', progress, remaining, label: `${remaining} Points to Silver Member` };
+  };
+
+  const tierDetails = getNextTierDetails(rewardData.points);
+
+  const totalEarned = history
+    .filter(h => h.status === 'Credited')
+    .reduce((acc, h) => {
+      const val = parseInt(h.points?.toString().replace('+', '') || 0);
+      return acc + (isNaN(val) ? 0 : val);
+    }, 0);
+
+  const totalRedeemed = history
+    .filter(h => h.status === 'Debited')
+    .reduce((acc, h) => {
+      const val = Math.abs(parseInt(h.points?.toString() || 0));
+      return acc + (isNaN(val) ? 0 : val);
+    }, 0);
+
+  if (!settingsLoading && hideRewards) {
+    return (
+      <div className="rewards-page" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', padding: '2rem' }}>
+        <div className="empty-state" style={{ maxWidth: '420px', padding: '3rem 2rem', background: 'var(--bg-card)', border: 'var(--glass-border-bright)', borderRadius: 'var(--radius-lg)', textAlign: 'center' }}>
+          <Trophy size={48} className="empty-icon" style={{ color: 'var(--text-muted)', marginBottom: '1.25rem' }} />
+          <h3 style={{ fontSize: '1.25rem', fontWeight: 800, marginBottom: '0.5rem' }}>Rewards Program Inactive</h3>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', lineHeight: 1.6 }}>The VIP rewards program is currently disabled. Please check back later.</p>
+          <Link to="/profile" className="btn btn-primary btn-sm" style={{ marginTop: '1.5rem', display: 'inline-flex', textDecoration: 'none' }}>Go to Profile</Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="rewards-page">
@@ -152,20 +223,20 @@ const Rewards = () => {
             <div className="loyalty-card-glow"></div>
             <div className="loyalty-card-header">
               <span className="brand-logo">RETRO REWARDS</span>
-              <span className="tier-tag">GOLD MEMBER ⭐</span>
+              <span className="tier-tag">{rewardData.tier.toUpperCase()} MEMBER ⭐</span>
             </div>
             <div className="loyalty-card-body">
-              <h2 className="points-counter">{points.toLocaleString()}</h2>
+              <h2 className="points-counter">{rewardData.points.toLocaleString()}</h2>
               <p className="points-label">AVAILABLE POINTS</p>
             </div>
             <div className="loyalty-card-footer">
               <div>
                 <span>MEMBER SINCE</span>
-                <p>JULY 2025</p>
+                <p>{rewardData.memberSince}</p>
               </div>
               <div className="stats-indicator text-right">
                 <span>LIFETIME SAVINGS</span>
-                <p>₹3,850</p>
+                <p>₹{Math.floor(totalRedeemed * 0.1)}</p>
               </div>
             </div>
           </div>
@@ -174,27 +245,27 @@ const Rewards = () => {
           <div className="tier-progress-card">
             <h3>Tier Level Status</h3>
             <div className="progress-info-row">
-              <span className="current-tier font-bold">Gold Member</span>
-              <span className="next-tier text-muted">Platinum (5,000 Pts)</span>
+              <span className="current-tier font-bold">{rewardData.tier} Member</span>
+              <span className="next-tier text-muted">{tierDetails.next}</span>
             </div>
             <div className="bar-track">
-              <div className="bar-fill" style={{ width: '82%' }}></div>
+              <div className="bar-fill" style={{ width: `${tierDetails.progress}%` }}></div>
             </div>
             <p className="pts-remaining-label">
-              <strong>550 Points</strong> to Platinum Member
+              {tierDetails.label}
             </p>
             <div className="stat-summary-grid">
               <div className="stat-box">
                 <span className="stat-label">Total Earned</span>
-                <p className="stat-value">6,250</p>
+                <p className="stat-value">{totalEarned}</p>
               </div>
               <div className="stat-box">
                 <span className="stat-label">Total Redeemed</span>
-                <p className="stat-value">3,800</p>
+                <p className="stat-value">{totalRedeemed}</p>
               </div>
               <div className="stat-box">
-                <span className="stat-label">Referrals</span>
-                <p className="stat-value">3 Users</p>
+                <span className="stat-label">Active Perks</span>
+                <p className="stat-value">3</p>
               </div>
             </div>
           </div>
@@ -207,16 +278,23 @@ const Rewards = () => {
             <div className="birthday-icon">🎂</div>
             <div>
               <h3>Happy Birthday Month!</h3>
-              <p>As a Gold Member, claim your exclusive birthday rewards bundle.</p>
+              <p>As a {rewardData.tier} Member, claim your exclusive birthday rewards bundle.</p>
             </div>
           </div>
           <button 
             className="btn btn-primary" 
             disabled={birthdayClaimed}
-            onClick={() => {
+            onClick={async () => {
               setBirthdayClaimed(true);
-              setPoints(p => p + 500);
-              showMsg('Birthday bundle claimed! +500 Points & 25% Off Coupon added to account.');
+              try {
+                const newPoints = await rewardsService.addPoints(500, 'Birthday Month Reward');
+                setRewardData(prev => ({ ...prev, points: newPoints }));
+                const hist = await rewardsService.getHistory();
+                setHistory(hist);
+                showMsg('Birthday bundle claimed! +500 Points added to account.');
+              } catch (_) {
+                showMsg('Failed to claim birthday points.', 'error');
+              }
             }}
           >
             {birthdayClaimed ? 'Claimed ✓' : 'Claim Birthday Bundle'}
@@ -318,7 +396,7 @@ const Rewards = () => {
           </div>
           <div className="redeem-rewards-grid">
             {redeemOptions.map(opt => (
-              <div key={opt.id} className={`redeem-card ${!opt.available ? 'out-of-stock' : ''}`}>
+              <div key={opt.id} className={`redeem-card ${opt.available === false ? 'out-of-stock' : ''}`}>
                 <div className="redeem-header">
                   <h4>{opt.title}</h4>
                   <span className="redeem-pts-cost">{opt.points} Points</span>
@@ -326,13 +404,20 @@ const Rewards = () => {
                 <p className="redeem-desc">{opt.desc}</p>
                 <button 
                   className="btn btn-primary btn-sm w-full mt-3" 
-                  disabled={points < opt.points || !opt.available}
-                  onClick={() => {
-                    setPoints(p => p - opt.points);
-                    showMsg(`Successfully redeemed ${opt.title}!`);
+                  disabled={rewardData.points < opt.points || opt.available === false}
+                  onClick={async () => {
+                    try {
+                      const newPoints = await rewardsService.redeem(opt.id, opt.points, opt.title);
+                      setRewardData(prev => ({ ...prev, points: newPoints }));
+                      const hist = await rewardsService.getHistory();
+                      setHistory(hist);
+                      showMsg(`Successfully redeemed ${opt.title}! Coupon code ready for use.`);
+                    } catch (err) {
+                      showMsg(err.message || 'Failed to redeem reward', 'error');
+                    }
                   }}
                 >
-                  {!opt.available ? 'Out of Stock' : points >= opt.points ? 'Redeem Reward' : 'Insufficient Points'}
+                  {opt.available === false ? 'Out of Stock' : rewardData.points >= opt.points ? 'Redeem Reward' : 'Insufficient Points'}
                 </button>
               </div>
             ))}
@@ -476,7 +561,9 @@ const Rewards = () => {
             <p className="section-subtitle">Activity logs of your earned and redeemed loyalty points</p>
           </div>
           <div className="reward-timeline-wrapper">
-            {REWARD_HISTORY.map((hist, i) => (
+            {history.length === 0 ? (
+              <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem 0' }}>No points activity recorded yet.</p>
+            ) : history.map((hist, i) => (
               <div key={i} className="timeline-item-row">
                 <div className="timeline-dot-indicator"></div>
                 <div className="timeline-info-content">

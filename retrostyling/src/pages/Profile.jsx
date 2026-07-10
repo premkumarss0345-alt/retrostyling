@@ -4,10 +4,11 @@ import { Link, useNavigate } from 'react-router-dom';
 import { 
   ShoppingBag, Heart, MapPin, CreditCard, Shield, Bell, 
   LogOut, Package, ChevronRight, Plus, Trash2, Edit2, Lock, 
-  Smartphone, Check, X, Award, Share2, Eye, RefreshCw, Zap, ArrowLeft, ArrowRight, Star, Trophy
+  Smartphone, Check, X, Award, Share2, Eye, RefreshCw, Zap, ArrowLeft, ArrowRight, Star, Trophy,
+  Image as ImageIcon, RotateCcw
 } from 'lucide-react';
 import { useAuth } from '../services/AuthContext';
-import { addressService, orderService, wishlistService, cartService, productService } from '../services/firestoreService';
+import { addressService, orderService, wishlistService, cartService, productService, returnService, shippingSettingsService, rewardsService } from '../services/firestoreService';
 import Toast from '../components/Toast';
 import './Profile.css';
 
@@ -53,6 +54,89 @@ const Profile = () => {
   const [cartCount, setCartCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState(null);
+  const [storeSettings, setStoreSettings] = useState(null);
+  const [rewardData, setRewardData] = useState({ points: 0, tier: 'Bronze', vipId: 'N/A', memberSince: new Date().getFullYear() });
+
+  // Return state
+  const [myReturns, setMyReturns] = useState([]);
+  const [returnModal, setReturnModal] = useState(null); // { order, item }
+  const [returnForm, setReturnForm] = useState({ reason: '', description: '' });
+  const [submittingReturn, setSubmittingReturn] = useState(false);
+
+  const RETURN_REASONS = [
+    'Wrong size / fit issue',
+    'Product damaged / defective',
+    'Wrong item delivered',
+    'Not as described',
+    'Changed my mind',
+    'Quality issue',
+    'Other',
+  ];
+
+  const [returnWindowDays, setReturnWindowDays] = useState(7);
+
+  // Review state
+  const [reviewModal, setReviewModal] = useState(null); // { order, item }
+  const [reviewForm, setReviewForm] = useState({ rating: 5, title: '', body: '' });
+  const [submittingReview, setSubmittingReview] = useState(false);
+
+  const handleReturnSubmit = async (e) => {
+    e.preventDefault();
+    if (!returnModal) return;
+    setSubmittingReturn(true);
+    try {
+      const { order, item } = returnModal;
+      await returnService.create({
+        orderId: order.id,
+        productId: item.productId,
+        productName: item.name,
+        productImage: item.image || '',
+        reason: returnForm.reason || 'Wrong size / fit issue',
+        description: returnForm.description || '',
+        images: [],
+        customerId: currentUser.uid,
+        customerName: currentUser.displayName || currentUser.email || 'Customer',
+        customerEmail: currentUser.email || '',
+      });
+      showMsg('Return request submitted successfully!', 'success');
+      setReturnModal(null);
+      const rets = await returnService.getMyReturns();
+      setMyReturns(rets);
+    } catch (err) {
+      console.error(err);
+      showMsg('Failed to submit return request.', 'error');
+    } finally {
+      setSubmittingReturn(false);
+    }
+  };
+
+  const handleReviewSubmit = async (e) => {
+    e.preventDefault();
+    if (!reviewModal) return;
+    setSubmittingReview(true);
+    try {
+      const { order, item } = reviewModal;
+      await reviewService.create({
+        productId: item.productId,
+        product: item.name,
+        customer: currentUser.displayName || currentUser.email || 'Customer',
+        customerEmail: currentUser.email || '',
+        rating: Number(reviewForm.rating),
+        title: reviewForm.title,
+        body: reviewForm.body,
+        status: 'pending',
+        helpful: 0,
+        date: new Date().toISOString().split('T')[0],
+      });
+      showMsg('Review submitted successfully! It will appear once approved.', 'success');
+      setReviewModal(null);
+    } catch (err) {
+      console.error(err);
+      showMsg('Failed to submit review.', 'error');
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
 
   // Address sub-state
   const [addresses, setAddresses] = useState([]);
@@ -102,6 +186,32 @@ const Profile = () => {
       setAddrLoading(true);
       const addrs = await addressService.get();
       setAddresses(addrs);
+
+      // Load customer reward points
+      try {
+        const rDetails = await rewardsService.getCustomerPoints();
+        setRewardData(rDetails);
+      } catch (_) {}
+
+      // Load my returns
+      try {
+        const rets = await returnService.getMyReturns();
+        setMyReturns(rets);
+      } catch (_) {}
+
+      // Load shipping settings for return window and reward visibility
+      try {
+        const settings = await shippingSettingsService.get();
+        if (settings) {
+          setStoreSettings(settings);
+          if (settings.returnWindowDays) {
+            setReturnWindowDays(settings.returnWindowDays);
+          }
+          if (settings.hideRewards && activeTab === 'rewards') {
+            setActiveTab('overview');
+          }
+        }
+      } catch (_) {}
     } catch (err) {
       console.error(err);
     } finally {
@@ -194,7 +304,7 @@ const Profile = () => {
     { id: 'wishlist', title: 'Wishlist', desc: `${wishlist.length} item(s) saved`, icon: Heart },
     { id: 'address', title: 'Addresses', desc: `${addresses.length} saved location(s)`, icon: MapPin },
     { id: 'payment', title: 'Payments', desc: 'Manage credit cards & UPI', icon: CreditCard },
-    { id: 'rewards', title: 'Rewards', desc: '750 points available', icon: Award },
+    ...(!storeSettings?.hideRewards ? [{ id: 'rewards', title: 'Rewards', desc: `${rewardData.points} points available`, icon: Award }] : []),
     { id: 'notifications', title: 'Notifications', desc: 'Offers & order updates', icon: Bell },
     { id: 'security', title: 'Security', desc: 'Password & authentication', icon: Shield },
   ];
@@ -224,11 +334,13 @@ const Profile = () => {
               <p className="welcome-subtitle">Manage your orders, wishlist, addresses, and profile all in one place.</p>
             </div>
           </div>
-          <div className="points-luxury-summary">
-            <div className="points-label">MEMBERSHIP BALANCE</div>
-            <div className="points-value">750 <span className="points-suffix">PTS</span></div>
-            <div className="points-footer">VIP Tier Progress: Gold Level</div>
-          </div>
+          {!storeSettings?.hideRewards && (
+            <div className="points-luxury-summary">
+              <div className="points-label">MEMBERSHIP BALANCE</div>
+              <div className="points-value">{rewardData.points} <span className="points-suffix">PTS</span></div>
+              <div className="points-footer">VIP Tier Progress: {rewardData.tier} Level</div>
+            </div>
+          )}
         </div>
 
         {/* Dynamic Render Section */}
@@ -294,10 +406,22 @@ const Profile = () => {
                                 {o.items?.map((item, idx) => (
                                   <div key={idx} className="mini-prod-row">
                                     <img src={item.image || 'https://via.placeholder.com/60x80'} alt={item.name} />
-                                    <div>
+                                    <div style={{ flex: 1 }}>
                                       <h4>{item.name}</h4>
                                       <p className="text-muted text-sm">Qty: {item.quantity} {item.size ? `| Size: ${item.size}` : ''}</p>
                                     </div>
+                                    {o.orderStatus === 'delivered' && (
+                                      <button 
+                                        className="btn btn-outline btn-xs"
+                                        style={{ fontSize: '0.75rem', padding: '0.3rem 0.6rem' }}
+                                        onClick={() => {
+                                          setReviewModal({ order: o, item });
+                                          setReviewForm({ rating: 5, title: '', body: '' });
+                                        }}
+                                      >
+                                        Write Review
+                                      </button>
+                                    )}
                                   </div>
                                 ))}
                               </div>
@@ -309,20 +433,68 @@ const Profile = () => {
                                   <div 
                                     className="progress-fill" 
                                     style={{ 
-                                      width: o.orderStatus === 'delivered' ? '100%' : o.orderStatus === 'shipped' ? '65%' : o.orderStatus === 'processing' ? '35%' : '10%' 
+                                      width: o.orderStatus === 'delivered' ? '100%' 
+                                        : o.orderStatus === 'out_for_delivery' ? '80%'
+                                        : o.orderStatus === 'shipped' ? '60%' 
+                                        : o.orderStatus === 'packed' ? '40%' 
+                                        : o.orderStatus === 'processing' ? '20%' 
+                                        : '10%' 
                                     }}
                                   ></div>
                                 </div>
                                 <div className="tracking-steps-labels">
                                   <span className="active">Placed</span>
-                                  <span className={['processing', 'shipped', 'delivered'].includes(o.orderStatus) ? 'active' : ''}>Processing</span>
-                                  <span className={['shipped', 'delivered'].includes(o.orderStatus) ? 'active' : ''}>Shipped</span>
+                                  <span className={['processing', 'packed', 'shipped', 'out_for_delivery', 'delivered'].includes(o.orderStatus) ? 'active' : ''}>Processing</span>
+                                  <span className={['shipped', 'out_for_delivery', 'delivered'].includes(o.orderStatus) ? 'active' : ''}>Shipped</span>
                                   <span className={o.orderStatus === 'delivered' ? 'active' : ''}>Delivered</span>
                                 </div>
                               </div>
                             </div>
                             <div className="order-item-footer">
-                              <button className="btn btn-outline btn-sm">Track Order</button>
+                                {/* Return Request Button */}
+                                {(() => {
+                                  if (o.orderStatus !== 'delivered') return null;
+                                  const deliveredEntry = o.statusHistory?.find(h => h.status === 'delivered');
+                                  const deliveredAt = deliveredEntry 
+                                    ? new Date(deliveredEntry.timestamp) 
+                                    : (o.updatedAt?.toDate ? o.updatedAt.toDate() : (o.updatedAt ? new Date(o.updatedAt) : (o.createdAt?.toDate ? o.createdAt.toDate() : new Date())));
+                                  const daysSinceDelivery = (Date.now() - deliveredAt.getTime()) / (1000 * 60 * 60 * 24);
+                                  const withinWindow = daysSinceDelivery <= returnWindowDays;
+                                  if (!withinWindow) return <span key={o.id} style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Return window expired ({returnWindowDays} days)</span>;
+                                  return o.items?.map((item, iIdx) => {
+                                    const existingReturn = myReturns.find(r => r.orderId === o.id && r.productId === item.productId);
+                                    if (existingReturn) {
+                                      const RETURN_STEP_LABELS = {
+                                        pending: '⏳ Return Requested',
+                                        approved: '✅ Approved',
+                                        pickup_scheduled: '🚚 Pickup Scheduled',
+                                        received: '📦 Received',
+                                        refund_initiated: '💳 Refund Initiated',
+                                        refund_completed: '🎉 Refund Completed',
+                                        rejected: '❌ Rejected',
+                                      };
+                                      return (
+                                        <span key={iIdx} style={{ fontSize: '0.78rem', padding: '0.3rem 0.7rem', borderRadius: '100px', background: 'rgba(255,255,255,0.05)', color: 'var(--text-dim)', border: '1px solid var(--border)' }}>
+                                          {RETURN_STEP_LABELS[existingReturn.status] || existingReturn.status}
+                                        </span>
+                                      );
+                                    }
+                                    return (
+                                      <button
+                                        key={iIdx}
+                                        className="btn btn-outline btn-sm"
+                                        style={{ fontSize: '0.78rem', padding: '0.35rem 0.75rem' }}
+                                        onClick={() => {
+                                          setReturnModal({ order: o, item });
+                                          setReturnForm({ reason: '', description: '' });
+                                        }}
+                                      >
+                                        <RotateCcw size={13} /> Return {item.name.split(' ')[0]}
+                                      </button>
+                                    );
+                                  });
+                                })()}
+                              <Link to={`/track-order`} className="btn btn-outline btn-sm">Track Order</Link>
                               <button className="btn btn-primary btn-sm" onClick={() => showMsg('Items added to cart! (Buy again)')}>Buy Again</button>
                             </div>
                           </div>
@@ -516,15 +688,15 @@ const Profile = () => {
                         <div className="lux-card-glow"></div>
                         <div className="lux-header">
                           <div className="lux-brand">RETROSTYLINGS</div>
-                          <div className="lux-badge"><Award size={20} /> GOLD MEMBER</div>
+                          <div className="lux-badge"><Award size={20} /> {rewardData.tier.toUpperCase()} MEMBER</div>
                         </div>
                         <div className="lux-body">
-                          <div className="lux-points-counter">750 <span className="lux-points-unit">PTS</span></div>
-                          <div className="lux-holder-name">MUNEESWARAN P</div>
+                          <div className="lux-points-counter">{rewardData.points} <span className="lux-points-unit">PTS</span></div>
+                          <div className="lux-holder-name">{displayName.toUpperCase()}</div>
                         </div>
                         <div className="lux-footer">
-                          <span>VIP ID: #RS-998842</span>
-                          <span>Member Since: 2025</span>
+                          <span>VIP ID: {rewardData.vipId}</span>
+                          <span>Member Since: {rewardData.memberSince}</span>
                         </div>
                       </div>
 
@@ -746,6 +918,132 @@ const Profile = () => {
           </div>
         </section>
       </div>
+
+      {/* Return Request Modal */}
+      {returnModal && (
+        <div className="pf-modal-overlay" onClick={() => setReturnModal(null)}>
+          <div className="pf-modal-content" onClick={e => e.stopPropagation()}>
+            <div className="pf-modal-header">
+              <h3>Request Return</h3>
+              <button className="pf-modal-close-btn" onClick={() => setReturnModal(null)}><X size={18} /></button>
+            </div>
+            <div className="pf-modal-product-summary">
+              <img src={returnModal.item.image} alt={returnModal.item.name} />
+              <div>
+                <h4>{returnModal.item.name}</h4>
+                <p>Order #{returnModal.order.id.slice(-8).toUpperCase()}</p>
+              </div>
+            </div>
+            <form className="pf-modal-form" onSubmit={handleReturnSubmit}>
+              <div className="pf-form-group">
+                <label>Return Reason</label>
+                <select
+                  className="pf-form-input"
+                  style={{ background: '#1c1c1e', color: 'white' }}
+                  value={returnForm.reason}
+                  onChange={e => setReturnForm(p => ({ ...p, reason: e.target.value }))}
+                  required
+                >
+                  <option value="" disabled>Select a reason...</option>
+                  {RETURN_REASONS.map(r => (
+                    <option key={r} value={r}>{r}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="pf-form-group">
+                <label>Description / Feedback</label>
+                <textarea
+                  className="pf-form-textarea"
+                  placeholder="Explain why you're returning the item..."
+                  value={returnForm.description}
+                  onChange={e => setReturnForm(p => ({ ...p, description: e.target.value }))}
+                  required
+                />
+              </div>
+              <div className="pf-form-group">
+                <label>Upload Images (Optional)</label>
+                <div className="pf-file-upload-box">
+                  <ImageIcon size={18} style={{ display: 'block', margin: '0 auto 4px', color: 'var(--text-muted)' }} />
+                  <span>Click to select return photos</span>
+                </div>
+              </div>
+              <div className="pf-modal-actions">
+                <button type="button" className="btn btn-outline btn-sm" onClick={() => setReturnModal(null)}>Cancel</button>
+                <button type="submit" className="btn btn-primary btn-sm" disabled={submittingReturn}>
+                  {submittingReturn ? 'Submitting...' : 'Submit Request'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Review Modal */}
+      {reviewModal && (
+        <div className="pf-modal-overlay" onClick={() => setReviewModal(null)}>
+          <div className="pf-modal-content" onClick={e => e.stopPropagation()}>
+            <div className="pf-modal-header">
+              <h3>Write a Review</h3>
+              <button className="pf-modal-close-btn" onClick={() => setReviewModal(null)}><X size={18} /></button>
+            </div>
+            <div className="pf-modal-product-summary">
+              <img src={reviewModal.item.image} alt={reviewModal.item.name} />
+              <div>
+                <h4>{reviewModal.item.name}</h4>
+                <p>Share your feedback about this product</p>
+              </div>
+            </div>
+            <form className="pf-modal-form" onSubmit={handleReviewSubmit}>
+              <div className="pf-form-group" style={{ alignItems: 'center' }}>
+                <label>Your Rating</label>
+                <div style={{ display: 'flex', gap: '8px', margin: '0.4rem 0' }}>
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      className="pf-star-btn"
+                      onClick={() => setReviewForm(p => ({ ...p, rating: star }))}
+                    >
+                      <Star
+                        size={26}
+                        fill={star <= reviewForm.rating ? '#F59E0B' : 'transparent'}
+                        color={star <= reviewForm.rating ? '#F59E0B' : 'var(--text-faint)'}
+                      />
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="pf-form-group">
+                <label>Review Title</label>
+                <input
+                  type="text"
+                  className="pf-form-input"
+                  placeholder="Summarize your experience (e.g. Excellent fit!)"
+                  value={reviewForm.title}
+                  onChange={e => setReviewForm(p => ({ ...p, title: e.target.value }))}
+                  required
+                />
+              </div>
+              <div className="pf-form-group">
+                <label>Review Body</label>
+                <textarea
+                  className="pf-form-textarea"
+                  placeholder="Share details about quality, fit, style, and comfort..."
+                  value={reviewForm.body}
+                  onChange={e => setReviewForm(p => ({ ...p, body: e.target.value }))}
+                  required
+                />
+              </div>
+              <div className="pf-modal-actions">
+                <button type="button" className="btn btn-outline btn-sm" onClick={() => setReviewModal(null)}>Cancel</button>
+                <button type="submit" className="btn btn-primary btn-sm" disabled={submittingReview}>
+                  {submittingReview ? 'Submitting...' : 'Submit Review'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

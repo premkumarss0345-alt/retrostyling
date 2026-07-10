@@ -284,6 +284,10 @@ export const wishlistService = {
     return snap.data().productIds || [];
   },
 
+  async getIds() {
+    return this.get();
+  },
+
   async add(productId) {
     const ref = this._ref();
     const snap = await getDoc(ref);
@@ -405,6 +409,16 @@ export const orderService = {
       price: item.price_override || (item.on_sale ? item.discount_price : item.price),
     }));
 
+    // Get user document to fetch current points for addition
+    const userRef = doc(db, 'users', userId);
+    let currentPoints = 0;
+    try {
+      const userSnap = await getDoc(userRef);
+      if (userSnap.exists()) {
+        currentPoints = userSnap.data().points || 0;
+      }
+    } catch (_) {}
+
     const batch = writeBatch(db);
 
     // Create order doc
@@ -420,6 +434,21 @@ export const orderService = {
       orderStatus: 'processing',
       paymentStatus: 'pending',
       paymentMethod: 'cod',
+      createdAt: serverTimestamp(),
+    });
+
+    // Update user reward points (1 point per 10 rupees spent)
+    const pointsEarned = Math.floor(grandTotal / 10);
+    const newPoints = currentPoints + pointsEarned;
+    batch.update(userRef, { points: newPoints, updatedAt: serverTimestamp() });
+
+    // Add reward history transaction log
+    const logRef = doc(collection(db, 'rewardHistory'));
+    batch.set(logRef, {
+      userId,
+      points: `+${pointsEarned}`,
+      reason: `Purchase Reward (Order #${orderRef.id.slice(-8).toUpperCase()})`,
+      status: 'Credited',
       createdAt: serverTimestamp(),
     });
 
@@ -463,12 +492,162 @@ export const orderService = {
     return snap2arr(snap);
   },
 
-  /** Admin: update order status */
+  /** Admin: update order status with timestamp history */
   async updateStatus(orderId, status) {
-    await updateDoc(doc(db, 'orders', orderId), {
+    const orderRef = doc(db, 'orders', orderId);
+    const snap = await getDoc(orderRef);
+    const existing = snap.exists() ? snap.data() : {};
+    const history = existing.statusHistory || [];
+    history.push({ status, timestamp: new Date().toISOString() });
+    await updateDoc(orderRef, {
       orderStatus: status,
+      statusHistory: history,
       updatedAt: serverTimestamp(),
     });
+  },
+
+  /** Admin: update tracking details */
+  async updateTracking(orderId, { trackingNumber, courierPartner, estimatedDelivery }) {
+    await updateDoc(doc(db, 'orders', orderId), {
+      trackingNumber,
+      courierPartner,
+      estimatedDelivery,
+      updatedAt: serverTimestamp(),
+    });
+  },
+
+  /** Public: get order by ID and email or phone for tracking */
+  async getByIdAndContact(orderId, contact) {
+    const c = contact.toLowerCase().trim();
+    const searchId = orderId.toLowerCase().trim().replace('#', '');
+    
+    // 1. Query by customerEmail
+    const qEmail = query(col('orders'), where('customerEmail', '==', c));
+    const snapEmail = await getDocs(qEmail);
+    let matchedOrders = snap2arr(snapEmail);
+    
+    // 2. Query by phone if email match returns nothing
+    if (matchedOrders.length === 0) {
+      const qPhone = query(col('orders'), where('phone', '==', contact.trim()));
+      const snapPhone = await getDocs(qPhone);
+      matchedOrders = snap2arr(snapPhone);
+    }
+    
+    // 3. Fallback: query all orders if it's a small local dataset or try direct ID lookup
+    if (matchedOrders.length === 0) {
+      try {
+        const snapDirect = await getDoc(doc(db, 'orders', orderId));
+        if (snapDirect.exists()) {
+          const ord = { id: snapDirect.id, ...snapDirect.data() };
+          if (
+            ord.customerEmail?.toLowerCase() === c ||
+            ord.phone?.replace(/\s/g, '') === c.replace(/\s/g, '')
+          ) {
+            return ord;
+          }
+        }
+      } catch (_) {}
+
+      // Fallback: Fetch recent orders to find a match (covers case where email/phone has formatting differences)
+      try {
+        const snapAll = await getDocs(col('orders'));
+        matchedOrders = snap2arr(snapAll);
+      } catch (_) {}
+    }
+    
+    // Find the order that matches the searchId (either full ID or ends with it)
+    const found = matchedOrders.find(o => {
+      const oid = o.id.toLowerCase();
+      const emailMatch = o.customerEmail?.toLowerCase() === c;
+      const phoneMatch = o.phone?.replace(/\s/g, '') === c.replace(/\s/g, '');
+      const idMatch = oid === searchId || oid.endsWith(searchId);
+      return idMatch && (emailMatch || phoneMatch);
+    });
+    
+    return found || null;
+  },
+};
+
+// ─── RETURNS ──────────────────────────────────────────────────────────────────
+export const returnService = {
+  /** Customer: submit return request */
+  async create({ orderId, productId, productName, productImage, reason, description, images, customerId, customerName, customerEmail }) {
+    const ref = await addDoc(col('returns'), {
+      orderId,
+      productId,
+      productName,
+      productImage: productImage || '',
+      reason,
+      description,
+      images: images || [],
+      customerId,
+      customerName,
+      customerEmail,
+      status: 'pending',        // pending | approved | rejected | pickup_scheduled | received | refund_initiated | refund_completed
+      refundStatus: 'none',
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+    return ref.id;
+  },
+
+  /** Customer: get my returns */
+  async getMyReturns() {
+    const userId = uid();
+    const q = query(col('returns'), where('customerId', '==', userId), orderBy('createdAt', 'desc'));
+    const snap = await getDocs(q);
+    return snap2arr(snap);
+  },
+
+  /** Check if a return already exists for this order+product */
+  async getByOrderProduct(orderId, productId) {
+    const userId = uid();
+    const q = query(
+      col('returns'),
+      where('orderId', '==', orderId),
+      where('productId', '==', productId),
+      where('customerId', '==', userId)
+    );
+    const snap = await getDocs(q);
+    if (snap.empty) return null;
+    return { id: snap.docs[0].id, ...snap.docs[0].data() };
+  },
+
+  /** Admin: get all returns */
+  async getAll() {
+    const q = query(col('returns'), orderBy('createdAt', 'desc'));
+    const snap = await getDocs(q);
+    return snap2arr(snap);
+  },
+
+  /** Admin: get returns filtered by status */
+  async getByStatus(status) {
+    const q = query(col('returns'), where('status', '==', status), orderBy('createdAt', 'desc'));
+    const snap = await getDocs(q);
+    return snap2arr(snap);
+  },
+
+  /** Admin: update return status */
+  async updateStatus(returnId, status) {
+    const updates = { status, updatedAt: serverTimestamp() };
+    if (status === 'refund_initiated') updates.refundStatus = 'initiated';
+    if (status === 'refund_completed') updates.refundStatus = 'completed';
+    await updateDoc(doc(db, 'returns', returnId), updates);
+  },
+};
+
+// ─── SHIPPING SETTINGS ────────────────────────────────────────────────────────
+export const shippingSettingsService = {
+  _ref: () => doc(db, 'shippingSettings', 'config'),
+
+  async get() {
+    const snap = await getDoc(this._ref());
+    if (!snap.exists()) return null;
+    return snap.data();
+  },
+
+  async update(data) {
+    await setDoc(this._ref(), { ...data, updatedAt: serverTimestamp() }, { merge: true });
   },
 };
 
@@ -514,6 +693,20 @@ export const contactService = {
       ...data,
       createdAt: serverTimestamp(),
       status: 'new'
+    });
+  },
+
+  getAll: async () => {
+    const snap = await getDocs(query(col('contacts'), orderBy('createdAt', 'desc')));
+    return snap2arr(snap);
+  },
+
+  respond: async (id, responseText) => {
+    const ref = doc(db, 'contacts', id);
+    await updateDoc(ref, {
+      response: responseText,
+      status: 'responded',
+      respondedAt: serverTimestamp()
     });
   }
 };
@@ -810,6 +1003,7 @@ export const statsService = {
       customerGrowth,
       orderStatusData,
       topProducts,
+      allOrders,
     };
   },
 };
@@ -837,6 +1031,98 @@ export const rewardsService = {
   async delete(id) {
     const ref = doc(db, 'rewards', id);
     await deleteDoc(ref);
+  },
+
+  // Get customer's points and level details
+  async getCustomerPoints() {
+    const profile = await userService.getProfile();
+    if (!profile) return { points: 0, tier: 'Bronze', vipId: 'N/A', memberSince: new Date().getFullYear() };
+    
+    const points = profile.points || 0;
+    // Calculate tier based on points
+    let tier = 'Bronze';
+    if (points >= 5000) tier = 'Platinum';
+    else if (points >= 2500) tier = 'Gold';
+    else if (points >= 1000) tier = 'Silver';
+    
+    // Auto-generate VIP ID if missing
+    let vipId = profile.vipId;
+    if (!vipId) {
+      vipId = `#RS-${Math.floor(100000 + Math.random() * 900000)}`;
+      await updateDoc(doc(db, 'users', uid()), { vipId });
+    }
+    
+    const memberSince = profile.memberSince || new Date().getFullYear();
+    
+    return { points, tier, vipId, memberSince };
+  },
+
+  // Get customer's reward history logs
+  async getHistory() {
+    const userId = uid();
+    const q = query(col('rewardHistory'), where('userId', '==', userId), orderBy('createdAt', 'desc'));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => {
+      const data = d.data();
+      // Format timestamp for render
+      let dateStr = 'Just Now';
+      if (data.createdAt) {
+        const date = data.createdAt.toDate ? data.createdAt.toDate() : new Date(data.createdAt);
+        dateStr = date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+      }
+      return { id: d.id, ...data, date: dateStr };
+    });
+  },
+
+  // Add points to customer
+  async addPoints(amount, reason) {
+    const userId = uid();
+    const profile = await userService.getProfile(userId);
+    const currentPoints = profile?.points || 0;
+    const newPoints = currentPoints + amount;
+    
+    const batch = writeBatch(db);
+    // Update user points
+    batch.update(doc(db, 'users', userId), { points: newPoints, updatedAt: serverTimestamp() });
+    // Add history log
+    const logRef = doc(collection(db, 'rewardHistory'));
+    batch.set(logRef, {
+      userId,
+      points: amount > 0 ? `+${amount}` : `${amount}`,
+      reason,
+      status: amount > 0 ? 'Credited' : 'Debited',
+      createdAt: serverTimestamp(),
+    });
+    
+    await batch.commit();
+    return newPoints;
+  },
+
+  // Redeem a reward option
+  async redeem(optionId, pointsCost, title) {
+    const userId = uid();
+    const profile = await userService.getProfile(userId);
+    const currentPoints = profile?.points || 0;
+    if (currentPoints < pointsCost) {
+      throw new Error('Insufficient points balance!');
+    }
+    
+    const newPoints = currentPoints - pointsCost;
+    const batch = writeBatch(db);
+    // Deduct user points
+    batch.update(doc(db, 'users', userId), { points: newPoints, updatedAt: serverTimestamp() });
+    // Add history log
+    const logRef = doc(collection(db, 'rewardHistory'));
+    batch.set(logRef, {
+      userId,
+      points: `-${pointsCost}`,
+      reason: `Redeemed: ${title}`,
+      status: 'Debited',
+      createdAt: serverTimestamp(),
+    });
+    
+    await batch.commit();
+    return newPoints;
   }
 };
 
@@ -867,11 +1153,37 @@ export const reviewService = {
   }
 };
 
+// ─── BRANDS SERVICE ───────────────────────────────────────────
+export const brandService = {
+  async getAll() {
+    const snap = await getDocs(col('brands'));
+    return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  },
+  async create(data) {
+    const ref = await addDoc(col('brands'), {
+      ...data,
+      createdAt: serverTimestamp()
+    });
+    return ref.id;
+  },
+  async update(id, data) {
+    const ref = doc(db, 'brands', id);
+    await updateDoc(ref, {
+      ...data,
+      updatedAt: serverTimestamp()
+    });
+  },
+  async delete(id) {
+    const ref = doc(db, 'brands', id);
+    await deleteDoc(ref);
+  }
+};
+
 // ─── DATABASE SEEDER ──────────────────────────────────────────────────────────
 export const seedService = {
   async run() {
-    // 0. Clear all existing products, categories, heroSlides, orders, rewards, and reviews to remove all dummy data
-    const collectionsToClear = ['products', 'categories', 'heroSlides', 'orders', 'rewards', 'reviews'];
+    // 0. Clear all existing products, categories, heroSlides, orders, rewards, reviews, and brands to remove all dummy data
+    const collectionsToClear = ['products', 'categories', 'heroSlides', 'orders', 'rewards', 'reviews', 'brands'];
     for (const colName of collectionsToClear) {
       const snap = await getDocs(col(colName));
       for (const d of snap.docs) {

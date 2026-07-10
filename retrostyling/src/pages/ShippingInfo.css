@@ -1,0 +1,376 @@
+/* ─── Shipping Info Page ─────────────────────────────────────── */
+
+.si-page {
+  min-height: 100vh;
+  background: var(--bg-main);
+}
+
+.si-loading {
+  min-height: 60vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  color: var(--text-dim);
+}
+
+.si-spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid var(--border);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Hero */
+.si-hero {
+  position: relative;
+  padding: 5rem 0 3.5rem;
+  text-align: center;
+  overflow: hidden;
+}
+
+.si-hero-glow {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(139, 92, 246, 0.08), transparent 70%);
+  pointer-events: none;
+}
+
+.si-hero-content { position: relative; z-index: 1; }
+
+.si-hero-icon {
+  width: 72px;
+  height: 72px;
+  background: rgba(139, 92, 246, 0.1);
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1.5rem;
+  color: var(--secondary);
+}
+
+.si-hero-title {
+  font-family: var(--ff-heading);
+  font-size: clamp(2rem, 5vw, 3rem);
+  font-weight: 800;
+  color: var(--white);
+  margin-bottom: 0.75rem;
+  letter-spacing: -0.02em;
+}
+
+.si-hero-subtitle {
+  font-size: 1.1rem;
+  color: var(--text-dim);
+  max-width: 520px;
+  margin: 0 auto;
+  line-height: 1.6;
+}
+
+/* Body */
+.si-body { padding-bottom: 5rem; }
+
+.si-section { margin-bottom: 3rem; }
+
+.si-section-title {
+  font-family: var(--ff-heading);
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--white);
+  margin-bottom: 0.5rem;
+}
+
+.si-section-subtitle {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  margin-bottom: 1.25rem;
+}
+
+/* Delivery Options Grid */
+.si-delivery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1rem;
+}
+
+.si-delivery-card {
+  background: var(--bg-card);
+  border: var(--glass-border);
+  border-radius: var(--radius-md);
+  padding: 1.5rem;
+  cursor: default;
+  transition: border-color 0.2s, transform 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+
+.si-delivery-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--dcard-color, var(--primary));
+}
+
+.si-delivery-card:hover:not(.si-delivery-card--unavailable) {
+  border-color: var(--border-bright);
+}
+
+.si-delivery-card--unavailable {
+  opacity: 0.5;
+}
+
+.si-dcard-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.si-dcard-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--dcard-color, #DFFF1B) 10%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--dcard-color, var(--primary));
+  flex-shrink: 0;
+}
+
+.si-dcard-header h3 {
+  font-weight: 700;
+  color: var(--white);
+  font-size: 0.95rem;
+}
+
+.si-coming-soon {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  background: var(--bg-soft);
+  padding: 0.15rem 0.5rem;
+  border-radius: 100px;
+  border: 1px solid var(--border);
+}
+
+.si-dcard-time {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.82rem;
+  color: var(--text-dim);
+  margin-bottom: 0.75rem;
+}
+
+.si-dcard-charge {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.si-charge-amount {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--dcard-color, var(--primary));
+}
+
+.si-charge-note {
+  font-size: 0.77rem;
+  color: var(--text-muted);
+}
+
+/* Free Shipping Banner */
+.si-free-banner {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  background: linear-gradient(135deg, rgba(223, 255, 27, 0.07), rgba(139, 92, 246, 0.07));
+  border: 1px solid rgba(223, 255, 27, 0.2);
+  border-radius: var(--radius-md);
+  padding: 1.5rem 2rem;
+  margin-bottom: 3rem;
+  flex-wrap: wrap;
+}
+
+.si-free-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: var(--radius-sm);
+  background: var(--primary-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--primary);
+  flex-shrink: 0;
+}
+
+.si-free-banner div { flex: 1; }
+
+.si-free-banner h3 {
+  font-weight: 700;
+  color: var(--white);
+  margin-bottom: 0.25rem;
+}
+
+.si-free-banner p {
+  font-size: 0.875rem;
+  color: var(--text-dim);
+}
+
+.si-free-banner p strong { color: var(--primary); }
+
+.si-free-cta { white-space: nowrap; }
+
+/* Zones */
+.si-zones-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.si-zone-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.9rem;
+  background: var(--bg-card);
+  border: var(--glass-border);
+  border-radius: 100px;
+  font-size: 0.82rem;
+  color: var(--text-light);
+  transition: border-color 0.2s, color 0.2s;
+}
+
+.si-zone-chip:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.si-zone-chip svg { color: var(--text-muted); }
+
+/* Courier Partners */
+.si-couriers-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.si-courier-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.6rem 1.1rem;
+  background: var(--bg-card);
+  border: var(--glass-border);
+  border-radius: var(--radius-sm);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-light);
+}
+
+.si-courier-chip svg { color: var(--secondary); }
+
+/* Order Timeline */
+.si-order-timeline { display: flex; flex-direction: column; }
+
+.si-ot-step {
+  display: flex;
+  gap: 1.25rem;
+  align-items: flex-start;
+}
+
+.si-ot-left {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.si-ot-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--primary-light);
+  border: 2px solid var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--primary);
+}
+
+.si-ot-line {
+  width: 2px;
+  flex: 1;
+  min-height: 28px;
+  background: linear-gradient(to bottom, var(--primary), var(--border));
+  margin: 4px 0;
+}
+
+.si-ot-right {
+  padding-bottom: 1.75rem;
+  padding-top: 0.35rem;
+}
+
+.si-ot-right h4 {
+  font-weight: 700;
+  color: var(--white);
+  margin-bottom: 0.2rem;
+  font-size: 0.95rem;
+}
+
+.si-ot-right p {
+  font-size: 0.82rem;
+  color: var(--text-dim);
+}
+
+/* Info Cards */
+.si-info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+.si-info-card {
+  background: var(--bg-card);
+  border: var(--glass-border);
+  border-radius: var(--radius-md);
+  padding: 1.5rem;
+}
+
+.si-info-card svg {
+  color: var(--secondary);
+  margin-bottom: 0.75rem;
+}
+
+.si-info-card h4 {
+  font-weight: 700;
+  color: var(--white);
+  margin-bottom: 0.4rem;
+}
+
+.si-info-card p {
+  font-size: 0.84rem;
+  color: var(--text-dim);
+  line-height: 1.6;
+}
+
+.si-info-card a {
+  color: var(--primary);
+  text-decoration: underline;
+}
+
+@media (max-width: 640px) {
+  .si-hero { padding: 3.5rem 0 2.5rem; }
+  .si-free-banner { flex-direction: column; text-align: center; }
+  .si-delivery-grid { grid-template-columns: 1fr; }
+}

@@ -8,7 +8,7 @@ import FashionFantasy from '../components/FashionFantasy';
 import Newsletter from '../components/Newsletter';
 import ProductCarousel from '../components/ProductCarousel';
 import { useAuth } from '../services/AuthContext';
-import { cartService, wishlistService, flashSaleService, productService } from '../services/firestoreService';
+import { cartService, wishlistService, flashSaleService, productService, reviewService } from '../services/firestoreService';
 import Toast from '../components/Toast';
 import './Home.css';
 
@@ -94,12 +94,24 @@ const Home = () => {
   const [flashProducts, setFlashProducts] = useState([]);
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
   const [cartLoading, setCartLoading] = useState({});
+  const [dynamicReviews, setDynamicReviews] = useState([]);
 
   useEffect(() => {
     window.scrollTo(0, 0);
     loadFlashSale();
     loadWishlist();
+    loadReviews();
   }, [currentUser]);
+
+  const loadReviews = async () => {
+    try {
+      const data = await reviewService.getAll();
+      const approved = data.filter(r => r.status === 'approved');
+      setDynamicReviews(approved);
+    } catch (err) {
+      console.error("Error loading reviews:", err);
+    }
+  };
 
   const loadWishlist = async () => {
     if (!currentUser) return;
@@ -184,8 +196,19 @@ const Home = () => {
     }
   };
 
-  const nextTestimonial = () => setCurrentTestimonial((prev) => (prev + 1) % TESTIMONIALS.length);
-  const prevTestimonial = () => setCurrentTestimonial((prev) => (prev - 1 + TESTIMONIALS.length) % TESTIMONIALS.length);
+  const reviewsToDisplay = dynamicReviews.length > 0
+    ? dynamicReviews.map(r => ({
+        name: r.customer || 'Anonymous',
+        location: r.location || 'Verified Buyer',
+        rating: r.rating || 5,
+        text: r.body || '',
+        avatar: (r.customer || 'A').charAt(0).toUpperCase(),
+        date: r.date || 'Recent'
+      }))
+    : TESTIMONIALS;
+
+  const nextTestimonial = () => setCurrentTestimonial((prev) => (prev + 1) % reviewsToDisplay.length);
+  const prevTestimonial = () => setCurrentTestimonial((prev) => (prev - 1 + reviewsToDisplay.length) % reviewsToDisplay.length);
 
   return (
     <div className="home-page">
@@ -398,7 +421,7 @@ const Home = () => {
           </motion.div>
 
           <div className="testimonials-grid">
-            {TESTIMONIALS.map((t, i) => (
+            {reviewsToDisplay.map((t, i) => (
               <motion.div
                 key={i}
                 className={`testimonial-card ${i === currentTestimonial ? 'featured' : ''}`}

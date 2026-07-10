@@ -21,6 +21,9 @@ import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Contact from './pages/Contact';
 import Rewards from './pages/Rewards';
+import ReturnPolicy from './pages/ReturnPolicy';
+import ShippingInfo from './pages/ShippingInfo';
+import TrackOrder from './pages/TrackOrder';
 
 /* ─── Admin Pages ────────────────────────────────────────── */
 import AdminDashboard from './pages/admin/Dashboard';
@@ -42,6 +45,9 @@ import AdminAnalytics from './pages/admin/Analytics';
 import AdminSuperAdmin from './pages/admin/SuperAdmin';
 import AdminNotifications from './pages/admin/Notifications';
 import AdminCustomers from './pages/admin/Customers';
+import AdminReturns from './pages/admin/Returns';
+import AdminShippingSettings from './pages/admin/ShippingSettings';
+import AdminSupport from './pages/admin/Support';
 
 function AppContent() {
   const location = useLocation();
@@ -85,6 +91,9 @@ function AppContent() {
         <Route path="/contact" element={<Contact />} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
+        <Route path="/return-policy" element={<ReturnPolicy />} />
+        <Route path="/shipping-info" element={<ShippingInfo />} />
+        <Route path="/track-order" element={<TrackOrder />} />
         <Route path="/blog" element={
           <div className="container section">
             <h1>Our Blog</h1>
@@ -112,6 +121,9 @@ function AppContent() {
         {adminRoute('/admin/analytics', AdminAnalytics)}
         {adminRoute('/admin/settings', AdminSettings)}
         {adminRoute('/admin/super-admin', AdminSuperAdmin)}
+        {adminRoute('/admin/returns', AdminReturns)}
+        {adminRoute('/admin/shipping', AdminShippingSettings)}
+        {adminRoute('/admin/support', AdminSupport)}
       </Routes>
       {showNav && <BottomNav />}
       {showNav && <Footer />}

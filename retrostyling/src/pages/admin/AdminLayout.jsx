@@ -6,7 +6,7 @@ import {
   Package, Tag, Layers, Image, Star, MessageSquare,
   BarChart2, TrendingUp, Megaphone, Globe, Boxes,
   Percent, FileText, Camera, Zap, Shield, Activity,
-  Store, ArrowLeft, Plus, SlidersHorizontal
+  Store, ArrowLeft, Plus, SlidersHorizontal, RotateCcw, Truck
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../services/AuthContext';
@@ -18,6 +18,7 @@ const NAV_SECTIONS = [
     items: [
       { path: '/admin', label: 'Dashboard', icon: LayoutDashboard, exact: true },
       { path: '/admin/analytics', label: 'Analytics', icon: BarChart2 },
+      { path: '/admin/support', label: 'Support & Help', icon: MessageSquare },
     ],
   },
   {
@@ -33,6 +34,8 @@ const NAV_SECTIONS = [
     label: 'Sales',
     items: [
       { path: '/admin/orders', label: 'Orders', icon: ShoppingBag },
+      { path: '/admin/returns', label: 'Returns', icon: RotateCcw },
+      { path: '/admin/shipping', label: 'Shipping', icon: Truck },
       { path: '/admin/customers', label: 'Customers', icon: Users },
       { path: '/admin/coupons', label: 'Coupons', icon: Percent },
     ],

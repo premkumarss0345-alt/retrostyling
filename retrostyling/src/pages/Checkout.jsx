@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { MapPin, Phone, CreditCard, ShieldCheck, ChevronLeft, Truck } from 'lucide-react';
+import { MapPin, Phone, CreditCard, ShieldCheck, ChevronLeft, Truck, Calendar } from 'lucide-react';
 import Toast from '../components/Toast';
-import { cartService, orderService } from '../services/firestoreService';
+import { cartService, orderService, shippingSettingsService } from '../services/firestoreService';
 import { useAuth } from '../services/AuthContext';
 import './Checkout.css';
 
@@ -13,6 +13,7 @@ const Checkout = () => {
   const [submitting, setSubmitting] = useState(false);
   const [toast, setToast]         = useState({ show: false, message: '', type: 'success' });
   const [formData, setFormData]   = useState({ shippingAddress: '', phone: '', city: '', pincode: '' });
+  const [shippingSettings, setShippingSettings] = useState({ freeShippingLimit: 999, standardCharge: 99, minDeliveryDays: 3, maxDeliveryDays: 7 });
 
   const { currentUser }  = useAuth();
   const navigate         = useNavigate();
@@ -20,6 +21,16 @@ const Checkout = () => {
   useEffect(() => {
     if (!currentUser) { navigate('/login'); return; }
     loadCart();
+    shippingSettingsService.get().then(s => {
+      if (s) {
+        setShippingSettings({
+          freeShippingLimit: s.freeShippingLimit ?? 999,
+          standardCharge: s.standardCharge ?? 99,
+          minDeliveryDays: s.minDeliveryDays ?? 3,
+          maxDeliveryDays: s.maxDeliveryDays ?? 7,
+        });
+      }
+    }).catch(() => {});
   }, [currentUser]);
 
   const loadCart = async () => {
@@ -40,8 +51,16 @@ const Checkout = () => {
   };
 
   const subtotal = cartItems.reduce((acc, item) => acc + getItemPrice(item) * item.quantity, 0);
-  const shipping = subtotal > 999 ? 0 : 99;
+  const shipping = subtotal > shippingSettings.freeShippingLimit ? 0 : shippingSettings.standardCharge;
   const total    = subtotal + shipping;
+
+  const getEstimatedDelivery = () => {
+    const today = new Date();
+    const minDate = new Date(today); minDate.setDate(today.getDate() + shippingSettings.minDeliveryDays);
+    const maxDate = new Date(today); maxDate.setDate(today.getDate() + shippingSettings.maxDeliveryDays);
+    const fmt = (d) => d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+    return `${fmt(minDate)} – ${fmt(maxDate)}`;
+  };
 
   const handleInput = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
@@ -142,7 +161,11 @@ const Checkout = () => {
                   <span className="flex-center gap-1"><Truck size={14} /> Shipping</span>
                   <span className={shipping === 0 ? 'free-tag' : ''}>{shipping === 0 ? 'FREE' : `₹${shipping}`}</span>
                 </div>
-                {shipping > 0 && <p className="shipping-hint">Add ₹{Math.max(0, 999 - subtotal)} more for free shipping!</p>}
+                {shipping > 0 && <p className="shipping-hint">Add ₹{Math.max(0, shippingSettings.freeShippingLimit - subtotal)} more for free shipping!</p>}
+                <div className="summary-row" style={{ fontSize: '0.8rem', color: 'var(--text-dim)', borderTop: 'none', paddingTop: 0 }}>
+                  <span className="flex-center gap-1"><Calendar size={13} /> Estimated Delivery</span>
+                  <span style={{ color: 'var(--success)', fontWeight: 600 }}>{getEstimatedDelivery()}</span>
+                </div>
                 <div className="summary-row total"><span>Total Amount</span><span>₹{total.toLocaleString()}</span></div>
               </div>
             </div>

@@ -7,8 +7,9 @@ service cloud.firestore {
     }
     function isAdmin() {
       return isSignedIn() && 
-        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || 
-         request.auth.token.email == 'admin@retrostylings.com');
+        (request.auth.token.email == 'admin@retrostylings.com' || 
+         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'));
     }
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
@@ -49,12 +50,11 @@ service cloud.firestore {
       allow read, write: if isOwner(userId);
     }
 
-    // Orders: Users read their own, create new. Admin manages all.
+    // Orders: Anyone can read (for public tracking), users can create. Admin manages all.
     match /orders/{orderId} {
       allow create: if isSignedIn();
-      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
+      allow read: if true;
+      allow update, delete: if isAdmin();
     }
 
     // Admin Stats
@@ -85,8 +85,35 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // Reviews
+    // Reward History
+    match /rewardHistory/{logId} {
+      allow create: if isSignedIn();
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow update, delete: if isAdmin();
+    }
+
+    // Brands
+    match /brands/{brandId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Reviews: Anyone can read, signed in users can write reviews
     match /reviews/{reviewId} {
+      allow read: if true;
+      allow create: if isSignedIn();
+      allow update, delete: if isAdmin();
+    }
+
+    // Returns: Signed in users manage their returns, admin manages all
+    match /returns/{returnId} {
+      allow create: if isSignedIn();
+      allow read: if isSignedIn() && (resource.data.customerId == request.auth.uid || isAdmin());
+      allow update, delete: if isAdmin();
+    }
+
+    // Shipping Settings: Anyone can read settings, admin manages them
+    match /shippingSettings/{docId} {
       allow read: if true;
       allow write: if isAdmin();
     }

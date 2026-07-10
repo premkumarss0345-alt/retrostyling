@@ -46,10 +46,10 @@ const Footer = () => {
                     <h3>HELP & SUPPORT</h3>
                     <ul>
                         <li><a href="#">Dealers & Agents</a></li>
-                        <li><a href="#">FAQ Information</a></li>
-                        <li><a href="#">Return Policy</a></li>
-                        <li><a href="#">Shipping & Delivery</a></li>
-                        <li><a href="#">Order Tracking</a></li>
+                        <li><Link to="/return-policy">FAQ Information</Link></li>
+                        <li><Link to="/return-policy">Return Policy</Link></li>
+                        <li><Link to="/shipping-info">Shipping & Delivery</Link></li>
+                        <li><Link to="/track-order">Order Tracking</Link></li>
                     </ul>
                 </div>
             </div>

@@ -1,17 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import AdminLayout from './AdminLayout';
-import { Plus, Edit2, Trash2, Search, Globe, ToggleLeft, ToggleRight, Image } from 'lucide-react';
+import { Plus, Edit2, Trash2, Search, Globe, ToggleLeft, ToggleRight, Image, RefreshCw } from 'lucide-react';
 import { motion } from 'framer-motion';
-
-const mockBrands = [
-  { id: 1, name: 'Retrostylings', slug: 'retrostylings', logo: '', website: 'https://retrostylings.com', status: 'active', products: 48, featured: true },
-  { id: 2, name: 'UrbanEdge', slug: 'urbanedge', logo: '', website: '', status: 'active', products: 22, featured: false },
-  { id: 3, name: 'VintageVibes', slug: 'vintagevibes', logo: '', website: '', status: 'inactive', products: 15, featured: false },
-  { id: 4, name: 'ModernStreet', slug: 'modernstreet', logo: '', website: 'https://modernstreet.in', status: 'active', products: 31, featured: true },
-];
-
-const containerVariants = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.07 } } };
-const itemVariants = { hidden: { opacity: 0, y: 16 }, visible: { opacity: 1, y: 0 } };
+import { brandService } from '../../services/firestoreService';
 
 const BrandFormModal = ({ brand, onClose, onSave }) => {
   const [form, setForm] = useState(brand || { name: '', slug: '', website: '', description: '', status: 'active', featured: false });
@@ -79,29 +70,98 @@ const BrandFormModal = ({ brand, onClose, onSave }) => {
   );
 };
 
+const containerVariants = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.07 } } };
+const itemVariants = { hidden: { opacity: 0, y: 16 }, visible: { opacity: 1, y: 0 } };
+
 const Brands = () => {
-  const [brands, setBrands] = useState(mockBrands);
+  const [brands, setBrands] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editBrand, setEditBrand] = useState(null);
 
-  const filtered = brands.filter(b => b.name.toLowerCase().includes(search.toLowerCase()));
+  useEffect(() => {
+    loadBrands();
+  }, []);
 
-  const handleSave = (form) => {
-    if (editBrand) {
-      setBrands(prev => prev.map(b => b.id === editBrand.id ? { ...b, ...form } : b));
-    } else {
-      setBrands(prev => [...prev, { id: Date.now(), ...form, products: 0 }]);
+  const loadBrands = async () => {
+    try {
+      setLoading(true);
+      let list = await brandService.getAll();
+      if (list.length === 0) {
+        const defaults = [
+          { name: 'Retrostylings', slug: 'retrostylings', logo: '', website: 'https://retrostylings.com', status: 'active', products: 48, featured: true },
+          { name: 'UrbanEdge', slug: 'urbanedge', logo: '', website: '', status: 'active', products: 22, featured: false },
+          { name: 'VintageVibes', slug: 'vintagevibes', logo: '', website: '', status: 'inactive', products: 15, featured: false },
+          { name: 'ModernStreet', slug: 'modernstreet', logo: '', website: 'https://modernstreet.in', status: 'active', products: 31, featured: true },
+        ];
+        const seededList = [];
+        for (const item of defaults) {
+          const id = await brandService.create(item);
+          seededList.push({ id, ...item });
+        }
+        list = seededList;
+      }
+      setBrands(list);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
     }
-    setShowForm(false);
-    setEditBrand(null);
   };
 
-  const handleDelete = (id) => {
-    if (window.confirm('Delete this brand?')) setBrands(prev => prev.filter(b => b.id !== id));
+  const filtered = brands.filter(b => b.name?.toLowerCase().includes(search.toLowerCase()));
+
+  const handleSave = async (form) => {
+    try {
+      if (editBrand) {
+        await brandService.update(editBrand.id, form);
+        setBrands(prev => prev.map(b => b.id === editBrand.id ? { ...b, ...form } : b));
+      } else {
+        const item = { ...form, products: 0 };
+        const id = await brandService.create(item);
+        setBrands(prev => [...prev, { id, ...item }]);
+      }
+      setShowForm(false);
+      setEditBrand(null);
+    } catch (err) {
+      console.error(err);
+      alert('Failed to save brand');
+    }
   };
 
-  const toggleFeatured = (id) => setBrands(prev => prev.map(b => b.id === id ? { ...b, featured: !b.featured } : b));
+  const handleDelete = async (id) => {
+    if (window.confirm('Delete this brand?')) {
+      try {
+        await brandService.delete(id);
+        setBrands(prev => prev.filter(b => b.id !== id));
+      } catch (err) {
+        console.error(err);
+        alert('Failed to delete brand');
+      }
+    }
+  };
+
+  const toggleFeatured = async (brand) => {
+    try {
+      const updatedFeatured = !brand.featured;
+      await brandService.update(brand.id, { featured: updatedFeatured });
+      setBrands(prev => prev.map(b => b.id === brand.id ? { ...b, featured: updatedFeatured } : b));
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  if (loading) {
+    return (
+      <AdminLayout>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', color: 'var(--text-muted)', gap: '1rem' }}>
+          <RefreshCw className="animate-spin" size={32} style={{ color: 'var(--primary)' }} />
+          <p style={{ fontWeight: 600, fontSize: '0.9rem' }}>Loading brand settings...</p>
+        </div>
+      </AdminLayout>
+    );
+  }
 
   return (
     <AdminLayout>
@@ -127,7 +187,7 @@ const Brands = () => {
             <motion.div key={brand.id} className="brand-card" variants={itemVariants}>
               <div className="brand-card-header">
                 <div className="brand-logo-placeholder">
-                  {brand.name.charAt(0)}
+                  {brand.name ? brand.name.charAt(0) : '?'}
                 </div>
                 <div className="brand-card-actions">
                   <button className="btn btn-ghost btn-icon btn-sm" onClick={() => { setEditBrand(brand); setShowForm(true); }} title="Edit"><Edit2 size={14} /></button>
@@ -137,7 +197,7 @@ const Brands = () => {
               <h3 className="brand-card-name">{brand.name}</h3>
               <div className="brand-card-meta">
                 <span className={`badge ${brand.status === 'active' ? 'badge-success' : 'badge-neutral'}`}>{brand.status}</span>
-                <span className="text-muted text-sm">{brand.products} products</span>
+                <span className="text-muted text-sm">{brand.products || 0} products</span>
               </div>
               {brand.website && (
                 <a href={brand.website} target="_blank" rel="noreferrer" className="brand-website">
@@ -146,7 +206,7 @@ const Brands = () => {
               )}
               <div className="brand-featured-toggle">
                 <span className="text-sm" style={{ color: 'var(--text-muted)' }}>Featured on homepage</span>
-                <button className="toggle-btn" onClick={() => toggleFeatured(brand.id)}>
+                <button className="toggle-btn" onClick={() => toggleFeatured(brand)}>
                   {brand.featured ? <ToggleRight size={22} color="var(--primary)" /> : <ToggleLeft size={22} color="var(--text-muted)" />}
                 </button>
               </div>
