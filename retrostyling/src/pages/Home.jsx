@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowRight, ChevronLeft, ChevronRight, Star, Zap, Clock, ShoppingBag, Heart, Eye } from 'lucide-react';
 import Hero from '../components/Hero';
@@ -7,24 +7,36 @@ import Service from '../components/Service';
 import FashionFantasy from '../components/FashionFantasy';
 import Newsletter from '../components/Newsletter';
 import ProductCarousel from '../components/ProductCarousel';
+import { useAuth } from '../services/AuthContext';
+import { cartService, wishlistService, flashSaleService, productService } from '../services/firestoreService';
+import Toast from '../components/Toast';
 import './Home.css';
 
 /* ─── Flash Sale Countdown ────────────────────────────────── */
-const FlashCountdown = () => {
-  const [timeLeft, setTimeLeft] = useState({ h: 5, m: 42, s: 18 });
+const FlashCountdown = ({ endTime }) => {
+  const [timeLeft, setTimeLeft] = useState({ h: 0, m: 0, s: 0 });
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setTimeLeft(prev => {
-        let { h, m, s } = prev;
-        if (s > 0) return { h, m, s: s - 1 };
-        if (m > 0) return { h, m: m - 1, s: 59 };
-        if (h > 0) return { h: h - 1, m: 59, s: 59 };
+    if (!endTime) return;
+    const calculateTimeLeft = () => {
+      const difference = new Date(endTime) - new Date();
+      if (difference <= 0) {
         return { h: 0, m: 0, s: 0 };
-      });
+      }
+      return {
+        h: Math.floor(difference / (1000 * 60 * 60)),
+        m: Math.floor((difference / 1000 / 60) % 60),
+        s: Math.floor((difference / 1000) % 60)
+      };
+    };
+
+    setTimeLeft(calculateTimeLeft());
+    const interval = setInterval(() => {
+      setTimeLeft(calculateTimeLeft());
     }, 1000);
+
     return () => clearInterval(interval);
-  }, []);
+  }, [endTime]);
 
   const pad = (n) => String(n).padStart(2, '0');
 
@@ -61,13 +73,7 @@ const TESTIMONIALS = [
   { name: 'Divya Menon', location: 'Delhi', rating: 5, text: "I've been shopping here for over a year. Consistent quality, great prices, and the loyalty points system is a nice bonus!", avatar: 'D', date: 'May 2026' },
 ];
 
-/* ─── Flash Sale Products (Mock) ──────────────────────────── */
-const FLASH_PRODUCTS = [
-  { id: 1, name: 'Premium Leather Jacket', price: 4500, discountPrice: 2700, discount: 40, image: 'https://images.unsplash.com/photo-1551028719-00167b16eac5?w=400', rating: 4.8, reviews: 124 },
-  { id: 2, name: 'Retro Denim Jeans', price: 2200, discountPrice: 1540, discount: 30, image: 'https://images.unsplash.com/photo-1542272604-787c3835535d?w=400', rating: 4.6, reviews: 89 },
-  { id: 3, name: 'Vintage Sneakers', price: 3200, discountPrice: 1920, discount: 40, image: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400', rating: 4.5, reviews: 67 },
-  { id: 4, name: 'Summer Floral Dress', price: 1800, discountPrice: 1260, discount: 30, image: 'https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?w=400', rating: 4.7, reviews: 95 },
-];
+/* ─── Flash Sale Products are loaded from Firestore ─── */
 
 const fadeInUp = {
   hidden: { opacity: 0, y: 32 },
@@ -80,13 +86,102 @@ const stagger = {
 };
 
 const Home = () => {
+  const navigate = useNavigate();
+  const { currentUser } = useAuth();
   const [currentTestimonial, setCurrentTestimonial] = useState(0);
   const [wishlist, setWishlist] = useState([]);
+  const [activeSale, setActiveSale] = useState(null);
+  const [flashProducts, setFlashProducts] = useState([]);
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+  const [cartLoading, setCartLoading] = useState({});
 
-  useEffect(() => { window.scrollTo(0, 0); }, []);
+  useEffect(() => {
+    window.scrollTo(0, 0);
+    loadFlashSale();
+    loadWishlist();
+  }, [currentUser]);
 
-  const toggleWishlist = (id) => {
-    setWishlist(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
+  const loadWishlist = async () => {
+    if (!currentUser) return;
+    try {
+      const ids = await wishlistService.getIds();
+      setWishlist(ids);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const loadFlashSale = async () => {
+    try {
+      const sale = await flashSaleService.getActive();
+      setActiveSale(sale);
+      if (sale && Array.isArray(sale.productIds) && sale.productIds.length > 0) {
+        const allProds = await productService.getAll();
+        const filtered = allProds.filter(p => sale.productIds.includes(p.id));
+        
+        const mapped = filtered.map(p => {
+          const discountPrice = Math.round(p.price * (1 - (sale.discount || 0) / 100));
+          return {
+            id: p.id,
+            name: p.name,
+            price: p.price,
+            discountPrice: p.discount_price || discountPrice,
+            discount: sale.discount,
+            image: p.image,
+            rating: p.rating || 4.7,
+            reviews: p.reviewsCount || 42,
+            slug: p.slug
+          };
+        });
+        setFlashProducts(mapped);
+      } else {
+        setFlashProducts([]);
+      }
+    } catch (err) {
+      console.error("Error loading flash sale:", err);
+    }
+  };
+
+  const handleToggleWishlist = async (id) => {
+    if (!currentUser) return navigate('/login');
+    try {
+      const isWishlisted = wishlist.includes(id);
+      if (isWishlisted) {
+        await wishlistService.remove(id);
+        setWishlist(prev => prev.filter(i => i !== id));
+        setToast({ show: true, message: 'Removed from wishlist', type: 'success' });
+      } else {
+        await wishlistService.add(id);
+        setWishlist(prev => [...prev, id]);
+        setToast({ show: true, message: 'Added to wishlist!', type: 'success' });
+      }
+    } catch (err) {
+      console.error(err);
+      setToast({ show: true, message: 'Failed to update wishlist', type: 'error' });
+    }
+  };
+
+  const handleAddToCart = async (product) => {
+    if (!currentUser) return navigate('/login');
+    setCartLoading(prev => ({ ...prev, [product.id]: true }));
+    try {
+      const allProds = await productService.getAll();
+      const origProd = allProds.find(p => p.id === product.id);
+      const variant = origProd && origProd.variants && origProd.variants.length > 0 ? origProd.variants[0] : null;
+      
+      const cartItem = {
+        ...origProd,
+        price_override: product.discountPrice
+      };
+      
+      await cartService.addItem(cartItem, variant, 1);
+      setToast({ show: true, message: `${product.name} added to cart!`, type: 'success' });
+    } catch (err) {
+      console.error(err);
+      setToast({ show: true, message: 'Failed to add to cart', type: 'error' });
+    } finally {
+      setCartLoading(prev => ({ ...prev, [product.id]: false }));
+    }
   };
 
   const nextTestimonial = () => setCurrentTestimonial((prev) => (prev + 1) % TESTIMONIALS.length);
@@ -111,69 +206,75 @@ const Home = () => {
       </motion.div>
 
       {/* Flash Sale Section */}
-      <section className="flash-sale-section">
-        <div className="container">
-          <motion.div
-            className="flash-sale-header"
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true }}
-            variants={fadeInUp}
-          >
-            <div className="flash-label">
-              <Zap size={16} fill="currentColor" />
-              Flash Sale
-            </div>
-            <div className="flash-sale-info">
-              <h2>Deals End In</h2>
-              <FlashCountdown />
-            </div>
-            <Link to="/shop?filter=sale" className="btn btn-outline btn-sm">
-              View All Deals <ArrowRight size={14} />
-            </Link>
-          </motion.div>
+      {activeSale && flashProducts.length > 0 && (
+        <section className="flash-sale-section">
+          <div className="container">
+            <motion.div
+              className="flash-sale-header"
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true }}
+              variants={fadeInUp}
+            >
+              <div className="flash-label">
+                <Zap size={16} fill="currentColor" />
+                Flash Sale
+              </div>
+              <div className="flash-sale-info">
+                <h2>Deals End In</h2>
+                <FlashCountdown endTime={activeSale.endTime} />
+              </div>
+              <Link to="/shop?filter=sale" className="btn btn-outline btn-sm">
+                View All Deals <ArrowRight size={14} />
+              </Link>
+            </motion.div>
 
-          <motion.div
-            className="flash-products-grid"
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true }}
-            variants={stagger}
-          >
-            {FLASH_PRODUCTS.map(product => (
-              <motion.div key={product.id} className="flash-product-card" variants={fadeInUp}>
-                <div className="flash-product-image">
-                  <img src={product.image} alt={product.name} className="img-cover" />
-                  <div className="flash-discount-badge">-{product.discount}%</div>
-                  <div className="flash-product-actions">
-                    <button className={`flash-action-btn ${wishlist.includes(product.id) ? 'wishlisted' : ''}`} onClick={() => toggleWishlist(product.id)}>
-                      <Heart size={16} fill={wishlist.includes(product.id) ? 'currentColor' : 'none'} />
+            <motion.div
+              className="flash-products-grid"
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true }}
+              variants={stagger}
+            >
+              {flashProducts.map(product => (
+                <motion.div key={product.id} className="flash-product-card" variants={fadeInUp}>
+                  <div className="flash-product-image">
+                    <img src={product.image} alt={product.name} className="img-cover" />
+                    <div className="flash-discount-badge">-{product.discount}%</div>
+                    <div className="flash-product-actions">
+                      <button className={`flash-action-btn ${wishlist.includes(product.id) ? 'wishlisted' : ''}`} onClick={() => handleToggleWishlist(product.id)}>
+                        <Heart size={16} fill={wishlist.includes(product.id) ? 'currentColor' : 'none'} />
+                      </button>
+                      <Link to={`/product/${product.slug}`} className="flash-action-btn">
+                        <Eye size={16} />
+                      </Link>
+                    </div>
+                  </div>
+                  <div className="flash-product-info">
+                    <h3>{product.name}</h3>
+                    <div className="flash-product-rating">
+                      <Star size={12} fill="#F59E0B" color="#F59E0B" />
+                      <span>{product.rating}</span>
+                      <span className="text-muted">({product.reviews})</span>
+                    </div>
+                    <div className="flash-product-price">
+                      <span className="price-current">₹{product.discountPrice.toLocaleString()}</span>
+                      <span className="price-original">₹{product.price.toLocaleString()}</span>
+                    </div>
+                    <button 
+                      className="btn btn-primary btn-sm w-full"
+                      onClick={() => handleAddToCart(product)}
+                      disabled={cartLoading[product.id]}
+                    >
+                      <ShoppingBag size={14} /> {cartLoading[product.id] ? 'Adding...' : 'Add to Cart'}
                     </button>
-                    <Link to={`/product/${product.name.toLowerCase().replace(/ /g, '-')}`} className="flash-action-btn">
-                      <Eye size={16} />
-                    </Link>
                   </div>
-                </div>
-                <div className="flash-product-info">
-                  <h3>{product.name}</h3>
-                  <div className="flash-product-rating">
-                    <Star size={12} fill="#F59E0B" color="#F59E0B" />
-                    <span>{product.rating}</span>
-                    <span className="text-muted">({product.reviews})</span>
-                  </div>
-                  <div className="flash-product-price">
-                    <span className="price-current">₹{product.discountPrice.toLocaleString()}</span>
-                    <span className="price-original">₹{product.price.toLocaleString()}</span>
-                  </div>
-                  <button className="btn btn-primary btn-sm w-full">
-                    <ShoppingBag size={14} /> Add to Cart
-                  </button>
-                </div>
-              </motion.div>
-            ))}
-          </motion.div>
-        </div>
-      </section>
+                </motion.div>
+              ))}
+            </motion.div>
+          </div>
+        </section>
+      )}
 
       {/* Shop by Category */}
       <motion.div
@@ -327,6 +428,13 @@ const Home = () => {
 
       {/* Newsletter */}
       <Newsletter />
+
+      <Toast
+        isOpen={toast.show}
+        message={toast.message}
+        type={toast.type}
+        onClose={() => setToast({ ...toast, show: false })}
+      />
     </div>
   );
 };

@@ -5,16 +5,13 @@ import {
   Plus, Edit2, Trash2, ToggleLeft, ToggleRight, Clock
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { rewardsService } from '../../services/firestoreService';
+import { rewardsService, flashSaleService, productService } from '../../services/firestoreService';
 import Toast from '../../components/Toast';
 
 const containerVariants = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.07 } } };
 const itemVariants = { hidden: { opacity: 0, y: 16 }, visible: { opacity: 1, y: 0 } };
 
-const mockFlashSales = [
-  { id: 1, name: 'Midnight Flash Sale', discount: 40, startTime: '2026-07-08T22:00', endTime: '2026-07-09T04:00', products: 12, active: true },
-  { id: 2, name: 'Weekend Blowout', discount: 25, startTime: '2026-07-12T10:00', endTime: '2026-07-13T22:00', products: 28, active: false },
-];
+/* mockFlashSales removed - loaded from Firestore */
 
 const mockLoyaltyRules = [
   { id: 1, action: 'Purchase', points: 10, description: '10 points per ₹100 spent', active: true },
@@ -39,7 +36,13 @@ const CountdownTimer = ({ endTime }) => {
 };
 
 const Marketing = () => {
-  const [flashSales, setFlashSales] = useState(mockFlashSales);
+  const [flashSales, setFlashSales] = useState([]);
+  const [loadingFlash, setLoadingFlash] = useState(true);
+  const [isFlashModalOpen, setIsFlashModalOpen] = useState(false);
+  const [editingFlash, setEditingFlash] = useState(null);
+  const [flashForm, setFlashForm] = useState({ name: '', discount: '', startTime: '', endTime: '', active: false, productIds: [] });
+  const [productsList, setProductsList] = useState([]);
+
   const [loyaltyRules, setLoyaltyRules] = useState(mockLoyaltyRules);
   const [activeTab, setActiveTab] = useState('flash');
   const [newsletterForm, setNewsletterForm] = useState({ subject: '', body: '', segment: 'all' });
@@ -54,6 +57,8 @@ const Marketing = () => {
 
   useEffect(() => {
     loadRewards();
+    loadFlashSales();
+    loadProducts();
   }, []);
 
   const loadRewards = async () => {
@@ -65,6 +70,27 @@ const Marketing = () => {
       console.error(err);
     } finally {
       setLoadingRewards(false);
+    }
+  };
+
+  const loadFlashSales = async () => {
+    setLoadingFlash(true);
+    try {
+      const data = await flashSaleService.getAll();
+      setFlashSales(data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingFlash(false);
+    }
+  };
+
+  const loadProducts = async () => {
+    try {
+      const data = await productService.getAllAdmin();
+      setProductsList(data);
+    } catch (err) {
+      console.error(err);
     }
   };
 
@@ -122,7 +148,80 @@ const Marketing = () => {
     setIsModalOpen(true);
   };
 
-  const toggleFlash = (id) => setFlashSales(prev => prev.map(f => f.id === id ? { ...f, active: !f.active } : f));
+  const openCreateFlashModal = () => {
+    setEditingFlash(null);
+    setFlashForm({ name: '', discount: '', startTime: '', endTime: '', active: false, productIds: [] });
+    setIsFlashModalOpen(true);
+  };
+
+  const openEditFlashModal = (sale) => {
+    setEditingFlash(sale);
+    setFlashForm({
+      name: sale.name,
+      discount: sale.discount,
+      startTime: sale.startTime,
+      endTime: sale.endTime,
+      active: sale.active,
+      productIds: sale.productIds || []
+    });
+    setIsFlashModalOpen(true);
+  };
+
+  const handleSaveFlash = async (e) => {
+    e.preventDefault();
+    if (flashForm.productIds.length === 0) {
+      showMsg('Please select at least one product', 'error');
+      return;
+    }
+    try {
+      const payload = {
+        name: flashForm.name,
+        discount: parseInt(flashForm.discount, 10),
+        startTime: flashForm.startTime,
+        endTime: flashForm.endTime,
+        active: flashForm.active,
+        productIds: flashForm.productIds,
+        products: flashForm.productIds.length
+      };
+
+      if (editingFlash) {
+        await flashSaleService.update(editingFlash.id, payload);
+        showMsg('Flash sale updated successfully');
+      } else {
+        await flashSaleService.create(payload);
+        showMsg('New flash sale created');
+      }
+      setIsFlashModalOpen(false);
+      loadFlashSales();
+    } catch (err) {
+      console.error(err);
+      showMsg('Failed to save flash sale', 'error');
+    }
+  };
+
+  const handleDeleteFlash = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this flash sale?')) return;
+    try {
+      await flashSaleService.delete(id);
+      showMsg('Flash sale deleted');
+      loadFlashSales();
+    } catch (err) {
+      console.error(err);
+      showMsg('Failed to delete flash sale', 'error');
+    }
+  };
+
+  const toggleFlash = async (id, currentActive) => {
+    try {
+      await flashSaleService.toggleActive(id, currentActive);
+      showMsg(`Flash sale status updated`);
+      loadFlashSales();
+    } catch (err) {
+      console.error(err);
+      showMsg('Failed to update flash sale status', 'error');
+    }
+  };
+
   const toggleRule = (id) => setLoyaltyRules(prev => prev.map(r => r.id === id ? { ...r, active: !r.active } : r));
 
   const TABS = [
@@ -158,32 +257,39 @@ const Marketing = () => {
         {activeTab === 'flash' && (
           <motion.div variants={containerVariants} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <button className="btn btn-primary btn-sm"><Plus size={14} /> Create Flash Sale</button>
+              <button className="btn btn-primary btn-sm" onClick={openCreateFlashModal}><Plus size={14} /> Create Flash Sale</button>
             </div>
-            {flashSales.map(sale => (
-              <motion.div key={sale.id} className="marketing-card" variants={itemVariants}>
-                <div className="marketing-card-icon" style={{ background: 'rgba(223,255,27,0.1)', color: 'var(--primary)' }}>
-                  <Zap size={22} />
-                </div>
-                <div className="marketing-card-info">
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    <h3>{sale.name}</h3>
-                    <span className="badge badge-primary">{sale.discount}% OFF</span>
-                    <span className={`badge ${sale.active ? 'badge-success' : 'badge-neutral'}`}>{sale.active ? 'Active' : 'Inactive'}</span>
+            {loadingFlash ? (
+              <div style={{ color: 'var(--text-muted)', padding: '1rem 0' }}>Loading flash sales...</div>
+            ) : flashSales.length === 0 ? (
+              <div style={{ color: 'var(--text-muted)', padding: '1rem 0' }}>No flash sales defined. Create one to get started.</div>
+            ) : (
+              flashSales.map(sale => (
+                <motion.div key={sale.id} className="marketing-card" variants={itemVariants}>
+                  <div className="marketing-card-icon" style={{ background: 'rgba(223,255,27,0.1)', color: 'var(--primary)' }}>
+                    <Zap size={22} />
                   </div>
-                  <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-                    {sale.products} products · {sale.startTime.replace('T', ' ')} → {sale.endTime.replace('T', ' ')}
-                  </p>
-                  {sale.active && <CountdownTimer endTime={sale.endTime} />}
-                </div>
-                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                  <button className="btn btn-ghost btn-icon"><Edit2 size={15} /></button>
-                  <button className="toggle-btn" onClick={() => toggleFlash(sale.id)}>
-                    {sale.active ? <ToggleRight size={24} color="var(--primary)" /> : <ToggleLeft size={24} color="var(--text-muted)" />}
-                  </button>
-                </div>
-              </motion.div>
-            ))}
+                  <div className="marketing-card-info">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <h3>{sale.name}</h3>
+                      <span className="badge badge-primary">{sale.discount}% OFF</span>
+                      <span className={`badge ${sale.active ? 'badge-success' : 'badge-neutral'}`}>{sale.active ? 'Active' : 'Inactive'}</span>
+                    </div>
+                    <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                      {sale.products || 0} products · {sale.startTime.replace('T', ' ')} → {sale.endTime.replace('T', ' ')}
+                    </p>
+                    {sale.active && <CountdownTimer endTime={sale.endTime} />}
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                    <button className="btn btn-ghost btn-icon" onClick={() => openEditFlashModal(sale)} title="Edit"><Edit2 size={15} /></button>
+                    <button className="btn btn-ghost btn-icon" onClick={() => handleDeleteFlash(sale.id)} style={{ color: 'var(--error)' }} title="Delete"><Trash2 size={15} /></button>
+                    <button className="toggle-btn" onClick={() => toggleFlash(sale.id, sale.active)}>
+                      {sale.active ? <ToggleRight size={24} color="var(--primary)" /> : <ToggleLeft size={24} color="var(--text-muted)" />}
+                    </button>
+                  </div>
+                </motion.div>
+              ))
+            )}
           </motion.div>
         )}
 
@@ -368,6 +474,71 @@ const Marketing = () => {
                 <div className="modal-footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1.5rem' }}>
                   <button type="button" className="btn btn-secondary" onClick={() => setIsModalOpen(false)}>Cancel</button>
                   <button type="submit" className="btn btn-primary">{editingReward ? 'Update Reward' : 'Create Reward'}</button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Flash Sale Edit/Create Modal */}
+      <AnimatePresence>
+        {isFlashModalOpen && (
+          <div className="modal-backdrop" onClick={() => setIsFlashModalOpen(false)}>
+            <motion.div className="modal-box" onClick={e => e.stopPropagation()} style={{ maxWidth: 550 }} initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }}>
+              <div className="modal-header">
+                <h3>{editingFlash ? 'Edit Flash Sale' : 'Create Flash Sale'}</h3>
+                <button className="btn btn-ghost btn-icon" onClick={() => setIsFlashModalOpen(false)}>✕</button>
+              </div>
+              <form onSubmit={handleSaveFlash}>
+                <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxHeight: '70vh', overflowY: 'auto', paddingRight: '0.5rem' }}>
+                  <div className="form-group">
+                    <label className="form-label">Flash Sale Name *</label>
+                    <input required className="form-input" placeholder="E.g. Midnight Flash Sale" value={flashForm.name} onChange={e => setFlashForm({ ...flashForm, name: e.target.value })} />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Discount Percentage *</label>
+                    <input required type="number" min="1" max="99" className="form-input" placeholder="E.g. 40" value={flashForm.discount} onChange={e => setFlashForm({ ...flashForm, discount: e.target.value })} />
+                  </div>
+                  <div className="form-row" style={{ display: 'flex', gap: '1rem' }}>
+                    <div className="form-group" style={{ flex: 1 }}>
+                      <label className="form-label">Start Time *</label>
+                      <input required type="datetime-local" className="form-input" value={flashForm.startTime} onChange={e => setFlashForm({ ...flashForm, startTime: e.target.value })} />
+                    </div>
+                    <div className="form-group" style={{ flex: 1 }}>
+                      <label className="form-label">End Time *</label>
+                      <input required type="datetime-local" className="form-input" value={flashForm.endTime} onChange={e => setFlashForm({ ...flashForm, endTime: e.target.value })} />
+                    </div>
+                  </div>
+                  
+                  <div className="form-group">
+                    <label className="form-label">Select Products (Select multiple) *</label>
+                    <div className="products-select-list" style={{ border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', maxHeight: 150, overflowY: 'auto', padding: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                      {productsList.map(p => {
+                        const isChecked = flashForm.productIds.includes(p.id);
+                        return (
+                          <label key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.85rem' }}>
+                            <input type="checkbox" checked={isChecked} onChange={() => {
+                              setFlashForm(f => {
+                                const newIds = isChecked ? f.productIds.filter(id => id !== p.id) : [...f.productIds, p.id];
+                                return { ...f, productIds: newIds };
+                              });
+                            }} />
+                            {p.name} (₹{p.price})
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <label className="checkbox-wrap" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', color: 'var(--text-dim)' }}>
+                    <input type="checkbox" checked={flashForm.active} onChange={e => setFlashForm({ ...flashForm, active: e.target.checked })} />
+                    Mark as Active (will automatically deactivate other active flash sales)
+                  </label>
+                </div>
+                <div className="modal-footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1.5rem' }}>
+                  <button type="button" className="btn btn-secondary" onClick={() => setIsFlashModalOpen(false)}>Cancel</button>
+                  <button type="submit" className="btn btn-primary">{editingFlash ? 'Update Sale' : 'Create Sale'}</button>
                 </div>
               </form>
             </motion.div>

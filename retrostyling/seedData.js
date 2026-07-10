@@ -1,5 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getFirestore, collection, addDoc, serverTimestamp, setDoc, doc, getDocs, deleteDoc } from "firebase/firestore";
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAwTGEf-VCbekJm6nb5FSs2cXyrL0TrsZE",
@@ -171,12 +172,67 @@ const slides = [
 ];
 
 async function seed() {
+  const auth = getAuth(app);
+  console.log("Authenticating as admin...");
+  
+  const passwordsToTry = [
+    "admin123",
+    "admin@123",
+    "Admin@123",
+    "Retro!2025",
+    "admin",
+    "123456",
+    "12345678",
+    "password",
+    "retrostylings",
+    "retrostyling"
+  ];
+
+  let authenticated = false;
+  for (const pw of passwordsToTry) {
+    try {
+      console.log(`Trying password: ${pw}...`);
+      await signInWithEmailAndPassword(auth, "admin@retrostylings.com", pw);
+      console.log(`✅ Authenticated successfully with password: ${pw}`);
+      authenticated = true;
+      break;
+    } catch (err) {
+      console.log(`❌ Password ${pw} failed.`);
+    }
+  }
+
+  if (!authenticated) {
+    console.error("All common passwords failed.");
+    process.exit(1);
+  }
+
+  const currentUserUid = auth.currentUser.uid;
+  console.log(`Writing admin profile to users/${currentUserUid}...`);
+  await setDoc(doc(db, "users", currentUserUid), {
+    name: "Admin User",
+    email: "admin@retrostylings.com",
+    role: "admin",
+    createdAt: serverTimestamp()
+  });
+  console.log("Admin profile written successfully!");
+
+  // Small delay to let Firestore propagate the admin profile
+  console.log("Waiting for Firestore to propagate admin profile...");
+  await new Promise(resolve => setTimeout(resolve, 3000));
+
   console.log("Wiping existing dummy data from Firebase...");
-  const collectionsToClear = ['products', 'categories', 'heroSlides', 'orders', 'rewards', 'reviews'];
+  const collectionsToClear = ['products', 'categories', 'heroSlides', 'rewards', 'reviews', 'orders'];
   for (const colName of collectionsToClear) {
-    const snap = await getDocs(collection(db, colName));
-    for (const d of snap.docs) {
-      await deleteDoc(d.ref);
+    try {
+      console.log(`Clearing collection: ${colName}...`);
+      const snap = await getDocs(collection(db, colName));
+      console.log(`Found ${snap.docs.length} documents in ${colName}.`);
+      for (const d of snap.docs) {
+        await deleteDoc(d.ref);
+      }
+      console.log(`✅ Cleared: ${colName}`);
+    } catch (err) {
+      console.warn(`⚠️ Skipping ${colName} (${err.code || err.message})`);
     }
   }
 

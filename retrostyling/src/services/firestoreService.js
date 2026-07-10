@@ -606,20 +606,210 @@ export const statsService = {
     const allProducts = snap2arr(products);
     const lowStockProducts = allProducts.filter((p) => (p.stock || 0) < 10);
 
+    // Calculate today's revenue (local time)
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayOrders = paidOrders.filter((o) => {
+      if (!o.createdAt) return false;
+      const orderDate = o.createdAt.toDate ? o.createdAt.toDate() : new Date(o.createdAt);
+      return orderDate >= todayStart;
+    });
+    const todayRevenue = todayOrders.reduce((acc, o) => acc + (o.total || 0), 0);
+
+    // Calculate pending orders count
+    const pendingOrdersCount = allOrders.filter(
+      (o) => o.orderStatus === 'pending'
+    ).length;
+
+    // Calculate returns count
+    const returnsCount = allOrders.filter(
+      (o) => o.orderStatus === 'returned' || o.orderStatus === 'refunded'
+    ).length;
+
+    // Generate monthly sales data for the last 7 months
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const salesData = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setMonth(d.getMonth() - i);
+      const year = d.getFullYear();
+      const month = d.getMonth();
+      const name = monthNames[month];
+      
+      const monthOrders = allOrders.filter(o => {
+        if (!o.createdAt) return false;
+        const orderDate = o.createdAt.toDate ? o.createdAt.toDate() : new Date(o.createdAt);
+        return orderDate.getFullYear() === year && orderDate.getMonth() === month;
+      });
+      
+      const paidMonthOrders = monthOrders.filter(o => o.paymentStatus === 'paid');
+      const revenue = paidMonthOrders.reduce((acc, o) => acc + (o.total || 0), 0);
+      
+      salesData.push({
+        name,
+        revenue,
+        orders: monthOrders.length
+      });
+    }
+
+    // Weekly sales (Mon-Sun of current week, or last 7 days ending today)
+    const weeklyData = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      d.setHours(0, 0, 0, 0);
+      const name = d.toLocaleDateString('en-US', { weekday: 'short' });
+      
+      const dayOrders = paidOrders.filter(o => {
+        if (!o.createdAt) return false;
+        const orderDate = o.createdAt.toDate ? o.createdAt.toDate() : new Date(o.createdAt);
+        const orderDay = new Date(orderDate);
+        orderDay.setHours(0, 0, 0, 0);
+        return orderDay.getTime() === d.getTime();
+      });
+      
+      const sales = dayOrders.reduce((acc, o) => acc + (o.total || 0), 0);
+      weeklyData.push({
+        name,
+        sales
+      });
+    }
+
+    // Category Sales (revenue contribution percentage)
+    const categoryTotals = {};
+    let totalSales = 0;
+    const productMap = {};
+    allProducts.forEach(p => {
+      productMap[p.id] = p;
+    });
+    
+    paidOrders.forEach(o => {
+      if (Array.isArray(o.items)) {
+        o.items.forEach(item => {
+          const prod = productMap[item.productId];
+          const categoryName = prod?.categoryName || 'Others';
+          const itemRevenue = (item.price || 0) * (item.quantity || 1);
+          categoryTotals[categoryName] = (categoryTotals[categoryName] || 0) + itemRevenue;
+          totalSales += itemRevenue;
+        });
+      }
+    });
+    
+    const colors = ['#DFFF1B', '#8B5CF6', '#00F5FF', '#F59E0B', '#EF4444', '#10B981'];
+    const categoryData = Object.entries(categoryTotals).map(([name, val], idx) => {
+      const percentage = totalSales > 0 ? Math.round((val / totalSales) * 100) : 0;
+      return {
+        name,
+        value: percentage,
+        color: colors[idx % colors.length]
+      };
+    });
+
+    // Customer Growth (new registrations vs returning customers by month)
+    const customerGrowth = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setMonth(d.getMonth() - i);
+      const year = d.getFullYear();
+      const month = d.getMonth();
+      const name = monthNames[month];
+      
+      const newUsersCount = users.docs.filter(uDoc => {
+        const u = uDoc.data();
+        if (!u.createdAt) return false;
+        const uDate = u.createdAt.toDate ? u.createdAt.toDate() : new Date(u.createdAt.seconds * 1000 || u.createdAt);
+        return uDate.getFullYear() === year && uDate.getMonth() === month;
+      }).length;
+      
+      const returningUsersCount = allOrders.filter(o => {
+        if (!o.createdAt) return false;
+        const oDate = o.createdAt.toDate ? o.createdAt.toDate() : new Date(o.createdAt);
+        return oDate.getFullYear() === year && oDate.getMonth() === month;
+      }).reduce((acc, o) => {
+        if (o.userId && !acc.includes(o.userId)) {
+          acc.push(o.userId);
+        }
+        return acc;
+      }, []).length;
+      
+      customerGrowth.push({
+        name,
+        new: newUsersCount,
+        returning: returningUsersCount
+      });
+    }
+
+    // Order Status Distribution
+    const statuses = [
+      { status: 'Pending', key: 'pending', color: '#F59E0B' },
+      { status: 'Processing', key: 'processing', color: '#3B82F6' },
+      { status: 'Shipped', key: 'shipped', color: '#00F5FF' },
+      { status: 'Delivered', key: 'delivered', color: '#22C55E' },
+      { status: 'Cancelled', key: 'cancelled', color: '#FF4D4D' },
+    ];
+    const orderStatusData = statuses.map(s => {
+      const count = allOrders.filter(o => o.orderStatus === s.key).length;
+      return {
+        status: s.status,
+        count,
+        color: s.color
+      };
+    });
+
+    // Top Selling Products
+    const productStats = {};
+    paidOrders.forEach(o => {
+      if (Array.isArray(o.items)) {
+        o.items.forEach(item => {
+          const pid = item.productId;
+          const qty = item.quantity || 1;
+          const price = item.price || 0;
+          const revenue = price * qty;
+          
+          if (!productStats[pid]) {
+            productStats[pid] = {
+              name: item.name,
+              sales: 0,
+              revenue: 0
+            };
+          }
+          productStats[pid].sales += qty;
+          productStats[pid].revenue += revenue;
+        });
+      }
+    });
+    const topProducts = Object.entries(productStats).map(([pid, stat]) => {
+      const prod = productMap[pid];
+      return {
+        name: stat.name,
+        sales: stat.sales,
+        revenue: `₹${stat.revenue.toLocaleString('en-IN')}`,
+        stock: prod?.stock !== undefined ? prod.stock : 0,
+        trend: 'up'
+      };
+    })
+    .sort((a, b) => b.sales - a.sales)
+    .slice(0, 5);
+
     return {
       stats: {
-        totalUsers: users.size || 3,
-        totalProducts: products.size || 8,
-        totalOrders: orders.size || 5,
-        totalRevenue: totalRevenue || 184500,
-        lowStockCount: lowStockProducts.length || 2,
+        totalUsers: users.size,
+        totalProducts: products.size,
+        totalOrders: orders.size,
+        totalRevenue: totalRevenue,
+        lowStockCount: lowStockProducts.length,
+        todayRevenue: todayRevenue,
+        pendingOrders: pendingOrdersCount,
+        returns: returnsCount,
       },
-      recentOrders: recentOrders.length > 0 ? recentOrders : [
-        { id: 'ord1', customerName: 'Arjun Sharma', total: 4500, orderStatus: 'processing', createdAt: { toDate: () => new Date() } },
-        { id: 'ord2', customerName: 'Priya Nair', total: 2200, orderStatus: 'delivered', createdAt: { toDate: () => new Date(Date.now() - 86400000) } },
-        { id: 'ord3', customerName: 'Kiran Kumar', total: 3200, orderStatus: 'pending', createdAt: { toDate: () => new Date(Date.now() - 172800000) } },
-      ],
+      recentOrders,
       lowStockProducts,
+      salesData,
+      weeklyData,
+      categoryData,
+      customerGrowth,
+      orderStatusData,
+      topProducts,
     };
   },
 };
@@ -953,5 +1143,67 @@ export const seedService = {
         createdAt: serverTimestamp()
       });
     }
+  }
+};
+
+// ─── FLASH SALES SERVICE ──────────────────────────────────────────
+export const flashSaleService = {
+  async getAll() {
+    const snap = await getDocs(col('flashSales'));
+    return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  },
+  async getActive() {
+    const q = query(col('flashSales'), where('active', '==', true));
+    const snap = await getDocs(q);
+    if (snap.empty) return null;
+    return { id: snap.docs[0].id, ...snap.docs[0].data() };
+  },
+  async create(data) {
+    if (data.active) {
+      const snap = await getDocs(query(col('flashSales'), where('active', '==', true)));
+      const batch = writeBatch(db);
+      snap.docs.forEach(doc => {
+        batch.update(doc.ref, { active: false });
+      });
+      await batch.commit();
+    }
+    const ref = await addDoc(col('flashSales'), {
+      ...data,
+      createdAt: serverTimestamp()
+    });
+    return ref.id;
+  },
+  async update(id, data) {
+    if (data.active) {
+      const snap = await getDocs(query(col('flashSales'), where('active', '==', true)));
+      const batch = writeBatch(db);
+      snap.docs.forEach(doc => {
+        if (doc.id !== id) {
+          batch.update(doc.ref, { active: false });
+        }
+      });
+      await batch.commit();
+    }
+    const ref = doc(db, 'flashSales', id);
+    await updateDoc(ref, {
+      ...data,
+      updatedAt: serverTimestamp()
+    });
+  },
+  async delete(id) {
+    const ref = doc(db, 'flashSales', id);
+    await deleteDoc(ref);
+  },
+  async toggleActive(id, currentStatus) {
+    if (!currentStatus) {
+      const snap = await getDocs(query(col('flashSales'), where('active', '==', true)));
+      const batch = writeBatch(db);
+      snap.docs.forEach(doc => {
+        batch.update(doc.ref, { active: false });
+      });
+      await batch.commit();
+    }
+    const ref = doc(db, 'flashSales', id);
+    await updateDoc(ref, { active: !currentStatus, updatedAt: serverTimestamp() });
   }
 };

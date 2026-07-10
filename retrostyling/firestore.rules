@@ -63,6 +63,12 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Flash Sales
+    match /flashSales/{saleId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
     // Contact & Newsletter
     match /contacts/{id} {
       allow create: if true;
@@ -75,6 +81,12 @@ service cloud.firestore {
 
     // Rewards
     match /rewards/{rewardId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Reviews
+    match /reviews/{reviewId} {
       allow read: if true;
       allow write: if isAdmin();
     }
