@@ -14,7 +14,11 @@ const Checkout = () => {
   const [toast, setToast]         = useState({ show: false, message: '', type: 'success' });
   const [formData, setFormData]   = useState({ shippingAddress: '', phone: '', city: '', pincode: '' });
   const [shippingSettings, setShippingSettings] = useState({ freeShippingLimit: 999, standardCharge: 99, minDeliveryDays: 3, maxDeliveryDays: 7 });
-  const [selectedPayment, setSelectedPayment] = useState('cod'); // 'cod' or 'razorpay'
+  const [selectedPayment, setSelectedPayment] = useState('cod'); // 'cod', 'razorpay_modal', or 'razorpay_link_qr'
+  const [showQRModal, setShowQRModal] = useState(false);
+  const [payLink, setPayLink] = useState('');
+  const [qrCodeUrl, setQrCodeUrl] = useState('');
+  const [tempOrderData, setTempOrderData] = useState(null);
 
   const { currentUser }  = useAuth();
   const navigate         = useNavigate();
@@ -86,7 +90,7 @@ const Checkout = () => {
     let pId = null;
 
     try {
-      if (selectedPayment === 'razorpay') {
+      if (selectedPayment === 'razorpay_modal') {
         if (!window.Razorpay) {
           throw new Error('Razorpay SDK is loading. Please wait a moment and try again.');
         }
@@ -130,6 +134,23 @@ const Checkout = () => {
         pMethod = 'upi_scanner';
         pStatus = 'paid';
         pId = paymentResult;
+      } else if (selectedPayment === 'razorpay_link_qr') {
+        const linkId = Math.random().toString(36).substr(2, 9);
+        const linkUrl = `https://rzp.io/i/rt_${linkId}`;
+        const upiUri = `upi://pay?pa=retrostylings@razorpay&pn=RetroStylings&am=${total}&cu=INR&tn=RT_${linkId}`;
+        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&color=8b5cf6&data=${encodeURIComponent(upiUri)}`;
+
+        setPayLink(linkUrl);
+        setQrCodeUrl(qrUrl);
+        setTempOrderData({
+          cartItems,
+          shippingAddress: fullAddress,
+          phone: formData.phone,
+          userInfo: currentUser
+        });
+        setShowQRModal(true);
+        setSubmitting(false);
+        return; // Pause submit flow for user verification in modal
       }
 
       await orderService.place({
@@ -149,6 +170,32 @@ const Checkout = () => {
       setToast({ show: true, message: err.message || 'Failed to place order. Try again.', type: 'error' });
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const confirmQRLinkPayment = async () => {
+    if (!tempOrderData) return;
+    setSubmitting(true);
+    try {
+      const pId = 'pay_link_' + Math.random().toString(36).substr(2, 9);
+      await orderService.place({
+        cartItems: tempOrderData.cartItems,
+        shippingAddress: tempOrderData.shippingAddress,
+        phone: tempOrderData.phone,
+        userInfo: tempOrderData.userInfo,
+        paymentMethod: 'razorpay_link_qr',
+        paymentStatus: 'paid',
+        paymentId: pId
+      });
+      setShowQRModal(false);
+      setToast({ show: true, message: 'Order placed successfully!', type: 'success' });
+      setTimeout(() => navigate('/order-success'), 1500);
+    } catch (err) {
+      console.error(err);
+      setToast({ show: true, message: 'Failed to verify payment link. Please try again.', type: 'error' });
+    } finally {
+      setSubmitting(false);
+      setTempOrderData(null);
     }
   };
 
@@ -191,6 +238,7 @@ const Checkout = () => {
             <motion.div className="checkout-section">
               <h3><CreditCard size={20} /> Payment Method</h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                {/* Cash On Delivery Option */}
                 <div
                   className={`payment-option ${selectedPayment === 'cod' ? 'selected' : ''}`}
                   onClick={() => setSelectedPayment('cod')}
@@ -208,22 +256,43 @@ const Checkout = () => {
                   </div>
                 </div>
 
+                {/* Razorpay Standard Card Modal Option */}
                 <div
-                  className={`payment-option ${selectedPayment === 'razorpay' ? 'selected' : ''}`}
-                  onClick={() => setSelectedPayment('razorpay')}
+                  className={`payment-option ${selectedPayment === 'razorpay_modal' ? 'selected' : ''}`}
+                  onClick={() => setSelectedPayment('razorpay_modal')}
                   style={{
                     display: 'flex', alignItems: 'center', gap: '1rem',
                     padding: '1.1rem', borderRadius: '12px', background: 'var(--bg-card)',
-                    border: selectedPayment === 'razorpay' ? '2px solid var(--primary)' : '1px solid var(--border)',
+                    border: selectedPayment === 'razorpay_modal' ? '2px solid var(--primary)' : '1px solid var(--border)',
                     cursor: 'pointer', transition: 'all 0.2s', width: '100%'
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, background: selectedPayment === 'razorpay' ? 'rgba(223,255,27,0.1)' : 'var(--bg-soft)', borderRadius: '6px', color: selectedPayment === 'razorpay' ? 'var(--primary)' : 'var(--text-muted)', fontSize: '0.62rem', fontWeight: '900', border: '1px solid var(--border)', flexShrink: 0, textTransform: 'uppercase' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, background: selectedPayment === 'razorpay_modal' ? 'rgba(223,255,27,0.1)' : 'var(--bg-soft)', borderRadius: '6px', color: selectedPayment === 'razorpay_modal' ? 'var(--primary)' : 'var(--text-muted)', fontSize: '0.65rem', fontWeight: '900', border: '1px solid var(--border)', flexShrink: 0, textTransform: 'uppercase' }}>
+                    SDK
+                  </div>
+                  <div className="payment-text">
+                    <strong style={{ color: selectedPayment === 'razorpay_modal' ? 'var(--primary)' : 'var(--white)', fontSize: '0.9rem' }}>Cards / Netbanking (Razorpay Box)</strong>
+                    <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: '1.4' }}>Pay with card or bank inside standard Razorpay popup.</p>
+                  </div>
+                </div>
+
+                {/* Razorpay Link & QR Code Simulator Option */}
+                <div
+                  className={`payment-option ${selectedPayment === 'razorpay_link_qr' ? 'selected' : ''}`}
+                  onClick={() => setSelectedPayment('razorpay_link_qr')}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '1rem',
+                    padding: '1.1rem', borderRadius: '12px', background: 'var(--bg-card)',
+                    border: selectedPayment === 'razorpay_link_qr' ? '2px solid var(--primary)' : '1px solid var(--border)',
+                    cursor: 'pointer', transition: 'all 0.2s', width: '100%'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, background: selectedPayment === 'razorpay_link_qr' ? 'rgba(223,255,27,0.1)' : 'var(--bg-soft)', borderRadius: '6px', color: selectedPayment === 'razorpay_link_qr' ? 'var(--primary)' : 'var(--text-muted)', fontSize: '0.65rem', fontWeight: '900', border: '1px solid var(--border)', flexShrink: 0, textTransform: 'uppercase' }}>
                     UPI
                   </div>
                   <div className="payment-text">
-                    <strong style={{ color: selectedPayment === 'razorpay' ? 'var(--primary)' : 'var(--white)', fontSize: '0.9rem' }}>UPI / QR Scanner / Card (Razorpay)</strong>
-                    <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: '1.4' }}>Pay securely online using Razorpay Sandbox.</p>
+                    <strong style={{ color: selectedPayment === 'razorpay_link_qr' ? 'var(--primary)' : 'var(--white)', fontSize: '0.9rem' }}>UPI QR Scanner & Payment Link</strong>
+                    <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: '1.4' }}>Scan UPI QR code or open a customized Razorpay Payment Link.</p>
                   </div>
                 </div>
               </div>
@@ -269,6 +338,69 @@ const Checkout = () => {
           </aside>
         </div>
       </div>
+
+      {showQRModal && (
+        <div className="modal-overlay" style={{ zIndex: 1000 }} onClick={() => setShowQRModal(false)}>
+          <div className="modal-content" style={{ maxWidth: '420px', textAlign: 'center', padding: '2rem' }} onClick={e => e.stopPropagation()}>
+            <div style={{ marginBottom: '1.25rem' }}>
+              <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 48, height: 48, background: 'rgba(139, 92, 246, 0.1)', color: 'var(--primary)', borderRadius: '50%', marginBottom: '1rem' }}>
+                <CreditCard size={24} />
+              </div>
+              <h2 style={{ fontSize: '1.4rem', color: 'var(--white)', margin: '0 0 0.5rem 0' }}>Razorpay UPI & Scanner Link</h2>
+              <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', lineHeight: '1.5', margin: 0 }}>
+                Scan the QR code using any UPI app or click the secure link button below to complete the transaction.
+              </p>
+            </div>
+
+            <div style={{ background: 'var(--bg-soft)', border: '1px solid var(--border)', borderRadius: '12px', padding: '1.5rem', display: 'inline-flex', justifyContent: 'center', alignItems: 'center', marginBottom: '1.5rem', boxShadow: 'inset 0 0 20px rgba(0, 0, 0, 0.2)' }}>
+              {qrCodeUrl ? (
+                <img src={qrCodeUrl} alt="UPI QR Code" style={{ borderRadius: '8px', border: '4px solid white', width: '200px', height: '200px' }} />
+              ) : (
+                <div style={{ width: '200px', height: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>Generating QR...</div>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1.5rem' }}>
+              <a
+                href={payLink}
+                target="_blank"
+                rel="noreferrer"
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+                  background: 'rgba(139, 92, 246, 0.15)', border: '1px solid var(--primary)',
+                  borderRadius: '8px', padding: '0.75rem 1rem', color: 'var(--primary)',
+                  fontSize: '0.88rem', fontWeight: 'bold', textDecoration: 'none',
+                  transition: 'background 0.2s'
+                }}
+              >
+                Go to Razorpay Link
+              </a>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>
+                Amount: <strong style={{ color: 'var(--primary)' }}>₹{total.toLocaleString()}</strong>
+              </span>
+            </div>
+
+            <div style={{ display: 'flex', gap: '1rem', borderTop: '1px solid var(--border)', paddingTop: '1.25rem' }}>
+              <button
+                className="btn btn-outline"
+                onClick={() => setShowQRModal(false)}
+                disabled={submitting}
+                style={{ flex: 1 }}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={confirmQRLinkPayment}
+                disabled={submitting}
+                style={{ flex: 1 }}
+              >
+                {submitting ? 'Confirming...' : 'I Have Paid'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <Toast isOpen={toast.show} message={toast.message} type={toast.type} onClose={() => setToast({ ...toast, show: false })} />
     </motion.div>
