@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Eye, X, Package, MapPin, Phone, Check, Truck, ChevronRight, Search, RotateCcw, Plus, Trash2, Settings } from 'lucide-react';
+import { Eye, X, Package, MapPin, Phone, Check, Truck, ChevronRight, Search, RotateCcw, Plus, Trash2, Settings, CreditCard } from 'lucide-react';
 import AdminLayout from './AdminLayout';
 import { orderService, invoiceTemplateService } from '../../services/firestoreService';
 
@@ -59,6 +59,10 @@ const AdminOrders = () => {
   // Tracking edit state
   const [trackingEdit, setTrackingEdit] = useState({ trackingNumber: '', courierPartner: '', estimatedDelivery: '' });
   const [savingTracking, setSavingTracking] = useState(false);
+
+  // Administrative Payment Link state
+  const [paymentLinkVal, setPaymentLinkVal] = useState('');
+  const [savingPaymentLink, setSavingPaymentLink] = useState(false);
 
   // Invoice edit state
   const [isEditingInvoice, setIsEditingInvoice] = useState(false);
@@ -154,6 +158,22 @@ const AdminOrders = () => {
     }
   };
 
+  const savePaymentLink = async () => {
+    if (!selectedOrder) return;
+    setSavingPaymentLink(true);
+    try {
+      await orderService.update(selectedOrder.id, { paymentLink: paymentLinkVal });
+      setOrders(prev => prev.map(o => o.id === selectedOrder.id ? { ...o, paymentLink: paymentLinkVal } : o));
+      setSelectedOrder(prev => ({ ...prev, paymentLink: paymentLinkVal }));
+      alert('Payment link saved successfully!');
+    } catch (err) {
+      console.error(err);
+      alert('Failed to save payment link');
+    } finally {
+      setSavingPaymentLink(false);
+    }
+  };
+
   const openOrder = (order) => {
     setSelectedOrder(order);
     setTrackingEdit({
@@ -161,6 +181,7 @@ const AdminOrders = () => {
       courierPartner: order.courierPartner || '',
       estimatedDelivery: order.estimatedDelivery || '',
     });
+    setPaymentLinkVal(order.paymentLink || '');
     setInvoiceForm({
       customerName: order.customerName || '',
       customerEmail: order.customerEmail || '',
@@ -702,6 +723,44 @@ const AdminOrders = () => {
                   >
                     {savingTracking ? 'Saving...' : 'Save Tracking Info'}
                   </button>
+                </div>
+
+                {/* Administrative Payment Link */}
+                <div style={{ background: 'rgba(255,255,255,0.02)', borderRadius: '12px', padding: '1.25rem', marginBottom: '1.5rem' }}>
+                  <h4 style={{ fontSize: '0.82rem', textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-muted)', marginBottom: '1rem' }}>
+                    <CreditCard size={14} style={{ display: 'inline', marginRight: '0.35rem', verticalAlign: 'middle' }} />
+                    Razorpay Payment Link (For Customers)
+                  </h4>
+                  <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                    <div style={{ flex: 1 }}>
+                      <input
+                        value={paymentLinkVal}
+                        onChange={e => setPaymentLinkVal(e.target.value)}
+                        placeholder="Paste Razorpay Payment Link here (e.g. https://rzp.io/i/xxxxxx)"
+                        style={{ width: '100%', background: 'var(--bg-soft)', border: '1px solid var(--border)', borderRadius: '8px', padding: '0.5rem 0.75rem', color: 'var(--white)', fontSize: '0.875rem', outline: 'none' }}
+                      />
+                    </div>
+                    <button
+                      onClick={savePaymentLink}
+                      disabled={savingPaymentLink}
+                      style={{
+                        padding: '0.53rem 1.25rem',
+                        background: 'rgba(223,255,27,0.08)', border: '1px solid rgba(223,255,27,0.25)',
+                        borderRadius: '8px', color: 'var(--primary)', fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      {savingPaymentLink ? 'Saving...' : 'Save Link'}
+                    </button>
+                  </div>
+                  {selectedOrder.paymentLink && (
+                    <div style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                      Active Link:{' '}
+                      <a href={selectedOrder.paymentLink} target="_blank" rel="noreferrer" style={{ color: 'var(--primary)', textDecoration: 'underline' }}>
+                        {selectedOrder.paymentLink}
+                      </a>
+                    </div>
+                  )}
                 </div>
 
                 {/* Customer & Address */}

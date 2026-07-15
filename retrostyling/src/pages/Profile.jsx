@@ -760,6 +760,22 @@ const Profile = () => {
                                     );
                                   });
                                 })()}
+                              {o.paymentLink && o.paymentStatus === 'pending' && (
+                                <a
+                                  href={o.paymentLink}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="btn btn-primary btn-sm"
+                                  style={{
+                                    display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
+                                    fontSize: '0.78rem', padding: '0.35rem 0.75rem',
+                                    textDecoration: 'none', background: 'var(--primary)', color: 'var(--bg-main)',
+                                    fontWeight: 'bold'
+                                  }}
+                                >
+                                  💳 Pay Now
+                                </a>
+                              )}
                               <button className="btn btn-outline btn-sm" onClick={() => downloadInvoice(o)}>
                                 <Download size={13} style={{ marginRight: '4px' }} /> Invoice
                               </button>
