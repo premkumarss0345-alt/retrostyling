@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import AdminLayout from './AdminLayout';
-import { statsService } from '../../services/firestoreService';
+import { statsService, orderService } from '../../services/firestoreService';
 import {
   Users, ShoppingBag, CreditCard, TrendingUp, Package,
   AlertCircle, ArrowUpRight, ArrowDownRight, Clock,
   CheckCircle, XCircle, RefreshCw, Download, Plus,
-  ShoppingCart, Star, Percent, Eye, Activity
+  ShoppingCart, Star, Percent, Eye, Activity, Link2
 } from 'lucide-react';
 import {
   AreaChart, Area, BarChart, Bar, LineChart, Line,
@@ -82,6 +82,26 @@ const Dashboard = () => {
   const [topProductsState, setTopProductsState] = useState([]);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState('7d');
+
+  // Inline Link states for Common Board recent orders list
+  const [editingLinkOrderId, setEditingLinkOrderId] = useState(null);
+  const [tempPaymentLink, setTempPaymentLink] = useState('');
+  const [savingLinkId, setSavingLinkId] = useState(null);
+
+  const saveOrderPaymentLink = async (orderId) => {
+    setSavingLinkId(orderId);
+    try {
+      await orderService.update(orderId, { paymentLink: tempPaymentLink });
+      setRecentOrders(prev => prev.map(o => o.id === orderId ? { ...o, paymentLink: tempPaymentLink } : o));
+      setEditingLinkOrderId(null);
+      setTempPaymentLink('');
+    } catch (err) {
+      console.error(err);
+      alert('Failed to save payment link');
+    } finally {
+      setSavingLinkId(null);
+    }
+  };
 
   useEffect(() => { loadStats(); }, []);
 
@@ -375,14 +395,59 @@ const Dashboard = () => {
             {recentOrders.length > 0 ? (
               <div className="recent-orders-list">
                 {recentOrders.map((order) => (
-                  <div key={order.id} className="recent-order-item">
-                    <div className="order-avatar">{(order.customerName || 'C').charAt(0)}</div>
-                    <div className="order-info">
-                      <p className="order-customer">{order.customerName || 'Customer'}</p>
-                      <p className="order-id">#{order.id.slice(-6).toUpperCase()} · {formatDate(order.createdAt)}</p>
+                  <div key={order.id} className="recent-order-item" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'stretch' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', width: '100%' }}>
+                      <div className="order-avatar">{(order.customerName || 'C').charAt(0)}</div>
+                      <div className="order-info" style={{ flex: 1 }}>
+                        <p className="order-customer">{order.customerName || 'Customer'}</p>
+                        <p className="order-id">#{order.id.slice(-6).toUpperCase()} · {formatDate(order.createdAt)}</p>
+                      </div>
+                      <span className={getStatusBadge(order.orderStatus)}>{order.orderStatus || 'pending'}</span>
+                      <span className="order-amount" style={{ marginLeft: 'auto' }}>₹{order.total?.toLocaleString()}</span>
+                      
+                      <button
+                        onClick={() => {
+                          setEditingLinkOrderId(editingLinkOrderId === order.id ? null : order.id);
+                          setTempPaymentLink(order.paymentLink || '');
+                        }}
+                        style={{
+                          background: 'none', border: 'none', color: order.paymentLink ? 'var(--primary)' : 'var(--text-muted)',
+                          cursor: 'pointer', padding: '0.25rem', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          marginLeft: '0.5rem'
+                        }}
+                        title={order.paymentLink ? "Payment Link Associated" : "Attach Payment Link"}
+                      >
+                        <Link2 size={14} />
+                      </button>
                     </div>
-                    <span className={getStatusBadge(order.orderStatus)}>{order.orderStatus || 'pending'}</span>
-                    <span className="order-amount">₹{order.total?.toLocaleString()}</span>
+
+                    {editingLinkOrderId === order.id && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        style={{ display: 'flex', gap: '0.5rem', paddingLeft: '3rem', paddingBottom: '0.25rem' }}
+                      >
+                        <input
+                          type="text"
+                          value={tempPaymentLink}
+                          onChange={(e) => setTempPaymentLink(e.target.value)}
+                          placeholder="Paste Razorpay Payment Link..."
+                          style={{
+                            flex: 1, background: 'var(--bg-soft)', border: '1px solid var(--border)',
+                            borderRadius: '6px', padding: '0.35rem 0.5rem', fontSize: '0.78rem', color: 'var(--white)',
+                            outline: 'none'
+                          }}
+                        />
+                        <button
+                          onClick={() => saveOrderPaymentLink(order.id)}
+                          disabled={savingLinkId === order.id}
+                          className="btn btn-primary"
+                          style={{ padding: '0.35rem 0.75rem', fontSize: '0.78rem', minHeight: 'unset', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        >
+                          {savingLinkId === order.id ? '...' : 'Save'}
+                        </button>
+                      </motion.div>
+                    )}
                   </div>
                 ))}
               </div>
