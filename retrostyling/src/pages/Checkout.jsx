@@ -14,9 +14,21 @@ const Checkout = () => {
   const [toast, setToast]         = useState({ show: false, message: '', type: 'success' });
   const [formData, setFormData]   = useState({ shippingAddress: '', phone: '', city: '', pincode: '' });
   const [shippingSettings, setShippingSettings] = useState({ freeShippingLimit: 999, standardCharge: 99, minDeliveryDays: 3, maxDeliveryDays: 7 });
+  const [selectedPayment, setSelectedPayment] = useState('cod'); // 'cod' or 'razorpay'
 
   const { currentUser }  = useAuth();
   const navigate         = useNavigate();
+
+  useEffect(() => {
+    // Dynamic Razorpay SDK script injection
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.async = true;
+    document.body.appendChild(script);
+    return () => {
+      document.body.removeChild(script);
+    };
+  }, []);
 
   useEffect(() => {
     if (!currentUser) { navigate('/login'); return; }
@@ -68,18 +80,73 @@ const Checkout = () => {
     e.preventDefault();
     setSubmitting(true);
     const fullAddress = `${formData.shippingAddress}, ${formData.city} - ${formData.pincode}`;
+
+    let pMethod = 'cod';
+    let pStatus = 'pending';
+    let pId = null;
+
     try {
+      if (selectedPayment === 'razorpay') {
+        if (!window.Razorpay) {
+          throw new Error('Razorpay SDK is loading. Please wait a moment and try again.');
+        }
+
+        const paymentResult = await new Promise((resolve, reject) => {
+          const options = {
+            key: 'rzp_test_demokey', // Razorpay Test Key
+            amount: total * 100, // Amount in paise
+            currency: 'INR',
+            name: 'RetroStylings',
+            description: 'Order Payment (UPI/Scanner)',
+            image: 'https://images.unsplash.com/photo-1557683316-973673baf926?w=128&h=128&fit=crop',
+            handler: function (response) {
+              if (response.razorpay_payment_id) {
+                resolve(response.razorpay_payment_id);
+              } else {
+                reject(new Error('Razorpay payment ID was missing.'));
+              }
+            },
+            prefill: {
+              name: currentUser.displayName || '',
+              email: currentUser.email || '',
+              contact: formData.phone || ''
+            },
+            notes: {
+              address: fullAddress
+            },
+            theme: {
+              color: '#8B5CF6'
+            },
+            modal: {
+              ondismiss: function () {
+                reject(new Error('Payment cancelled by user.'));
+              }
+            }
+          };
+          const rzp = new window.Razorpay(options);
+          rzp.open();
+        });
+
+        pMethod = 'upi_scanner';
+        pStatus = 'paid';
+        pId = paymentResult;
+      }
+
       await orderService.place({
         cartItems,
         shippingAddress: fullAddress,
         phone: formData.phone,
         userInfo: currentUser,
+        paymentMethod: pMethod,
+        paymentStatus: pStatus,
+        paymentId: pId
       });
+
       setToast({ show: true, message: 'Order placed successfully!', type: 'success' });
       setTimeout(() => navigate('/order-success'), 1500);
     } catch (err) {
       console.error(err);
-      setToast({ show: true, message: 'Failed to place order. Try again.', type: 'error' });
+      setToast({ show: true, message: err.message || 'Failed to place order. Try again.', type: 'error' });
     } finally {
       setSubmitting(false);
     }
@@ -123,11 +190,41 @@ const Checkout = () => {
 
             <motion.div className="checkout-section">
               <h3><CreditCard size={20} /> Payment Method</h3>
-              <div className="payment-option selected">
-                <CreditCard size={24} color="var(--primary)" />
-                <div className="payment-text">
-                  <strong>Cash on Delivery (COD)</strong>
-                  <p>Safe and easy. Pay when your order arrives.</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                <div
+                  className={`payment-option ${selectedPayment === 'cod' ? 'selected' : ''}`}
+                  onClick={() => setSelectedPayment('cod')}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '1rem',
+                    padding: '1.1rem', borderRadius: '12px', background: 'var(--bg-card)',
+                    border: selectedPayment === 'cod' ? '2px solid var(--primary)' : '1px solid var(--border)',
+                    cursor: 'pointer', transition: 'all 0.2s', width: '100%'
+                  }}
+                >
+                  <CreditCard size={24} color={selectedPayment === 'cod' ? 'var(--primary)' : 'var(--text-muted)'} style={{ flexShrink: 0 }} />
+                  <div className="payment-text">
+                    <strong style={{ color: selectedPayment === 'cod' ? 'var(--primary)' : 'var(--white)', fontSize: '0.9rem' }}>Cash on Delivery (COD)</strong>
+                    <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: '1.4' }}>Safe and easy. Pay when your order arrives.</p>
+                  </div>
+                </div>
+
+                <div
+                  className={`payment-option ${selectedPayment === 'razorpay' ? 'selected' : ''}`}
+                  onClick={() => setSelectedPayment('razorpay')}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '1rem',
+                    padding: '1.1rem', borderRadius: '12px', background: 'var(--bg-card)',
+                    border: selectedPayment === 'razorpay' ? '2px solid var(--primary)' : '1px solid var(--border)',
+                    cursor: 'pointer', transition: 'all 0.2s', width: '100%'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, background: selectedPayment === 'razorpay' ? 'rgba(223,255,27,0.1)' : 'var(--bg-soft)', borderRadius: '6px', color: selectedPayment === 'razorpay' ? 'var(--primary)' : 'var(--text-muted)', fontSize: '0.62rem', fontWeight: '900', border: '1px solid var(--border)', flexShrink: 0, textTransform: 'uppercase' }}>
+                    UPI
+                  </div>
+                  <div className="payment-text">
+                    <strong style={{ color: selectedPayment === 'razorpay' ? 'var(--primary)' : 'var(--white)', fontSize: '0.9rem' }}>UPI / QR Scanner / Card (Razorpay)</strong>
+                    <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: '1.4' }}>Pay securely online using Razorpay Sandbox.</p>
+                  </div>
                 </div>
               </div>
             </motion.div>

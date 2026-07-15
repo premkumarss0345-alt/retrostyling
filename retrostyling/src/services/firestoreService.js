@@ -389,7 +389,7 @@ export const addressService = {
 // ─── ORDERS ───────────────────────────────────────────────────────────────────
 export const orderService = {
   /** Place a new order from cart items */
-  async place({ cartItems, shippingAddress, phone, userInfo }) {
+  async place({ cartItems, shippingAddress, phone, userInfo, paymentMethod = 'cod', paymentStatus = 'pending', paymentId = null }) {
     const userId = uid();
 
     // Compute total server-side (from cart data)
@@ -436,8 +436,9 @@ export const orderService = {
       shippingAddress,
       phone,
       orderStatus: 'processing',
-      paymentStatus: 'pending',
-      paymentMethod: 'cod',
+      paymentStatus,
+      paymentMethod,
+      paymentId,
       createdAt: serverTimestamp(),
     });
 
