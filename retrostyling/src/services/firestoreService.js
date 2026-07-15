@@ -675,6 +675,29 @@ export const invoiceTemplateService = {
   },
 };
 
+// ─── GLOBAL SITE SETTINGS ─────────────────────────────────────────────────────
+export const globalSettingsService = {
+  _ref: () => doc(db, 'settings', 'globalConfig'),
+
+  async get() {
+    const snap = await getDoc(this._ref());
+    if (!snap.exists()) {
+      return {
+        storeName: 'Retrostylings',
+        contactEmail: 'support@retrostylings.com',
+        razorpayKeyId: 'rzp_test_demokey',
+        defaultUpiId: 'retrostylings@razorpay',
+        globalPaymentLink: 'https://rzp.io/l/retrostylings'
+      };
+    }
+    return snap.data();
+  },
+
+  async update(data) {
+    await setDoc(this._ref(), { ...data, updatedAt: serverTimestamp() }, { merge: true });
+  },
+};
+
 // ─── SHIPPING SETTINGS ────────────────────────────────────────────────────────
 export const shippingSettingsService = {
   _ref: () => doc(db, 'shippingSettings', 'config'),
