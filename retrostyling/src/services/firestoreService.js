@@ -207,10 +207,14 @@ export const cartService = {
     const snap = await getDoc(ref);
     const existing = snap.exists() ? snap.data().items || [] : [];
 
+    const computedVariantId = variantData
+      ? variantData.id || `${variantData.size}_${variantData.color}`
+      : null;
+
     const idx = existing.findIndex(
       (i) =>
         i.productId === productData.id &&
-        i.variantId === (variantData?.id || null)
+        i.variantId === computedVariantId
     );
 
     if (idx > -1) {
@@ -218,7 +222,7 @@ export const cartService = {
     } else {
       existing.push({
         productId: productData.id,
-        variantId: variantData?.id || null,
+        variantId: computedVariantId,
         name: productData.name,
         image: productData.image,
         price: productData.price,
@@ -516,6 +520,14 @@ export const orderService = {
     });
   },
 
+  /** Admin: update order / invoice details */
+  async update(orderId, updateData) {
+    await updateDoc(doc(db, 'orders', orderId), {
+      ...updateData,
+      updatedAt: serverTimestamp(),
+    });
+  },
+
   /** Public: get order by ID and email or phone for tracking */
   async getByIdAndContact(orderId, contact) {
     const c = contact.toLowerCase().trim();
@@ -636,6 +648,32 @@ export const returnService = {
   },
 };
 
+// ─── INVOICE TEMPLATE SETTINGS ────────────────────────────────────────────────
+export const invoiceTemplateService = {
+  _ref: () => doc(db, 'settings', 'invoiceTemplate'),
+
+  async get() {
+    const snap = await getDoc(this._ref());
+    if (!snap.exists()) {
+      return {
+        brandName: 'RetroStylings',
+        tagline: 'Standard Retro-Street Tech',
+        billingStreet: '12/A, Tech Hub Area',
+        billingCity: 'Chennai, Tamil Nadu',
+        billingZip: '600001',
+        taxPercentage: 18,
+        footerNote: 'Thank you for shopping with RetroStylings! For any support or returns, visit retrostylings.com/support',
+        invoicePrefix: 'RS'
+      };
+    }
+    return snap.data();
+  },
+
+  async update(data) {
+    await setDoc(this._ref(), { ...data, updatedAt: serverTimestamp() }, { merge: true });
+  },
+};
+
 // ─── SHIPPING SETTINGS ────────────────────────────────────────────────────────
 export const shippingSettingsService = {
   _ref: () => doc(db, 'shippingSettings', 'config'),
@@ -750,6 +788,26 @@ export const userService = {
 
     if (!snap.exists()) {
       userData.createdAt = serverTimestamp();
+      
+      // Check if there is an invited/pre-created profile with this email
+      try {
+        const qUsers = query(collection(db, 'users'), where('email', '==', firebaseUser.email));
+        const emailSnap = await getDocs(qUsers);
+        if (!emailSnap.empty) {
+          const pendingDoc = emailSnap.docs[0];
+          const pendingData = pendingDoc.data();
+          if (pendingDoc.id !== firebaseUser.uid) {
+            await deleteDoc(pendingDoc.ref);
+          }
+          // Merge pending invited details
+          userData.role = pendingData.role || 'customer';
+          userData.status = pendingData.status || 'active';
+          userData.displayName = pendingData.displayName || pendingData.name || userData.displayName;
+        }
+      } catch (err) {
+        console.error("Error looking up pending invite profile by email:", err);
+      }
+      
       await setDoc(ref, userData);
     } else {
       // Don't overwrite existing role if it exists
@@ -772,11 +830,63 @@ export const userService = {
     return snap2arr(snap);
   },
 
+  /** Admin: get all administrative users */
+  async getAdmins() {
+    const q = query(col('users'), where('role', 'in', ['superadmin', 'admin', 'staff']));
+    const snap = await getDocs(q);
+    return snap2arr(snap);
+  },
+
   /** Check if user is admin */
   async isAdmin(userId) {
     const profile = await this.getProfile(userId);
-    return profile?.role === 'admin';
+    return ['superadmin', 'admin', 'staff'].includes(profile?.role);
   },
+
+  /** Admin: update user role */
+  async updateRole(userId, role) {
+    const ref = doc(db, 'users', userId);
+    await updateDoc(ref, { role, updatedAt: serverTimestamp() });
+  },
+
+  /** Admin: update user status (active/inactive) */
+  async updateStatus(userId, status) {
+    const ref = doc(db, 'users', userId);
+    await updateDoc(ref, { status, updatedAt: serverTimestamp() });
+  },
+
+  /** Admin: delete user profile */
+  async deleteUser(userId) {
+    const ref = doc(db, 'users', userId);
+    await deleteDoc(ref);
+  },
+
+  /** Admin: pre-invite/pre-create admin user profile by email */
+  async preInviteAdmin(data) {
+    const usersCol = col('users');
+    const q = query(usersCol, where('email', '==', data.email));
+    const snap = await getDocs(q);
+    
+    const payload = {
+      displayName: data.name,
+      email: data.email,
+      role: data.role || 'admin',
+      status: 'active',
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    };
+
+    if (snap.empty) {
+      await addDoc(usersCol, payload);
+    } else {
+      const existingDoc = snap.docs[0];
+      await updateDoc(existingDoc.ref, {
+        role: data.role,
+        displayName: data.name,
+        updatedAt: serverTimestamp()
+      });
+    }
+  }
 };
 
 // ─── ADMIN STATS ──────────────────────────────────────────────────────────────
@@ -1182,8 +1292,8 @@ export const brandService = {
 // ─── DATABASE SEEDER ──────────────────────────────────────────────────────────
 export const seedService = {
   async run() {
-    // 0. Clear all existing products, categories, heroSlides, orders, rewards, reviews, and brands to remove all dummy data
-    const collectionsToClear = ['products', 'categories', 'heroSlides', 'orders', 'rewards', 'reviews', 'brands'];
+    // 0. Clear all existing products, categories, heroSlides, orders, rewards, reviews, brands, roles, and activityLogs to remove all dummy data
+    const collectionsToClear = ['products', 'categories', 'heroSlides', 'orders', 'rewards', 'reviews', 'brands', 'roles', 'activityLogs'];
     for (const colName of collectionsToClear) {
       const snap = await getDocs(col(colName));
       for (const d of snap.docs) {
@@ -1455,6 +1565,33 @@ export const seedService = {
         createdAt: serverTimestamp()
       });
     }
+
+    // 7. Seed default Roles
+    const defaultRoles = [
+      { id: 'superadmin', name: 'Super Admin', slug: 'superadmin', permissions: ['all'], color: '#FF4D4D' },
+      { id: 'admin', name: 'Admin', slug: 'admin', permissions: ['products', 'orders', 'customers', 'coupons', 'reports'], color: '#8B5CF6' },
+      { id: 'staff', name: 'Staff', slug: 'staff', permissions: ['orders', 'inventory'], color: '#3B82F6' }
+    ];
+    for (const r of defaultRoles) {
+      const { id, ...data } = r;
+      await setDoc(doc(db, 'roles', id), {
+        ...data,
+        createdAt: serverTimestamp()
+      });
+    }
+
+    // 8. Seed initial Activity Logs
+    const initialLogs = [
+      { user: 'Muneeswaran', action: 'Updated product: Leather Jacket', module: 'Products', createdAt: serverTimestamp(), ip: '192.168.1.1' },
+      { user: 'Priya Admin', action: 'Approved review #R-1024', module: 'Reviews', createdAt: serverTimestamp(), ip: '192.168.1.2' },
+      { user: 'Muneeswaran', action: 'Created coupon: SUMMER30', module: 'Coupons', createdAt: serverTimestamp(), ip: '192.168.1.1' },
+      { user: 'Kiran Staff', action: 'Updated order #ORD-2841 status to Shipped', module: 'Orders', createdAt: serverTimestamp(), ip: '192.168.1.3' },
+      { user: 'Muneeswaran', action: 'Deleted product: Old Model Sneakers', module: 'Products', createdAt: serverTimestamp(), ip: '192.168.1.1' },
+      { user: 'Priya Admin', action: 'Created banner: Flash Sale', module: 'Banners', createdAt: serverTimestamp(), ip: '192.168.1.2' }
+    ];
+    for (const log of initialLogs) {
+      await addDoc(col('activityLogs'), log);
+    }
   }
 };
 
@@ -1519,3 +1656,80 @@ export const flashSaleService = {
     await updateDoc(ref, { active: !currentStatus, updatedAt: serverTimestamp() });
   }
 };
+
+// ─── ACTIVITY AUDIT LOGGING SERVICE ──────────────────────────────────────────
+export const activityLogService = {
+  async getAll() {
+    const q = query(col('activityLogs'), orderBy('createdAt', 'desc'), limit(100));
+    const snap = await getDocs(q);
+    return snap2arr(snap);
+  },
+
+  async log(action, module, ip = '192.168.1.1') {
+    try {
+      const u = auth.currentUser;
+      let userName = 'Unknown Admin';
+      let userId = 'system';
+      
+      if (u) {
+        userId = u.uid;
+        // Fetch display name from users collection or use email
+        const userRef = doc(db, 'users', u.uid);
+        const userSnap = await getDoc(userRef);
+        if (userSnap.exists()) {
+          const profile = userSnap.data();
+          userName = profile.displayName || profile.name || u.email;
+        } else {
+          userName = u.displayName || u.email;
+        }
+      }
+
+      await addDoc(col('activityLogs'), {
+        user: userName,
+        userId: userId,
+        action,
+        module,
+        createdAt: serverTimestamp(),
+        ip
+      });
+    } catch (err) {
+      console.error('Error logging audit activity:', err);
+    }
+  }
+};
+
+// ─── ROLES & PERMISSIONS SERVICE ─────────────────────────────────────────────
+export const rolesService = {
+  async getAll() {
+    const snap = await getDocs(col('roles'));
+    if (snap.empty) {
+      // Seed roles if none exist
+      await this.seedDefaultRoles();
+      const newSnap = await getDocs(col('roles'));
+      return snap2arr(newSnap);
+    }
+    return snap2arr(snap);
+  },
+
+  async updatePermissions(roleSlug, permissions) {
+    const ref = doc(db, 'roles', roleSlug);
+    await updateDoc(ref, { permissions, updatedAt: serverTimestamp() });
+    await activityLogService.log(`Updated permissions for "${roleSlug}" role`, 'Roles');
+  },
+
+  async seedDefaultRoles() {
+    const defaultRoles = [
+      { id: 'superadmin', name: 'Super Admin', slug: 'superadmin', permissions: ['all'], color: '#FF4D4D' },
+      { id: 'admin', name: 'Admin', slug: 'admin', permissions: ['products', 'orders', 'customers', 'coupons', 'reports'], color: '#8B5CF6' },
+      { id: 'staff', name: 'Staff', slug: 'staff', permissions: ['orders', 'inventory'], color: '#3B82F6' }
+    ];
+    for (const r of defaultRoles) {
+      const { id, ...data } = r;
+      await setDoc(doc(db, 'roles', id), {
+        ...data,
+        createdAt: serverTimestamp()
+      });
+    }
+  }
+};
+

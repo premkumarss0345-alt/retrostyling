@@ -9,7 +9,7 @@ service cloud.firestore {
       return isSignedIn() && 
         (request.auth.token.email == 'admin@retrostylings.com' || 
          (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'));
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'superadmin', 'staff']));
     }
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
@@ -116,6 +116,23 @@ service cloud.firestore {
     match /shippingSettings/{docId} {
       allow read: if true;
       allow write: if isAdmin();
+    }
+
+    // Settings: Signed in users can read, admin manages them
+    match /settings/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // Roles and authorization policies
+    match /roles/{roleId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // Activity audit logs
+    match /activityLogs/{logId} {
+      allow read, write: if isAdmin();
     }
   }
 }

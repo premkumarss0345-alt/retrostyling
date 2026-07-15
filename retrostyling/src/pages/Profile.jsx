@@ -5,10 +5,10 @@ import {
   ShoppingBag, Heart, MapPin, CreditCard, Shield, Bell, 
   LogOut, Package, ChevronRight, Plus, Trash2, Edit2, Lock, 
   Smartphone, Check, X, Award, Share2, Eye, RefreshCw, Zap, ArrowLeft, ArrowRight, Star, Trophy,
-  Image as ImageIcon, RotateCcw
+  Image as ImageIcon, RotateCcw, Download
 } from 'lucide-react';
 import { useAuth } from '../services/AuthContext';
-import { addressService, orderService, wishlistService, cartService, productService, returnService, shippingSettingsService, rewardsService } from '../services/firestoreService';
+import { addressService, orderService, wishlistService, cartService, productService, returnService, shippingSettingsService, rewardsService, invoiceTemplateService } from '../services/firestoreService';
 import Toast from '../components/Toast';
 import './Profile.css';
 
@@ -312,6 +312,272 @@ const Profile = () => {
   const displayName = currentUser?.displayName || userProfile?.name || 'Muneeswaran P';
   const email = currentUser?.email || 'muneeswaranmd2004@gmail.com';
 
+  const downloadInvoice = async (order) => {
+    let settings = {
+      brandName: 'RetroStylings',
+      tagline: 'Standard Retro-Street Tech',
+      billingStreet: '12/A, Tech Hub Area',
+      billingCity: 'Chennai, Tamil Nadu',
+      billingZip: '600001',
+      taxPercentage: 18,
+      footerNote: 'Thank you for shopping with RetroStylings! For any support or returns, visit retrostylings.com/support',
+      invoicePrefix: 'RS'
+    };
+    try {
+      const res = await invoiceTemplateService.get();
+      if (res) settings = res;
+    } catch (err) {
+      console.error('Error fetching invoice template settings:', err);
+    }
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      showMsg('Please allow popups to download/print the invoice.', 'error');
+      return;
+    }
+    
+    const formattedDate = formatDate(order.createdAt);
+    const itemsHtml = order.items?.map(item => `
+      <tr class="item">
+        <td>
+          <strong style="color: #FFFFFF;">${item.name}</strong>
+          ${item.size ? `<span style="font-size: 12px; color: #9CA3AF; margin-left: 10px;">Size: ${item.size}</span>` : ''}
+          ${item.color ? `<span style="font-size: 12px; color: #9CA3AF; margin-left: 10px;">Color: ${item.color}</span>` : ''}
+        </td>
+        <td style="text-align: center; color: #E5E7EB;">${item.quantity}</td>
+        <td style="color: #E5E7EB;">₹${Number(item.price_override || item.discount_price || item.price).toLocaleString()}</td>
+        <td style="color: #D1D5DB;">₹${(Number(item.price_override || item.discount_price || item.price) * item.quantity).toLocaleString()}</td>
+      </tr>
+    `).join('') || '';
+
+    const shippingInfo = order.shippingAddress || {
+      name: displayName,
+      street: 'Default Address',
+      city: 'Delhi',
+      zip: '110001'
+    };
+
+    const subtotal = order.items?.reduce((acc, item) => acc + (Number(item.price_override || item.discount_price || item.price) * item.quantity), 0) || 0;
+    const shippingCost = order.shippingCost || 0;
+    const taxPercent = Number(settings.taxPercentage || 18);
+    const tax = Math.round(subtotal * (taxPercent / 100));
+
+    const invoiceContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Invoice - ${settings.brandName} - #${order.id.slice(-8).toUpperCase()}</title>
+        <style>
+          * { box-sizing: border-box; }
+          body {
+            font-family: 'Inter', sans-serif;
+            color: #E2E8F0;
+            background-color: #0B0F19;
+            margin: 0;
+            padding: 40px;
+          }
+          .invoice-card {
+            max-width: 850px;
+            margin: 0 auto;
+            background: #111827;
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 12px;
+            padding: 40px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+          }
+          .invoice-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+            padding-bottom: 30px;
+            margin-bottom: 30px;
+          }
+          .brand {
+            font-size: 24px;
+            font-weight: 800;
+            color: #DFFF1B;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            text-shadow: 0 0 10px rgba(223, 255, 27, 0.3);
+          }
+          .meta-title {
+            text-align: right;
+          }
+          .meta-title h2 {
+            margin: 0 0 5px 0;
+            color: #FFFFFF;
+            font-size: 28px;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+          }
+          .meta-title p {
+            margin: 0;
+            color: #9CA3AF;
+            font-size: 14px;
+          }
+          .details-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin-bottom: 40px;
+          }
+          .details-column h3 {
+            font-size: 12px;
+            color: #8B5CF6;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin: 0 0 10px 0;
+          }
+          .details-column p {
+            margin: 3px 0;
+            font-size: 15px;
+            color: #D1D5DB;
+            line-height: 1.5;
+          }
+          table.invoice-items {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 40px;
+          }
+          table.invoice-items th {
+            text-align: left;
+            padding: 12px 16px;
+            font-size: 12px;
+            color: #8B5CF6;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-bottom: 2px solid rgba(255,255,255,0.08);
+          }
+          table.invoice-items td {
+            padding: 16px;
+            font-size: 15px;
+            color: #E5E7EB;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+          }
+          .item-price, .item-qty, .item-total {
+            text-align: right !important;
+          }
+          .summary-table {
+            width: 280px;
+            margin-left: auto;
+            border-collapse: collapse;
+          }
+          .summary-table td {
+            padding: 8px 16px;
+            font-size: 14px;
+            color: #9CA3AF;
+          }
+          .summary-table tr.total-row td {
+            font-size: 18px;
+            color: #FFFFFF;
+            font-weight: 700;
+            padding-top: 15px;
+            border-top: 1px solid rgba(255,255,255,0.08);
+          }
+          .summary-table tr.total-row td.final-price {
+            color: #DFFF1B;
+            text-shadow: 0 0 8px rgba(223, 255, 27, 0.4);
+          }
+          .footer-note {
+            margin-top: 50px;
+            text-align: center;
+            font-size: 13px;
+            color: #6B7280;
+            border-top: 1px solid rgba(255,255,255,0.06);
+            padding-top: 20px;
+          }
+          @media print {
+            body { background: #FFFFFF; color: #000000; padding: 0; }
+            .invoice-card { background: #FFFFFF; border: none; box-shadow: none; color: #000000; padding: 0; }
+            .meta-title h2, table.invoice-items th, .summary-table tr.total-row td { color: #000000 !important; }
+            .brand, .summary-table tr.total-row td.final-price { color: #8B5CF6 !important; text-shadow: none !important; }
+            .details-column p, table.invoice-items td, .summary-table td, strong { color: #333333 !important; }
+            table.invoice-items th, table.invoice-items td { border-bottom-color: #E2E8F0 !important; }
+            .summary-table tr.total-row td { border-top-color: #E2E8F0 !important; }
+          }
+        </style>
+      </head>
+      <body onload="window.print(); window.onafterprint = function() { window.close(); }">
+        <div class="invoice-card">
+          <div class="invoice-header">
+            <div>
+              <div class="brand">${settings.brandName}</div>
+              <p style="margin: 5px 0 0 0; font-size: 13px; color: #9CA3AF;">${settings.tagline}</p>
+            </div>
+            <div class="meta-title">
+              <h2>INVOICE</h2>
+              <p>Invoice #: ${settings.invoicePrefix || 'RS'}-${order.id.slice(-8).toUpperCase()}</p>
+              <p>Date: ${formattedDate}</p>
+            </div>
+          </div>
+
+          <div class="details-grid">
+            <div class="details-column">
+              <h3>Billed To</h3>
+              <p><strong>${shippingInfo.name || displayName}</strong></p>
+              <p>${shippingInfo.street || ''}</p>
+              <p>${shippingInfo.city || ''} ${shippingInfo.zip ? `- ${shippingInfo.zip}` : ''}</p>
+            </div>
+            <div class="details-column">
+              <h3>Billed From</h3>
+              <p><strong>${settings.brandName}</strong></p>
+              <p>${settings.billingStreet || ''}</p>
+              <p>${settings.billingCity || ''} ${settings.billingZip ? `- ${settings.billingZip}` : ''}</p>
+            </div>
+            <div class="details-column">
+              <h3>Payment & Details</h3>
+              <p>Payment Method: ${order.paymentMethod || 'Credit Card'}</p>
+              <p>Payment Status: <strong>${(order.paymentStatus || 'paid').toUpperCase()}</strong></p>
+              <p>Order Status: <strong>${(order.orderStatus || 'processing').toUpperCase()}</strong></p>
+            </div>
+          </div>
+
+          <table class="invoice-items">
+            <thead>
+              <tr>
+                <th>Product Details</th>
+                <th class="item-qty" style="width: 10%;">Qty</th>
+                <th class="item-price" style="width: 20%;">Price</th>
+                <th class="item-total" style="width: 20%;">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${itemsHtml}
+            </tbody>
+          </table>
+
+          <table class="summary-table">
+            <tr>
+              <td>Subtotal:</td>
+              <td style="text-align: right; color: #E5E7EB;">₹${subtotal.toLocaleString()}</td>
+            </tr>
+            <tr>
+              <td>Tax (${taxPercent}% GST Incl.):</td>
+              <td style="text-align: right; color: #E5E7EB;">₹${tax.toLocaleString()}</td>
+            </tr>
+            <tr>
+              <td>Shipping:</td>
+              <td style="text-align: right; color: #E5E7EB;">${shippingCost === 0 ? 'FREE' : `₹${shippingCost.toLocaleString()}`}</td>
+            </tr>
+            <tr class="total-row">
+              <td>Total Due:</td>
+              <td class="final-price" style="text-align: right;">₹${(order.total || subtotal).toLocaleString()}</td>
+            </tr>
+          </table>
+
+          <div class="footer-note">
+            <p>${settings.footerNote}</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    printWindow.document.write(invoiceContent);
+    printWindow.document.close();
+  };
+
   return (
     <div className="my-account-page">
       {toast && <Toast text={toast.text} type={toast.type} onClose={() => setToast(null)} />}
@@ -494,6 +760,9 @@ const Profile = () => {
                                     );
                                   });
                                 })()}
+                              <button className="btn btn-outline btn-sm" onClick={() => downloadInvoice(o)}>
+                                <Download size={13} style={{ marginRight: '4px' }} /> Invoice
+                              </button>
                               <Link to={`/track-order`} className="btn btn-outline btn-sm">Track Order</Link>
                               <button className="btn btn-primary btn-sm" onClick={() => showMsg('Items added to cart! (Buy again)')}>Buy Again</button>
                             </div>

@@ -78,7 +78,7 @@ export const AuthProvider = ({ children }) => {
         setUserProfile(null);
     };
 
-    const isAdmin = userProfile?.role === 'admin' || currentUser?.email === 'admin@retrostylings.com';
+    const isAdmin = ['superadmin', 'admin', 'staff'].includes(userProfile?.role) || currentUser?.email === 'admin@retrostylings.com';
 
     return (
         <AuthContext.Provider
