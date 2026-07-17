@@ -25,14 +25,34 @@ import fs from 'fs';
 import path from 'path';
 
 // ─── Firebase Admin SDK ───────────────────────────────────────────────────────
-const serviceAccount = JSON.parse(
-  fs.readFileSync(path.join(process.cwd(), 'serviceAccountKey.json'))
-);
+let serviceAccount;
 
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-});
-const db = admin.firestore();
+if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+  try {
+    serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+  } catch (err) {
+    console.error('⚠️  Failed to parse FIREBASE_SERVICE_ACCOUNT env var:', err.message);
+  }
+}
+
+if (!serviceAccount) {
+  try {
+    serviceAccount = JSON.parse(
+      fs.readFileSync(path.join(process.cwd(), 'serviceAccountKey.json'), 'utf8')
+    );
+  } catch (err) {
+    console.error('⚠️  Failed to load serviceAccountKey.json from disk:', err.message);
+  }
+}
+
+if (serviceAccount) {
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+  });
+} else {
+  console.error('🚨 Firebase Admin SDK could not be initialized: No credentials found!');
+}
+const db = admin.apps.length > 0 ? admin.firestore() : null;
 
 // ─── Express App ──────────────────────────────────────────────────────────────
 const app = express();
