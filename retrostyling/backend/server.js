@@ -787,7 +787,14 @@ app.get('/api/email/status', async (req, res) => {
 
     res.json({ status: 'SMTP server is connected successfully', config: smtpConfig, success });
   } catch (err) {
-    res.status(500).json({ status: 'SMTP connection failed', error: err.message });
+    const smtpConfig = {
+      host: process.env.SMTP_HOST || 'smtp.hostinger.com',
+      port: parseInt(process.env.SMTP_PORT || '465'),
+      secure: process.env.SMTP_SECURE !== 'false',
+      user: process.env.SMTP_USER ? `${process.env.SMTP_USER.slice(0, 5)}***` : 'not set',
+      pass: process.env.SMTP_PASS ? '***' : 'not set',
+    };
+    res.status(500).json({ status: 'SMTP connection failed', error: err.message, config: smtpConfig });
   }
 });
 
