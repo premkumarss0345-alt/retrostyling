@@ -5,6 +5,7 @@ import { MapPin, Phone, CreditCard, ShieldCheck, ChevronLeft, Truck, Calendar } 
 import Toast from '../components/Toast';
 import { cartService, orderService, shippingSettingsService } from '../services/firestoreService';
 import { useAuth } from '../services/AuthContext';
+import { API_BASE_URL } from '../config';
 import './Checkout.css';
 
 const Checkout = () => {
@@ -153,7 +154,7 @@ const Checkout = () => {
         return; // Pause submit flow for user verification in modal
       }
 
-      await orderService.place({
+      const orderId = await orderService.place({
         cartItems,
         shippingAddress: fullAddress,
         phone: formData.phone,
@@ -162,6 +163,31 @@ const Checkout = () => {
         paymentStatus: pStatus,
         paymentId: pId
       });
+
+      // ── Send order confirmation email (fire-and-forget, never blocks UI) ──
+      if (currentUser?.email) {
+        fetch(`${API_BASE_URL}/api/email/order-confirm`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            orderId,
+            customerName: currentUser.displayName || currentUser.email,
+            customerEmail: currentUser.email,
+            items: cartItems.map(item => ({
+              name: item.name,
+              image: item.image || '',
+              size: item.size || null,
+              color: item.color || null,
+              quantity: item.quantity,
+              price: item.price_override || (item.on_sale ? item.discount_price : item.price),
+            })),
+            total: subtotal + shipping,
+            shippingAddress: fullAddress,
+            phone: formData.phone,
+            paymentMethod: pMethod,
+          }),
+        }).catch(() => {}); // silent — never break checkout
+      }
 
       setToast({ show: true, message: 'Order placed successfully!', type: 'success' });
       setTimeout(() => navigate('/order-success'), 1500);
@@ -178,7 +204,7 @@ const Checkout = () => {
     setSubmitting(true);
     try {
       const pId = 'pay_link_' + Math.random().toString(36).substr(2, 9);
-      await orderService.place({
+      const orderId = await orderService.place({
         cartItems: tempOrderData.cartItems,
         shippingAddress: tempOrderData.shippingAddress,
         phone: tempOrderData.phone,
@@ -187,6 +213,36 @@ const Checkout = () => {
         paymentStatus: 'paid',
         paymentId: pId
       });
+
+      // ── Send confirmation email ──
+      if (tempOrderData.userInfo?.email) {
+        const qrSubtotal = tempOrderData.cartItems.reduce((acc, item) => {
+          const p = item.price_override || (item.on_sale ? item.discount_price : item.price);
+          return acc + p * item.quantity;
+        }, 0);
+        fetch(`${API_BASE_URL}/api/email/order-confirm`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            orderId,
+            customerName: tempOrderData.userInfo.displayName || tempOrderData.userInfo.email,
+            customerEmail: tempOrderData.userInfo.email,
+            items: tempOrderData.cartItems.map(item => ({
+              name: item.name,
+              image: item.image || '',
+              size: item.size || null,
+              color: item.color || null,
+              quantity: item.quantity,
+              price: item.price_override || (item.on_sale ? item.discount_price : item.price),
+            })),
+            total: qrSubtotal + (qrSubtotal > 999 ? 0 : 99),
+            shippingAddress: tempOrderData.shippingAddress,
+            phone: tempOrderData.phone,
+            paymentMethod: 'razorpay_link_qr',
+          }),
+        }).catch(() => {});
+      }
+
       setShowQRModal(false);
       setToast({ show: true, message: 'Order placed successfully!', type: 'success' });
       setTimeout(() => navigate('/order-success'), 1500);

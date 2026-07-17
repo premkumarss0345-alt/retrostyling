@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Eye, X, Package, MapPin, Phone, Check, Truck, ChevronRight, Search, RotateCcw, Plus, Trash2, Settings, CreditCard } from 'lucide-react';
 import AdminLayout from './AdminLayout';
 import { orderService, invoiceTemplateService } from '../../services/firestoreService';
+import { API_BASE_URL } from '../../config';
 
 const ORDER_STATUSES = ['processing', 'packed', 'shipped', 'out_for_delivery', 'delivered', 'cancelled'];
 
@@ -137,6 +138,23 @@ const AdminOrders = () => {
       await orderService.updateStatus(id, status);
       setOrders(prev => prev.map(o => o.id === id ? { ...o, orderStatus: status } : o));
       if (selectedOrder?.id === id) setSelectedOrder(prev => ({ ...prev, orderStatus: status }));
+
+      // ── Send status update email (fire-and-forget) ──
+      const order = orders.find(o => o.id === id) || selectedOrder;
+      if (order?.customerEmail) {
+        fetch(`${API_BASE_URL}/api/email/order-status`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            orderId: id,
+            customerName: order.customerName || 'Customer',
+            customerEmail: order.customerEmail,
+            status,
+            items: order.items || [],
+            total: order.total,
+          }),
+        }).catch(() => {});
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -151,6 +169,25 @@ const AdminOrders = () => {
       await orderService.updateTracking(selectedOrder.id, trackingEdit);
       setOrders(prev => prev.map(o => o.id === selectedOrder.id ? { ...o, ...trackingEdit } : o));
       setSelectedOrder(prev => ({ ...prev, ...trackingEdit }));
+
+      // Re-send shipped email with tracking info when tracking is saved
+      if (selectedOrder.customerEmail && selectedOrder.orderStatus === 'shipped') {
+        fetch(`${API_BASE_URL}/api/email/order-status`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            orderId: selectedOrder.id,
+            customerName: selectedOrder.customerName || 'Customer',
+            customerEmail: selectedOrder.customerEmail,
+            status: 'shipped',
+            trackingNumber: trackingEdit.trackingNumber,
+            courierPartner: trackingEdit.courierPartner,
+            estimatedDelivery: trackingEdit.estimatedDelivery,
+            items: selectedOrder.items || [],
+            total: selectedOrder.total,
+          }),
+        }).catch(() => {});
+      }
     } catch (err) {
       console.error(err);
     } finally {

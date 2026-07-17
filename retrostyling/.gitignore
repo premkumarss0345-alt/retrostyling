@@ -30,3 +30,7 @@ razorpay_windows_x86_64.zip
 # Env files
 .env
 backend/.env
+
+# Firebase Admin credentials (NEVER commit this)
+backend/serviceAccountKey.json
+serviceAccountKey.json
