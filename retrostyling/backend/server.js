@@ -21,9 +21,12 @@ import axios from 'axios';
 import admin from 'firebase-admin';
 import cron from 'node-cron';
 import nodemailer from 'nodemailer';
+import fs from 'fs';
 
 // ─── Firebase Admin SDK ───────────────────────────────────────────────────────
-import serviceAccount from './serviceAccountKey.json' assert { type: 'json' };
+const serviceAccount = JSON.parse(
+  fs.readFileSync(new URL('./serviceAccountKey.json', import.meta.url))
+);
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
