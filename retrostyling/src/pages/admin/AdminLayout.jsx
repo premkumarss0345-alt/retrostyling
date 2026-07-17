@@ -6,8 +6,9 @@ import {
   Package, Tag, Layers, Image, Star, MessageSquare,
   BarChart2, TrendingUp, Megaphone, Globe, Boxes,
   Percent, FileText, Camera, Zap, Shield, Activity,
-  Store, ArrowLeft, Plus, SlidersHorizontal, RotateCcw, Truck
+  Store, ArrowLeft, Plus, SlidersHorizontal, RotateCcw, Truck, ShoppingCart
 } from 'lucide-react';
+// eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../services/AuthContext';
 import './AdminLayout.css';
@@ -38,6 +39,7 @@ const NAV_SECTIONS = [
       { path: '/admin/shipping', label: 'Shipping', icon: Truck },
       { path: '/admin/customers', label: 'Customers', icon: Users },
       { path: '/admin/coupons', label: 'Coupons', icon: Percent },
+      { path: '/admin/amazon-sync', label: 'Amazon Sync', icon: ShoppingCart },
     ],
   },
   {
@@ -107,6 +109,7 @@ const AdminLayout = ({ children }) => {
     navigate('/login');
   };
 
+  // eslint-disable-next-line no-unused-vars
   const sidebarVariants = {
     open: { x: 0, opacity: 1 },
     closed: { x: -280, opacity: 0 },
@@ -138,7 +141,7 @@ const AdminLayout = ({ children }) => {
       <aside className={`admin-sidebar ${isMobileOpen ? 'mobile-open' : ''}`}>
         {/* Brand */}
         <div className="sidebar-brand">
-          <div className="brand-icon">R</div>
+          <img src="/favicon.png" alt="R" className="brand-icon" style={{ objectFit: 'contain', width: '32px', height: '32px', background: 'transparent', padding: '2px', border: 'none', borderRadius: '0' }} />
           {!isCollapsed && (
             <div className="brand-info">
               <h2 className="brand-name">Retrostylings</h2>

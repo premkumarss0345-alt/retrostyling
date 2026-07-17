@@ -1,21 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import AdminLayout from './AdminLayout';
-import { Plus, Edit2, Trash2, Eye, Image, ToggleLeft, ToggleRight, Search, GripVertical } from 'lucide-react';
+import { Plus, Edit2, Trash2, Eye, Image as ImageIcon, ToggleLeft, ToggleRight, Search, GripVertical } from 'lucide-react';
 import { motion } from 'framer-motion';
-
-const mockBanners = [
-  { id: 1, title: 'Summer Sale 2026', subtitle: 'Up to 50% off on selected items', type: 'homepage', image: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800', link: '/shop', active: true, order: 1, startDate: '2026-06-01', endDate: '2026-08-31' },
-  { id: 2, title: 'New Arrivals', subtitle: 'Fresh styles just dropped', type: 'homepage', image: 'https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=800', link: '/shop?filter=new', active: true, order: 2, startDate: '2026-07-01', endDate: '2026-07-31' },
-  { id: 3, title: 'Flash Sale Tonight', subtitle: 'Only 6 hours left!', type: 'popup', image: 'https://images.unsplash.com/photo-1571781926291-c477ebfd024b?w=800', link: '/shop?filter=sale', active: false, order: 1, startDate: '2026-07-08', endDate: '2026-07-08' },
-  { id: 4, title: 'Brand Sale — UrbanEdge', subtitle: 'Up to 40% off this weekend', type: 'promotional', image: 'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=800', link: '/brand/urbanedge', active: true, order: 1, startDate: '2026-07-05', endDate: '2026-07-15' },
-];
+import { db, storage } from '../../firebase';
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 const TYPES = ['homepage', 'promotional', 'popup', 'seasonal'];
 const containerVariants = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.06 } } };
 const itemVariants = { hidden: { opacity: 0, y: 16 }, visible: { opacity: 1, y: 0 } };
 
 const BannerFormModal = ({ banner, onClose, onSave }) => {
-  const [form, setForm] = useState(banner || { title: '', subtitle: '', type: 'homepage', link: '', active: true, order: 1, startDate: '', endDate: '' });
+  const [form, setForm] = useState(banner || { title: '', subtitle: '', type: 'homepage', link: '', active: true, order: 1, startDate: '', endDate: '', image: '' });
+
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
   return (
@@ -26,19 +23,25 @@ const BannerFormModal = ({ banner, onClose, onSave }) => {
           <button className="btn btn-ghost btn-icon" onClick={onClose}>✕</button>
         </div>
         <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          {/* Image Upload */}
+          {/* Image Link Input */}
           <div className="banner-image-upload">
             <div className="banner-img-preview">
               {form.image ? (
                 <img src={form.image} alt="preview" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 8 }} />
               ) : (
-                <Image size={32} color="var(--text-muted)" />
+                <ImageIcon size={32} color="var(--text-muted)" />
               )}
             </div>
-            <div>
-              <p style={{ fontWeight: 600, fontSize: '0.875rem' }}>Banner Image</p>
-              <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Recommended: 1920×600px for homepage banners</p>
-              <button className="btn btn-secondary btn-sm" style={{ marginTop: '0.5rem' }}>Upload Image</button>
+            <div style={{ flex: 1 }}>
+              <p style={{ fontWeight: 600, fontSize: '0.875rem' }}>Banner Image URL</p>
+              <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>Recommended: 1920×600px for homepage banners</p>
+              <input 
+                className="form-input" 
+                placeholder="https://images.unsplash.com/..." 
+                value={form.image || ''} 
+                onChange={e => set('image', e.target.value)} 
+                style={{ width: '100%' }}
+              />
             </div>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
@@ -80,7 +83,9 @@ const BannerFormModal = ({ banner, onClose, onSave }) => {
         </div>
         <div className="modal-footer">
           <button className="btn btn-secondary" onClick={onClose}>Cancel</button>
-          <button className="btn btn-primary" onClick={() => onSave(form)}>{banner ? 'Update Banner' : 'Add Banner'}</button>
+          <button className="btn btn-primary" onClick={() => onSave(form)}>
+            {banner ? 'Update Banner' : 'Add Banner'}
+          </button>
         </div>
       </div>
     </div>
@@ -88,25 +93,70 @@ const BannerFormModal = ({ banner, onClose, onSave }) => {
 };
 
 const Banners = () => {
-  const [banners, setBanners] = useState(mockBanners);
+  const [banners, setBanners] = useState([]);
   const [filterType, setFilterType] = useState('all');
   const [showForm, setShowForm] = useState(false);
   const [editBanner, setEditBanner] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  const fetchBanners = async () => {
+    setLoading(true);
+    try {
+      const querySnapshot = await getDocs(collection(db, 'banners'));
+      const bannersData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      // Sort by order
+      bannersData.sort((a, b) => (a.order || 0) - (b.order || 0));
+      setBanners(bannersData);
+    } catch (error) {
+      console.error('Error fetching banners:', error);
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchBanners();
+  }, []);
 
   const filtered = banners.filter(b => filterType === 'all' || b.type === filterType);
 
-  const handleSave = (form) => {
-    if (editBanner) {
-      setBanners(prev => prev.map(b => b.id === editBanner.id ? { ...b, ...form } : b));
-    } else {
-      setBanners(prev => [...prev, { id: Date.now(), ...form }]);
+  const handleSave = async (form) => {
+    try {
+      if (editBanner) {
+        const bannerRef = doc(db, 'banners', editBanner.id);
+        await updateDoc(bannerRef, form);
+      } else {
+        await addDoc(collection(db, 'banners'), form);
+      }
+      setShowForm(false);
+      setEditBanner(null);
+      fetchBanners();
+    } catch (error) {
+      console.error('Error saving banner:', error);
+      alert('Failed to save banner');
     }
-    setShowForm(false);
-    setEditBanner(null);
   };
 
-  const handleDelete = (id) => { if (window.confirm('Delete this banner?')) setBanners(prev => prev.filter(b => b.id !== id)); };
-  const toggleActive = (id) => setBanners(prev => prev.map(b => b.id === id ? { ...b, active: !b.active } : b));
+  const handleDelete = async (id) => { 
+    if (window.confirm('Delete this banner?')) {
+      try {
+        await deleteDoc(doc(db, 'banners', id));
+        fetchBanners();
+      } catch (error) {
+        console.error('Error deleting banner:', error);
+        alert('Failed to delete banner');
+      }
+    }
+  };
+
+  const toggleActive = async (banner) => {
+    try {
+      const bannerRef = doc(db, 'banners', banner.id);
+      await updateDoc(bannerRef, { active: !banner.active });
+      setBanners(prev => prev.map(b => b.id === banner.id ? { ...b, active: !b.active } : b));
+    } catch (error) {
+      console.error('Error updating status:', error);
+    }
+  };
 
   return (
     <AdminLayout>
@@ -133,52 +183,56 @@ const Banners = () => {
         </motion.div>
 
         {/* Banner Cards */}
-        <div className="banners-grid">
-          {filtered.map(banner => (
-            <motion.div key={banner.id} className="banner-card" variants={itemVariants}>
-              <div className="banner-card-image">
-                {banner.image ? (
-                  <img src={banner.image} alt={banner.title} className="img-cover" />
-                ) : (
-                  <div className="banner-placeholder"><Image size={32} /></div>
-                )}
-                <div className="banner-card-overlay">
-                  <button className="btn btn-secondary btn-sm" onClick={() => { setEditBanner(banner); setShowForm(true); }}>
-                    <Edit2 size={13} /> Edit
-                  </button>
-                  <button className="btn btn-danger btn-sm" onClick={() => handleDelete(banner.id)}>
-                    <Trash2 size={13} /> Delete
-                  </button>
+        {loading ? (
+          <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>Loading banners...</div>
+        ) : (
+          <div className="banners-grid">
+            {filtered.map(banner => (
+              <motion.div key={banner.id} className="banner-card" variants={itemVariants}>
+                <div className="banner-card-image">
+                  {banner.image ? (
+                    <img src={banner.image} alt={banner.title} className="img-cover" />
+                  ) : (
+                    <div className="banner-placeholder"><ImageIcon size={32} /></div>
+                  )}
+                  <div className="banner-card-overlay">
+                    <button className="btn btn-secondary btn-sm" onClick={() => { setEditBanner(banner); setShowForm(true); }}>
+                      <Edit2 size={13} /> Edit
+                    </button>
+                    <button className="btn btn-danger btn-sm" onClick={() => handleDelete(banner.id)}>
+                      <Trash2 size={13} /> Delete
+                    </button>
+                  </div>
+                  <span className={`banner-type-badge ${banner.active ? 'badge-success' : 'badge-neutral'}`}>
+                    {banner.active ? '● Live' : '○ Hidden'}
+                  </span>
+                  <span className="banner-type-label">{banner.type}</span>
                 </div>
-                <span className={`banner-type-badge ${banner.active ? 'badge-success' : 'badge-neutral'}`}>
-                  {banner.active ? '● Live' : '○ Hidden'}
-                </span>
-                <span className="banner-type-label">{banner.type}</span>
-              </div>
-              <div className="banner-card-body">
-                <h3>{banner.title}</h3>
-                {banner.subtitle && <p>{banner.subtitle}</p>}
-                <div className="banner-meta">
-                  <span>{banner.startDate} → {banner.endDate || 'No end'}</span>
-                  <button className="toggle-btn" onClick={() => toggleActive(banner.id)} title="Toggle Active">
-                    {banner.active ? <ToggleRight size={22} color="var(--primary)" /> : <ToggleLeft size={22} color="var(--text-muted)" />}
-                  </button>
+                <div className="banner-card-body">
+                  <h3>{banner.title}</h3>
+                  {banner.subtitle && <p>{banner.subtitle}</p>}
+                  <div className="banner-meta">
+                    <span>{banner.startDate} → {banner.endDate || 'No end'}</span>
+                    <button className="toggle-btn" onClick={() => toggleActive(banner)} title="Toggle Active">
+                      {banner.active ? <ToggleRight size={22} color="var(--primary)" /> : <ToggleLeft size={22} color="var(--text-muted)" />}
+                    </button>
+                  </div>
                 </div>
-              </div>
-            </motion.div>
-          ))}
+              </motion.div>
+            ))}
 
-          {/* Add Banner Card */}
-          <motion.div
-            className="banner-add-card"
-            variants={itemVariants}
-            onClick={() => { setEditBanner(null); setShowForm(true); }}
-            whileHover={{ scale: 1.02 }}
-          >
-            <Plus size={32} />
-            <span>Add Banner</span>
-          </motion.div>
-        </div>
+            {/* Add Banner Card */}
+            <motion.div
+              className="banner-add-card"
+              variants={itemVariants}
+              onClick={() => { setEditBanner(null); setShowForm(true); }}
+              whileHover={{ scale: 1.02 }}
+            >
+              <Plus size={32} />
+              <span>Add Banner</span>
+            </motion.div>
+          </div>
+        )}
 
         {(showForm || editBanner) && (
           <BannerFormModal banner={editBanner} onClose={() => { setShowForm(false); setEditBanner(null); }} onSave={handleSave} />
@@ -211,3 +265,4 @@ const Banners = () => {
 };
 
 export default Banners;
+

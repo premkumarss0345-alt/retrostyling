@@ -48,6 +48,7 @@ import AdminCustomers from './pages/admin/Customers';
 import AdminReturns from './pages/admin/Returns';
 import AdminShippingSettings from './pages/admin/ShippingSettings';
 import AdminSupport from './pages/admin/Support';
+import AmazonSync from './pages/admin/AmazonSync';
 
 function AppContent() {
   const location = useLocation();
@@ -124,6 +125,7 @@ function AppContent() {
         {adminRoute('/admin/returns', AdminReturns)}
         {adminRoute('/admin/shipping', AdminShippingSettings)}
         {adminRoute('/admin/support', AdminSupport)}
+        {adminRoute('/admin/amazon-sync', AmazonSync)}
       </Routes>
       {showNav && <BottomNav />}
       {showNav && <Footer />}

@@ -7,9 +7,10 @@ import {
 } from 'lucide-react';
 import {
   AreaChart, Area, BarChart, Bar,
-  PieChart, Pie, Cell,
+  PieChart, Pie, Cell, Line,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from 'recharts';
+// eslint-disable-next-line no-unused-vars
 import { motion } from 'framer-motion';
 import { statsService } from '../../services/firestoreService';
 

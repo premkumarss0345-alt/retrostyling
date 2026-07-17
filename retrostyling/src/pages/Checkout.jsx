@@ -97,7 +97,7 @@ const Checkout = () => {
 
         const paymentResult = await new Promise((resolve, reject) => {
           const options = {
-            key: 'rzp_test_demokey', // Razorpay Test Key
+            key: 'rzp_test_TETHQUCGGso1F5', // Razorpay Test Key
             amount: total * 100, // Amount in paise
             currency: 'INR',
             name: 'RetroStylings',

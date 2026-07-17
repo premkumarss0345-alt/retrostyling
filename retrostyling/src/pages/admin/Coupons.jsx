@@ -1,15 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import AdminLayout from './AdminLayout';
 import { Plus, Edit2, Trash2, Search, Copy, Tag, Percent, Truck, Clock, Users } from 'lucide-react';
 import { motion } from 'framer-motion';
-
-const mockCoupons = [
-  { id: 1, code: 'RETRO20', type: 'percentage', value: 20, minOrder: 999, maxDiscount: 500, usageLimit: 100, used: 47, expiry: '2026-08-31', status: 'active', categories: [], customers: [] },
-  { id: 2, code: 'FLAT200', type: 'flat', value: 200, minOrder: 1500, maxDiscount: null, usageLimit: 50, used: 12, expiry: '2026-07-31', status: 'active', categories: ['Footwear'], customers: [] },
-  { id: 3, code: 'FREESHIP', type: 'free_shipping', value: 0, minOrder: 599, maxDiscount: null, usageLimit: null, used: 88, expiry: '2026-09-30', status: 'active', categories: [], customers: [] },
-  { id: 4, code: 'SUMMER30', type: 'percentage', value: 30, minOrder: 2000, maxDiscount: 800, usageLimit: 200, used: 200, expiry: '2026-06-30', status: 'expired', categories: [], customers: [] },
-  { id: 5, code: 'VIP50', type: 'percentage', value: 50, minOrder: 5000, maxDiscount: 2500, usageLimit: 20, used: 3, expiry: '2026-12-31', status: 'active', categories: [], customers: ['VIP'] },
-];
+import { db } from '../../firebase';
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
 
 const couponTypeIcon = (type) => {
   if (type === 'percentage') return <Percent size={14} />;
@@ -101,25 +95,64 @@ const CouponFormModal = ({ coupon, onClose, onSave }) => {
 };
 
 const Coupons = () => {
-  const [coupons, setCoupons] = useState(mockCoupons);
+  const [coupons, setCoupons] = useState([]);
   const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editCoupon, setEditCoupon] = useState(null);
   const [copied, setCopied] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const filtered = coupons.filter(c => c.code.toLowerCase().includes(search.toLowerCase()));
-
-  const handleSave = (form) => {
-    if (editCoupon) {
-      setCoupons(prev => prev.map(c => c.id === editCoupon.id ? { ...c, ...form } : c));
-    } else {
-      setCoupons(prev => [...prev, { id: Date.now(), ...form, used: 0, categories: [], customers: [] }]);
+  const fetchCoupons = async () => {
+    setLoading(true);
+    try {
+      const querySnapshot = await getDocs(collection(db, 'coupons'));
+      const couponsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setCoupons(couponsData);
+    } catch (error) {
+      console.error('Error fetching coupons:', error);
     }
-    setShowForm(false);
-    setEditCoupon(null);
+    setLoading(false);
   };
 
-  const handleDelete = (id) => { if (window.confirm('Delete this coupon?')) setCoupons(prev => prev.filter(c => c.id !== id)); };
+  useEffect(() => {
+    fetchCoupons();
+  }, []);
+
+  const filtered = coupons.filter(c => (c.code || '').toLowerCase().includes(search.toLowerCase()));
+
+  const handleSave = async (form) => {
+    try {
+      if (editCoupon) {
+        const couponRef = doc(db, 'coupons', editCoupon.id);
+        await updateDoc(couponRef, form);
+      } else {
+        await addDoc(collection(db, 'coupons'), {
+          ...form,
+          used: 0,
+          categories: [],
+          customers: []
+        });
+      }
+      setShowForm(false);
+      setEditCoupon(null);
+      fetchCoupons();
+    } catch (error) {
+      console.error('Error saving coupon:', error);
+      alert('Failed to save coupon');
+    }
+  };
+
+  const handleDelete = async (id) => { 
+    if (window.confirm('Delete this coupon?')) {
+      try {
+        await deleteDoc(doc(db, 'coupons', id));
+        fetchCoupons();
+      } catch (error) {
+        console.error('Error deleting coupon:', error);
+        alert('Failed to delete coupon');
+      }
+    }
+  };
 
   const copyCode = (code) => {
     navigator.clipboard.writeText(code);
@@ -127,7 +160,11 @@ const Coupons = () => {
     setTimeout(() => setCopied(null), 1500);
   };
 
-  const totals = { active: coupons.filter(c => c.status === 'active').length, expired: coupons.filter(c => c.status === 'expired').length, totalUsed: coupons.reduce((a, b) => a + b.used, 0) };
+  const totals = { 
+    active: coupons.filter(c => c.status === 'active').length, 
+    expired: coupons.filter(c => c.status === 'expired').length, 
+    totalUsed: coupons.reduce((a, b) => a + (b.used || 0), 0) 
+  };
 
   return (
     <AdminLayout>

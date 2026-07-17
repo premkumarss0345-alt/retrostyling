@@ -10,6 +10,7 @@ import {
     ChevronDown,
     LogOut,
 } from 'lucide-react';
+// eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../services/AuthContext';
 import { categoryService, cartService } from '../services/firestoreService';
@@ -35,6 +36,25 @@ const Navbar = () => {
         "🚀 NEW DROPS EVERY FRIDAY - STAY TUNED",
         "✨ USE CODE 'RETRO10' FOR EXTRA 10% DISCOUNT"
     ];
+
+    async function loadCategories() {
+        try {
+            const data = await categoryService.getAll();
+            setCategories(data);
+        } catch (err) {
+            console.error('Error fetching categories:', err);
+        }
+    }
+
+    async function loadCartCount() {
+        try {
+            const items = await cartService.get(currentUser.uid);
+            const count = items.reduce((acc, item) => acc + item.quantity, 0);
+            setCartCount(count);
+        } catch (err) {
+            console.error('Error fetching cart count:', err);
+        }
+    }
 
     useEffect(() => {
         const timer = setInterval(() => {
@@ -63,25 +83,6 @@ const Navbar = () => {
         setIsSearchOpen(false);
         setIsProfileOpen(false);
     }, [location.pathname]);
-
-    const loadCategories = async () => {
-        try {
-            const data = await categoryService.getAll();
-            setCategories(data);
-        } catch (err) {
-            console.error('Error fetching categories:', err);
-        }
-    };
-
-    const loadCartCount = async () => {
-        try {
-            const items = await cartService.get(currentUser.uid);
-            const count = items.reduce((acc, item) => acc + item.quantity, 0);
-            setCartCount(count);
-        } catch (err) {
-            console.error('Error fetching cart count:', err);
-        }
-    };
 
     const handleSearch = (e) => {
         e.preventDefault();
@@ -129,7 +130,7 @@ const Navbar = () => {
                         </button>
 
                         <Link to="/" className="logo">
-                            RETRO<span>STYLINGS</span>
+                            RETRO <span>STYLINGS</span>
                         </Link>
 
                         <nav className="desktop-nav desktop-only">
@@ -246,7 +247,7 @@ const Navbar = () => {
                             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
                         >
                             <div className="drawer-header">
-                                <Link to="/" className="logo">RETRO<span>STYLINGS</span></Link>
+                                <Link to="/" className="logo">RETRO <span>STYLINGS</span></Link>
                                 <button onClick={() => setIsMenuOpen(false)}><X size={28} /></button>
                             </div>
 

@@ -685,7 +685,7 @@ export const globalSettingsService = {
       return {
         storeName: 'Retrostylings',
         contactEmail: 'support@retrostylings.com',
-        razorpayKeyId: 'rzp_test_demokey',
+        razorpayKeyId: 'rzp_test_TETHQUCGGso1F5',
         defaultUpiId: 'retrostylings@razorpay',
         globalPaymentLink: 'https://rzp.io/l/retrostylings'
       };
@@ -1293,6 +1293,13 @@ export const brandService = {
     const snap = await getDocs(col('brands'));
     return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
   },
+  async getActive() {
+    const snap = await getDocs(col('brands'));
+    const arr = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    return arr
+      .filter(b => b.status === 'active')
+      .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  },
   async create(data) {
     const ref = await addDoc(col('brands'), {
       ...data,
@@ -1577,19 +1584,7 @@ export const seedService = {
       });
     }
 
-    // 6. Seed mock Reviews
-    const defaultReviews = [
-      { product: 'Essential Summer Shirt', customer: 'Arjun Sharma', rating: 5, title: 'Absolutely love this!', body: 'The quality is outstanding. True to size and the fabric feels premium. Worth every rupee!', date: '2026-07-05', status: 'pending', helpful: 12 },
-      { product: 'Officer Linen Shirt', customer: 'Priya Nair', rating: 4, title: 'Great fit, minor delay', body: 'The shirt looks exactly like the photos. Delivery was a bit delayed but the product quality made up for it.', date: '2026-07-04', status: 'approved', helpful: 8 },
-      { product: 'Vertical Striped Shirt', customer: 'Kiran Kumar', rating: 2, title: 'Sizing issue', body: 'The shirt runs small. I ordered my usual size L but it was too tight. Had to return it.', date: '2026-07-03', status: 'pending', helpful: 3 }
-    ];
-    for (const rev of defaultReviews) {
-      await addDoc(col('reviews'), {
-        ...rev,
-        createdAt: serverTimestamp()
-      });
-    }
-
+    // 6. (Mock reviews removed)
     // 7. Seed default Roles
     const defaultRoles = [
       { id: 'superadmin', name: 'Super Admin', slug: 'superadmin', permissions: ['all'], color: '#FF4D4D' },
@@ -1755,5 +1750,37 @@ export const rolesService = {
       });
     }
   }
+};
+
+// ─── AMAZON SYNC SERVICE ─────────────────────────────────────────────────────
+export const amazonSyncService = {
+  PROXY_URL: import.meta.env.VITE_AMAZON_PROXY_URL || 'http://localhost:3001',
+
+  /** Check connection status */
+  async getStatus() {
+    const res = await fetch(`${this.PROXY_URL}/api/amazon/status`);
+    if (!res.ok) throw new Error('Cannot reach Amazon proxy server');
+    return res.json();
+  },
+
+  /** Trigger a manual sync (last 7 days) */
+  async triggerSync() {
+    const res = await fetch(`${this.PROXY_URL}/api/amazon/sync`, { method: 'POST' });
+    if (!res.ok) throw new Error('Sync request failed');
+    return res.json();
+  },
+
+  /** Get last sync metadata from Firestore */
+  async getLastSyncInfo() {
+    const snap = await getDoc(doc(db, 'settings', 'amazonSync'));
+    return snap.exists() ? snap.data() : null;
+  },
+
+  /** Get all Amazon-sourced orders from Firestore */
+  async getAmazonOrders() {
+    const q = query(col('orders'), where('source', '==', 'amazon'), orderBy('createdAt', 'desc'));
+    const snap = await getDocs(q);
+    return snap2arr(snap);
+  },
 };
 

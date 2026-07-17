@@ -3,16 +3,7 @@ import AdminLayout from './AdminLayout';
 import { Upload, Search, Grid, List, Folder, FolderPlus, Trash2, Download, Copy, Image, Film, File, X, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-const mockMedia = [
-  { id: 1, name: 'hero-summer-2026.jpg', type: 'image', size: '2.4 MB', url: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400', folder: 'Banners', date: '2026-07-05', dimensions: '1920×600' },
-  { id: 2, name: 'leather-jacket-01.jpg', type: 'image', size: '1.2 MB', url: 'https://images.unsplash.com/photo-1551028719-00167b16eac5?w=400', folder: 'Products', date: '2026-07-04', dimensions: '800×800' },
-  { id: 3, name: 'denim-jeans-main.jpg', type: 'image', size: '980 KB', url: 'https://images.unsplash.com/photo-1542272604-787c3835535d?w=400', folder: 'Products', date: '2026-07-03', dimensions: '800×800' },
-  { id: 4, name: 'brand-logo.png', type: 'image', size: '120 KB', url: 'https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=400', folder: 'Logos', date: '2026-07-01', dimensions: '400×400' },
-  { id: 5, name: 'sneakers-collection.jpg', type: 'image', size: '1.8 MB', url: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400', folder: 'Products', date: '2026-06-30', dimensions: '1200×800' },
-  { id: 6, name: 'summer-dress-01.jpg', type: 'image', size: '760 KB', url: 'https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?w=400', folder: 'Products', date: '2026-06-28', dimensions: '800×1200' },
-  { id: 7, name: 'bucket-hat.jpg', type: 'image', size: '540 KB', url: 'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=400', folder: 'Products', date: '2026-06-25', dimensions: '800×800' },
-  { id: 8, name: 'polo-shirt-white.jpg', type: 'image', size: '650 KB', url: 'https://images.unsplash.com/photo-1571781926291-c477ebfd024b?w=400', folder: 'Products', date: '2026-06-22', dimensions: '800×800' },
-];
+const mockMedia = [];
 
 const FOLDERS = ['All', 'Products', 'Banners', 'Logos', 'Videos', 'Documents'];
 
@@ -27,13 +18,31 @@ const MediaLibrary = () => {
   const [selected, setSelected] = useState([]);
   const [preview, setPreview] = useState(null);
   const [copiedId, setCopiedId] = useState(null);
-  const fileRef = useRef();
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newUrl, setNewUrl] = useState('');
 
   const filtered = media.filter(m => {
     const matchFolder = activeFolder === 'All' || m.folder === activeFolder;
     const matchSearch = m.name.toLowerCase().includes(search.toLowerCase());
     return matchFolder && matchSearch;
   });
+
+  const handleAddLink = () => {
+    if (!newUrl) return;
+    const newMedia = {
+      id: Date.now(),
+      name: newUrl.split('/').pop().split('?')[0] || 'linked-media',
+      type: 'image',
+      size: 'Link',
+      url: newUrl,
+      folder: 'All',
+      date: new Date().toISOString().split('T')[0],
+      dimensions: 'N/A'
+    };
+    setMedia(prev => [newMedia, ...prev]);
+    setNewUrl('');
+    setShowAddModal(false);
+  };
 
   const toggleSelect = (id) => {
     setSelected(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
@@ -71,9 +80,8 @@ const MediaLibrary = () => {
                 <Trash2 size={14} /> Delete ({selected.length})
               </button>
             )}
-            <input ref={fileRef} type="file" accept="image/*,video/*" multiple style={{ display: 'none' }} />
-            <button className="btn btn-primary btn-sm" onClick={() => fileRef.current?.click()}>
-              <Upload size={14} /> Upload Files
+            <button className="btn btn-primary btn-sm" onClick={() => setShowAddModal(true)}>
+              <Upload size={14} /> Add Media Link
             </button>
           </div>
         </motion.div>
@@ -121,16 +129,15 @@ const MediaLibrary = () => {
             {/* Grid View */}
             {viewMode === 'grid' && (
               <motion.div className="media-grid" variants={containerVariants}>
-                {/* Upload Zone */}
                 <motion.div
                   className="media-upload-zone"
                   variants={itemVariants}
-                  onClick={() => fileRef.current?.click()}
+                  onClick={() => setShowAddModal(true)}
                   whileHover={{ scale: 1.02 }}
                 >
                   <Upload size={24} />
-                  <span>Upload files</span>
-                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>or drag & drop</span>
+                  <span>Add Media Link</span>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Paste URL</span>
                 </motion.div>
 
                 {filtered.map(item => (
@@ -245,6 +252,37 @@ const MediaLibrary = () => {
                     </button>
                     <button className="btn btn-primary btn-sm"><Download size={13} /> Download</button>
                   </div>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        {/* Add Link Modal */}
+        <AnimatePresence>
+          {showAddModal && (
+            <div className="modal-backdrop" onClick={() => setShowAddModal(false)}>
+              <motion.div
+                className="modal-box"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                onClick={e => e.stopPropagation()}
+                style={{ maxWidth: 400 }}
+              >
+                <div className="modal-header">
+                  <h3>Add Media Link</h3>
+                  <button className="btn btn-ghost btn-icon" onClick={() => setShowAddModal(false)}>✕</button>
+                </div>
+                <div className="modal-body">
+                  <div className="form-group">
+                    <label className="form-label">Image URL</label>
+                    <input className="form-input" placeholder="https://..." value={newUrl} onChange={e => setNewUrl(e.target.value)} />
+                  </div>
+                </div>
+                <div className="modal-footer">
+                  <button className="btn btn-secondary" onClick={() => setShowAddModal(false)}>Cancel</button>
+                  <button className="btn btn-primary" onClick={handleAddLink}>Add Link</button>
                 </div>
               </motion.div>
             </div>

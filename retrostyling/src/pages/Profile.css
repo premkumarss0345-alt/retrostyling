@@ -1506,3 +1506,93 @@ input:checked + .slider:before {
   margin-bottom: 0;
   padding-bottom: 0;
 }
+
+/* ─── UPI METHODS ────────────────────────────────────────── */
+.upi-section-title {
+  margin-top: 3rem;
+  font-family: var(--ff-heading);
+  font-weight: 800;
+  font-size: 1.4rem;
+  letter-spacing: -0.01em;
+  margin-bottom: 0.35rem;
+}
+
+.upi-list-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.25rem;
+  margin-top: 1.25rem;
+}
+
+.upi-vpa-card {
+  background: linear-gradient(135deg, #18181b 0%, #09090b 100%);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 16px;
+  padding: 1.5rem;
+  position: relative;
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.upi-top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.upi-provider-label {
+  font-family: var(--ff-heading);
+  font-weight: 800;
+  font-size: 0.9rem;
+  color: var(--neon-yellow);
+}
+
+.upi-vpa-text {
+  font-family: monospace;
+  font-size: 0.95rem;
+  letter-spacing: 0.02em;
+  margin: 1rem 0;
+  color: var(--text-main);
+  word-break: break-all;
+}
+
+.remove-upi-btn {
+  position: absolute;
+  top: 1.5rem;
+  right: 1.5rem;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.upi-vpa-card:hover .remove-upi-btn {
+  opacity: 1;
+}
+
+.remove-upi-btn:hover {
+  color: var(--error);
+}
+
+.add-upi-method-card {
+  background: rgba(255, 255, 255, 0.01);
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  min-height: 120px;
+  transition: var(--transition-fast);
+}
+
+.add-upi-method-card:hover {
+  border-color: var(--neon-yellow);
+  color: var(--neon-yellow);
+}

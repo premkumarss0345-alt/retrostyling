@@ -7,7 +7,7 @@ const AdminSettings = () => {
     const [settings, setSettings] = useState({
         storeName: 'Retrostylings',
         contactEmail: 'support@retrostylings.com',
-        razorpayKeyId: 'rzp_test_demokey',
+        razorpayKeyId: 'rzp_test_TETHQUCGGso1F5',
         defaultUpiId: 'retrostylings@razorpay',
         globalPaymentLink: 'https://rzp.io/l/retrostylings'
     });

@@ -8,7 +8,7 @@ import FashionFantasy from '../components/FashionFantasy';
 import Newsletter from '../components/Newsletter';
 import ProductCarousel from '../components/ProductCarousel';
 import { useAuth } from '../services/AuthContext';
-import { cartService, wishlistService, flashSaleService, productService, reviewService } from '../services/firestoreService';
+import { cartService, wishlistService, flashSaleService, productService, reviewService, brandService } from '../services/firestoreService';
 import Toast from '../components/Toast';
 import './Home.css';
 
@@ -55,23 +55,7 @@ const FlashCountdown = ({ endTime }) => {
   );
 };
 
-/* ─── Brand Logos ─────────────────────────────────────────── */
-const BRANDS = [
-  { name: 'Retrostylings', letter: 'R' },
-  { name: 'UrbanEdge', letter: 'U' },
-  { name: 'VintageVibes', letter: 'V' },
-  { name: 'ModernStreet', letter: 'M' },
-  { name: 'ClassicCo', letter: 'C' },
-  { name: 'NeoFashion', letter: 'N' },
-];
-
-/* ─── Testimonials ────────────────────────────────────────── */
-const TESTIMONIALS = [
-  { name: 'Arjun Sharma', location: 'Mumbai', rating: 5, text: 'Absolutely love the quality! The leather jacket is exactly as shown — premium feel and perfect sizing. Will definitely shop again!', avatar: 'A', date: 'July 2026' },
-  { name: 'Priya Nair', location: 'Bangalore', rating: 5, text: 'Fast delivery and great packaging. The floral dress is gorgeous and the fabric quality is outstanding. Retrostylings is now my go-to!', avatar: 'P', date: 'June 2026' },
-  { name: 'Kiran Kumar', location: 'Chennai', rating: 4, text: 'Excellent collection and very easy website to navigate. Customer support helped me quickly when I had a sizing question. Highly recommend!', avatar: 'K', date: 'June 2026' },
-  { name: 'Divya Menon', location: 'Delhi', rating: 5, text: "I've been shopping here for over a year. Consistent quality, great prices, and the loyalty points system is a nice bonus!", avatar: 'D', date: 'May 2026' },
-];
+/* ─── Real Brands and Reviews from Firestore ─── */
 
 /* ─── Flash Sale Products are loaded from Firestore ─── */
 
@@ -95,13 +79,24 @@ const Home = () => {
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
   const [cartLoading, setCartLoading] = useState({});
   const [dynamicReviews, setDynamicReviews] = useState([]);
+  const [dynamicBrands, setDynamicBrands] = useState([]);
 
   useEffect(() => {
     window.scrollTo(0, 0);
     loadFlashSale();
     loadWishlist();
     loadReviews();
+    loadBrands();
   }, [currentUser]);
+
+  const loadBrands = async () => {
+    try {
+      const data = await brandService.getActive();
+      setDynamicBrands(data);
+    } catch (err) {
+      console.error("Error loading brands:", err);
+    }
+  };
 
   const loadReviews = async () => {
     try {
@@ -196,16 +191,14 @@ const Home = () => {
     }
   };
 
-  const reviewsToDisplay = dynamicReviews.length > 0
-    ? dynamicReviews.map(r => ({
-        name: r.customer || 'Anonymous',
-        location: r.location || 'Verified Buyer',
-        rating: r.rating || 5,
-        text: r.body || '',
-        avatar: (r.customer || 'A').charAt(0).toUpperCase(),
-        date: r.date || 'Recent'
-      }))
-    : TESTIMONIALS;
+  const reviewsToDisplay = dynamicReviews.map(r => ({
+    name: r.customer || 'Anonymous',
+    location: r.location || 'Verified Buyer',
+    rating: r.rating || 5,
+    text: r.body || '',
+    avatar: (r.customer || 'A').charAt(0).toUpperCase(),
+    date: r.date || 'Recent'
+  }));
 
   const nextTestimonial = () => setCurrentTestimonial((prev) => (prev + 1) % reviewsToDisplay.length);
   const prevTestimonial = () => setCurrentTestimonial((prev) => (prev - 1 + reviewsToDisplay.length) % reviewsToDisplay.length);
@@ -390,9 +383,9 @@ const Home = () => {
             viewport={{ once: true }}
             variants={stagger}
           >
-            {BRANDS.map(brand => (
+            {dynamicBrands.map(brand => (
               <motion.div key={brand.name} className="brand-chip" variants={fadeInUp} whileHover={{ y: -4, scale: 1.05 }}>
-                <div className="brand-chip-icon">{brand.letter}</div>
+                <div className="brand-chip-icon">{brand.name.charAt(0).toUpperCase()}</div>
                 <span>{brand.name}</span>
               </motion.div>
             ))}
@@ -401,53 +394,55 @@ const Home = () => {
       </section>
 
       {/* Testimonials */}
-      <section className="testimonials-section">
-        <div className="container">
-          <motion.div
-            className="section-header"
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true }}
-            variants={fadeInUp}
-          >
-            <div>
-              <p className="section-label">Reviews</p>
-              <h2 className="section-title">What Customers Say</h2>
-            </div>
-            <div className="testimonial-nav">
-              <button className="btn btn-ghost btn-icon" onClick={prevTestimonial}><ChevronLeft size={20} /></button>
-              <button className="btn btn-ghost btn-icon" onClick={nextTestimonial}><ChevronRight size={20} /></button>
-            </div>
-          </motion.div>
+      {reviewsToDisplay.length > 0 && (
+        <section className="testimonials-section">
+          <div className="container">
+            <motion.div
+              className="section-header"
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true }}
+              variants={fadeInUp}
+            >
+              <div>
+                <p className="section-label">Reviews</p>
+                <h2 className="section-title">What Customers Say</h2>
+              </div>
+              <div className="testimonial-nav">
+                <button className="btn btn-ghost btn-icon" onClick={prevTestimonial}><ChevronLeft size={20} /></button>
+                <button className="btn btn-ghost btn-icon" onClick={nextTestimonial}><ChevronRight size={20} /></button>
+              </div>
+            </motion.div>
 
-          <div className="testimonials-grid">
-            {reviewsToDisplay.map((t, i) => (
-              <motion.div
-                key={i}
-                className={`testimonial-card ${i === currentTestimonial ? 'featured' : ''}`}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.1 }}
-              >
-                <div className="testimonial-stars">
-                  {[...Array(t.rating)].map((_, si) => (
-                    <Star key={si} size={13} fill="#F59E0B" color="#F59E0B" />
-                  ))}
-                </div>
-                <p className="testimonial-text">"{t.text}"</p>
-                <div className="testimonial-author">
-                  <div className="testimonial-avatar">{t.avatar}</div>
-                  <div>
-                    <strong>{t.name}</strong>
-                    <span>{t.location} · {t.date}</span>
+            <div className="testimonials-grid">
+              {reviewsToDisplay.map((t, i) => (
+                <motion.div
+                  key={i}
+                  className={`testimonial-card ${i === currentTestimonial ? 'featured' : ''}`}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.1 }}
+                >
+                  <div className="testimonial-stars">
+                    {[...Array(t.rating)].map((_, si) => (
+                      <Star key={si} size={13} fill="#F59E0B" color="#F59E0B" />
+                    ))}
                   </div>
-                </div>
-              </motion.div>
-            ))}
+                  <p className="testimonial-text">"{t.text}"</p>
+                  <div className="testimonial-author">
+                    <div className="testimonial-avatar">{t.avatar}</div>
+                    <div>
+                      <strong>{t.name}</strong>
+                      <span>{t.location} · {t.date}</span>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* Newsletter */}
       <Newsletter />

@@ -382,7 +382,17 @@ const AdminOrders = () => {
               const isUpdating = updatingId === order.id;
               return (
                 <tr key={order.id}>
-                  <td><code style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>#{order.id.slice(-6).toUpperCase()}</code></td>
+                  <td>
+                    <code style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>#{order.id.slice(-6).toUpperCase()}</code>
+                    {order.source === 'amazon' && (
+                      <span style={{
+                        marginLeft: '0.5rem', padding: '0.1rem 0.45rem', borderRadius: '4px',
+                        background: 'rgba(255,153,0,0.15)', border: '1px solid rgba(255,153,0,0.35)',
+                        color: '#FF9900', fontSize: '0.65rem', fontWeight: 800, verticalAlign: 'middle',
+                        letterSpacing: '0.03em',
+                      }}>AMZ</span>
+                    )}
+                  </td>
                   <td>
                     <strong>{order.customerName || 'Customer'}</strong>
                     <br />

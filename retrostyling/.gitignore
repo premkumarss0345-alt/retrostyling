@@ -22,3 +22,11 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Razorpay CLI & zip downloads
+razorpay-cli/
+razorpay_windows_x86_64.zip
+
+# Env files
+.env
+backend/.env

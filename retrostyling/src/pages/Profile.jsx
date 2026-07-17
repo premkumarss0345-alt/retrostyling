@@ -8,7 +8,8 @@ import {
   Image as ImageIcon, RotateCcw, Download
 } from 'lucide-react';
 import { useAuth } from '../services/AuthContext';
-import { addressService, orderService, wishlistService, cartService, productService, returnService, shippingSettingsService, rewardsService, invoiceTemplateService } from '../services/firestoreService';
+import { addressService, orderService, wishlistService, cartService, productService, returnService, shippingSettingsService, rewardsService, invoiceTemplateService, reviewService } from '../services/firestoreService';
+import html2pdf from 'html2pdf.js';
 import Toast from '../components/Toast';
 import './Profile.css';
 
@@ -150,6 +151,53 @@ const Profile = () => {
     { id: '1', brand: 'VISA', last4: '8842', exp: '12/28', isDefault: true, name: 'MUNEESWARAN P' },
     { id: '2', brand: 'MasterCard', last4: '1095', exp: '08/29', isDefault: false, name: 'MUNEESWARAN P' }
   ]);
+  const [upis, setUpis] = useState([
+    { id: '1', provider: 'Google Pay', vpa: 'muneeswaranmd2004@okaxis', isDefault: true },
+    { id: '2', provider: 'PhonePe', vpa: 'premkumarss0345@ybl', isDefault: false }
+  ]);
+  const [showCardForm, setShowCardForm] = useState(false);
+  const [cardForm, setCardForm] = useState({ brand: 'VISA', number: '', exp: '', name: 'MUNEESWARAN P' });
+  const [showUpiForm, setShowUpiForm] = useState(false);
+  const [upiForm, setUpiForm] = useState({ provider: 'Google Pay', vpa: '' });
+
+  const handleCardSave = (e) => {
+    e.preventDefault();
+    if (!cardForm.number || !cardForm.exp || !cardForm.name) {
+      showMsg('Please fill in all fields', 'error');
+      return;
+    }
+    const last4 = cardForm.number.replace(/\D/g, '').slice(-4) || '1234';
+    const newCard = {
+      id: Date.now().toString(),
+      brand: cardForm.brand,
+      last4,
+      exp: cardForm.exp,
+      name: cardForm.name.toUpperCase(),
+      isDefault: cards.length === 0
+    };
+    setCards([...cards, newCard]);
+    setShowCardForm(false);
+    setCardForm({ brand: 'VISA', number: '', exp: '', name: 'MUNEESWARAN P' });
+    showMsg('Payment card saved successfully');
+  };
+
+  const handleUpiSave = (e) => {
+    e.preventDefault();
+    if (!upiForm.vpa) {
+      showMsg('Please enter your UPI ID', 'error');
+      return;
+    }
+    const newUpi = {
+      id: Date.now().toString(),
+      provider: upiForm.provider,
+      vpa: upiForm.vpa.toLowerCase().trim(),
+      isDefault: upis.length === 0
+    };
+    setUpis([...upis, newUpi]);
+    setShowUpiForm(false);
+    setUpiForm({ provider: 'Google Pay', vpa: '' });
+    showMsg('UPI ID saved successfully');
+  };
 
   // Load user details
   useEffect(() => {
@@ -330,23 +378,17 @@ const Profile = () => {
       console.error('Error fetching invoice template settings:', err);
     }
 
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-      showMsg('Please allow popups to download/print the invoice.', 'error');
-      return;
-    }
-    
     const formattedDate = formatDate(order.createdAt);
     const itemsHtml = order.items?.map(item => `
       <tr class="item">
         <td>
-          <strong style="color: #FFFFFF;">${item.name}</strong>
-          ${item.size ? `<span style="font-size: 12px; color: #9CA3AF; margin-left: 10px;">Size: ${item.size}</span>` : ''}
-          ${item.color ? `<span style="font-size: 12px; color: #9CA3AF; margin-left: 10px;">Color: ${item.color}</span>` : ''}
+          <strong style="color: #111827;">${item.name}</strong>
+          ${item.size ? `<span style="font-size: 12px; color: #6B7280; margin-left: 10px;">Size: ${item.size}</span>` : ''}
+          ${item.color ? `<span style="font-size: 12px; color: #6B7280; margin-left: 10px;">Color: ${item.color}</span>` : ''}
         </td>
-        <td style="text-align: center; color: #E5E7EB;">${item.quantity}</td>
-        <td style="color: #E5E7EB;">₹${Number(item.price_override || item.discount_price || item.price).toLocaleString()}</td>
-        <td style="color: #D1D5DB;">₹${(Number(item.price_override || item.discount_price || item.price) * item.quantity).toLocaleString()}</td>
+        <td style="text-align: center; color: #374151;">${item.quantity}</td>
+        <td style="color: #374151; text-align: right;">₹${Number(item.price_override || item.discount_price || item.price).toLocaleString()}</td>
+        <td style="color: #111827; font-weight: 600; text-align: right;">₹${(Number(item.price_override || item.discount_price || item.price) * item.quantity).toLocaleString()}</td>
       </tr>
     `).join('') || '';
 
@@ -370,51 +412,48 @@ const Profile = () => {
         <style>
           * { box-sizing: border-box; }
           body {
-            font-family: 'Inter', sans-serif;
-            color: #E2E8F0;
-            background-color: #0B0F19;
+            font-family: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            color: #374151;
+            background-color: #FFFFFF;
             margin: 0;
             padding: 40px;
           }
           .invoice-card {
             max-width: 850px;
             margin: 0 auto;
-            background: #111827;
-            border: 1px solid rgba(255,255,255,0.06);
-            border-radius: 12px;
-            padding: 40px;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+            background: #FFFFFF;
+            padding: 20px;
           }
           .invoice-header {
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
-            border-bottom: 1px solid rgba(255,255,255,0.06);
+            border-bottom: 2px solid #E5E7EB;
             padding-bottom: 30px;
             margin-bottom: 30px;
           }
           .brand {
-            font-size: 24px;
+            font-size: 28px;
             font-weight: 800;
-            color: #DFFF1B;
-            letter-spacing: 2px;
+            color: #111827;
+            letter-spacing: 1px;
             text-transform: uppercase;
-            text-shadow: 0 0 10px rgba(223, 255, 27, 0.3);
           }
           .meta-title {
             text-align: right;
           }
           .meta-title h2 {
             margin: 0 0 5px 0;
-            color: #FFFFFF;
-            font-size: 28px;
-            font-weight: 700;
+            color: #111827;
+            font-size: 32px;
+            font-weight: 800;
             letter-spacing: -0.02em;
           }
           .meta-title p {
             margin: 0;
-            color: #9CA3AF;
+            color: #6B7280;
             font-size: 14px;
+            font-weight: 500;
           }
           .details-grid {
             display: grid;
@@ -424,15 +463,15 @@ const Profile = () => {
           }
           .details-column h3 {
             font-size: 12px;
-            color: #8B5CF6;
+            color: #6B7280;
             text-transform: uppercase;
             letter-spacing: 1px;
             margin: 0 0 10px 0;
           }
           .details-column p {
-            margin: 3px 0;
-            font-size: 15px;
-            color: #D1D5DB;
+            margin: 4px 0;
+            font-size: 14px;
+            color: #111827;
             line-height: 1.5;
           }
           table.invoice-items {
@@ -444,66 +483,54 @@ const Profile = () => {
             text-align: left;
             padding: 12px 16px;
             font-size: 12px;
-            color: #8B5CF6;
+            color: #6B7280;
             text-transform: uppercase;
             letter-spacing: 1px;
-            border-bottom: 2px solid rgba(255,255,255,0.08);
+            border-bottom: 2px solid #E5E7EB;
+            background-color: #F9FAFB;
           }
           table.invoice-items td {
             padding: 16px;
             font-size: 15px;
-            color: #E5E7EB;
-            border-bottom: 1px solid rgba(255,255,255,0.06);
+            color: #374151;
+            border-bottom: 1px solid #E5E7EB;
           }
           .item-price, .item-qty, .item-total {
             text-align: right !important;
           }
           .summary-table {
-            width: 280px;
+            width: 300px;
             margin-left: auto;
             border-collapse: collapse;
           }
           .summary-table td {
-            padding: 8px 16px;
+            padding: 10px 16px;
             font-size: 14px;
-            color: #9CA3AF;
+            color: #4B5563;
           }
           .summary-table tr.total-row td {
             font-size: 18px;
-            color: #FFFFFF;
-            font-weight: 700;
+            color: #111827;
+            font-weight: 800;
             padding-top: 15px;
-            border-top: 1px solid rgba(255,255,255,0.08);
-          }
-          .summary-table tr.total-row td.final-price {
-            color: #DFFF1B;
-            text-shadow: 0 0 8px rgba(223, 255, 27, 0.4);
+            border-top: 2px solid #E5E7EB;
           }
           .footer-note {
-            margin-top: 50px;
+            margin-top: 60px;
             text-align: center;
             font-size: 13px;
-            color: #6B7280;
-            border-top: 1px solid rgba(255,255,255,0.06);
+            color: #9CA3AF;
+            border-top: 1px solid #E5E7EB;
             padding-top: 20px;
-          }
-          @media print {
-            body { background: #FFFFFF; color: #000000; padding: 0; }
-            .invoice-card { background: #FFFFFF; border: none; box-shadow: none; color: #000000; padding: 0; }
-            .meta-title h2, table.invoice-items th, .summary-table tr.total-row td { color: #000000 !important; }
-            .brand, .summary-table tr.total-row td.final-price { color: #8B5CF6 !important; text-shadow: none !important; }
-            .details-column p, table.invoice-items td, .summary-table td, strong { color: #333333 !important; }
-            table.invoice-items th, table.invoice-items td { border-bottom-color: #E2E8F0 !important; }
-            .summary-table tr.total-row td { border-top-color: #E2E8F0 !important; }
           }
         </style>
       </head>
-      <body onload="window.print(); window.onafterprint = function() { window.close(); }">
+      <body>
         <div class="invoice-card">
           <div class="invoice-header">
             <div>
               <div class="brand">${settings.brandName}</div>
-              <p style="margin: 5px 0 0 0; font-size: 13px; color: #9CA3AF;">${settings.tagline}</p>
+              <p style="margin: 5px 0 0 0; font-size: 14px; color: #6B7280;">${settings.tagline}</p>
             </div>
             <div class="meta-title">
               <h2>INVOICE</h2>
@@ -527,7 +554,7 @@ const Profile = () => {
             </div>
             <div class="details-column">
               <h3>Payment & Details</h3>
-              <p>Payment Method: ${order.paymentMethod || 'Credit Card'}</p>
+              <p>Payment Method: <strong>${order.paymentMethod || 'Credit Card'}</strong></p>
               <p>Payment Status: <strong>${(order.paymentStatus || 'paid').toUpperCase()}</strong></p>
               <p>Order Status: <strong>${(order.orderStatus || 'processing').toUpperCase()}</strong></p>
             </div>
@@ -550,19 +577,19 @@ const Profile = () => {
           <table class="summary-table">
             <tr>
               <td>Subtotal:</td>
-              <td style="text-align: right; color: #E5E7EB;">₹${subtotal.toLocaleString()}</td>
+              <td style="text-align: right; color: #111827; font-weight: 500;">₹${subtotal.toLocaleString()}</td>
             </tr>
             <tr>
               <td>Tax (${taxPercent}% GST Incl.):</td>
-              <td style="text-align: right; color: #E5E7EB;">₹${tax.toLocaleString()}</td>
+              <td style="text-align: right; color: #111827; font-weight: 500;">₹${tax.toLocaleString()}</td>
             </tr>
             <tr>
               <td>Shipping:</td>
-              <td style="text-align: right; color: #E5E7EB;">${shippingCost === 0 ? 'FREE' : `₹${shippingCost.toLocaleString()}`}</td>
+              <td style="text-align: right; color: #111827; font-weight: 500;">${shippingCost === 0 ? 'FREE' : `₹${shippingCost.toLocaleString()}`}</td>
             </tr>
             <tr class="total-row">
               <td>Total Due:</td>
-              <td class="final-price" style="text-align: right;">₹${(order.total || subtotal).toLocaleString()}</td>
+              <td style="text-align: right;">₹${(order.total || subtotal).toLocaleString()}</td>
             </tr>
           </table>
 
@@ -574,8 +601,14 @@ const Profile = () => {
       </html>
     `;
 
-    printWindow.document.write(invoiceContent);
-    printWindow.document.close();
+    const opt = {
+      margin:       0,
+      filename:     `invoice-${settings.invoicePrefix || 'RS'}-${order.id.slice(-8).toUpperCase()}.pdf`,
+      image:        { type: 'jpeg', quality: 0.98 },
+      html2canvas:  { scale: 2, useCORS: true },
+      jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+    };
+    html2pdf().from(invoiceContent).set(opt).save();
   };
 
   return (
@@ -924,33 +957,115 @@ const Profile = () => {
                 {activeTab === 'payment' && (
                   <div>
                     <h2 className="tab-title">Payment Methods</h2>
-                    <p className="tab-subtitle">Manage your saved credit/debit cards and secure wallets.</p>
-                    <div className="payments-cards-grid">
-                      {cards.map(c => (
-                        <div key={c.id} className="payment-credit-card">
-                          <div className="card-top-row">
-                            <span className="card-type-label">{c.brand.toUpperCase()}</span>
-                            <CreditCard size={20} />
+                    <p className="tab-subtitle">Manage your saved credit/debit cards and secure UPI VPAs.</p>
+
+                    {showCardForm ? (
+                      <form className="address-form-box" onSubmit={handleCardSave} style={{ marginBottom: '2rem' }}>
+                        <h3 className="sub-header-title">Add New Credit/Debit Card</h3>
+                        <div className="form-grid-row">
+                          <div className="form-group-item">
+                            <label>Card Network</label>
+                            <select value={cardForm.brand} onChange={e => setCardForm({ ...cardForm, brand: e.target.value })}>
+                              <option value="VISA">VISA</option>
+                              <option value="MasterCard">MasterCard</option>
+                              <option value="RuPay">RuPay</option>
+                              <option value="Amex">American Express</option>
+                            </select>
                           </div>
-                          <div className="card-number-hidden">•••• •••• •••• {c.last4}</div>
-                          <div className="card-bottom-row">
-                            <div>
-                              <span className="card-small-label">CARD HOLDER</span>
-                              <span className="card-bold-val">{c.name}</span>
-                            </div>
-                            <div>
-                              <span className="card-small-label">EXPIRES</span>
-                              <span className="card-bold-val">{c.exp}</span>
-                            </div>
+                          <div className="form-group-item">
+                            <label>Cardholder Name</label>
+                            <input required type="text" value={cardForm.name} onChange={e => setCardForm({ ...cardForm, name: e.target.value })} placeholder="E.g. MUNEESWARAN P" />
                           </div>
-                          <button className="remove-card-btn" onClick={() => { setCards(cards.filter(card => card.id !== c.id)); showMsg('Payment method removed'); }}><Trash2 size={14} /></button>
                         </div>
-                      ))}
-                      <div className="add-payment-method-card" onClick={() => showMsg('Card addition feature coming soon!')}>
-                        <Plus size={24} />
-                        <span>Add New Card</span>
+                        <div className="form-grid-row mt-3">
+                          <div className="form-group-item">
+                            <label>Card Number</label>
+                            <input required type="text" maxLength="19" value={cardForm.number} onChange={e => setCardForm({ ...cardForm, number: e.target.value })} placeholder="16-digit card number" />
+                          </div>
+                          <div className="form-group-item">
+                            <label>Expiry Date</label>
+                            <input required type="text" maxLength="5" value={cardForm.exp} onChange={e => setCardForm({ ...cardForm, exp: e.target.value })} placeholder="MM/YY" style={{ maxWidth: '120px' }} />
+                          </div>
+                        </div>
+                        <div className="form-actions-buttons mt-4">
+                          <button type="submit" className="btn btn-primary">Save Card</button>
+                          <button type="button" className="btn btn-outline" onClick={() => setShowCardForm(false)}>Cancel</button>
+                        </div>
+                      </form>
+                    ) : (
+                      <div className="payments-cards-grid">
+                        {cards.map(c => (
+                          <div key={c.id} className="payment-credit-card">
+                            <div className="card-top-row">
+                              <span className="card-type-label">{c.brand.toUpperCase()}</span>
+                              <CreditCard size={20} />
+                            </div>
+                            <div className="card-number-hidden">•••• •••• •••• {c.last4}</div>
+                            <div className="card-bottom-row">
+                              <div>
+                                <span className="card-small-label">CARD HOLDER</span>
+                                <span className="card-bold-val">{c.name}</span>
+                              </div>
+                              <div>
+                                <span className="card-small-label">EXPIRES</span>
+                                <span className="card-bold-val">{c.exp}</span>
+                              </div>
+                            </div>
+                            <button className="remove-card-btn" onClick={() => { setCards(cards.filter(card => card.id !== c.id)); showMsg('Card removed'); }}><Trash2 size={14} /></button>
+                          </div>
+                        ))}
+                        <div className="add-payment-method-card" onClick={() => setShowCardForm(true)}>
+                          <Plus size={24} />
+                          <span>Add New Card</span>
+                        </div>
                       </div>
-                    </div>
+                    )}
+
+                    {/* UPI VPAs SECTION */}
+                    <h3 className="upi-section-title">UPI Accounts</h3>
+                    <p className="tab-subtitle" style={{ marginBottom: '1.5rem' }}>Manage your Google Pay, PhonePe, and other UPI VPAs.</p>
+
+                    {showUpiForm ? (
+                      <form className="address-form-box" onSubmit={handleUpiSave}>
+                        <h3 className="sub-header-title">Add UPI VPA</h3>
+                        <div className="form-grid-row">
+                          <div className="form-group-item">
+                            <label>UPI Provider</label>
+                            <select value={upiForm.provider} onChange={e => setUpiForm({ ...upiForm, provider: e.target.value })}>
+                              <option value="Google Pay">Google Pay</option>
+                              <option value="PhonePe">PhonePe</option>
+                              <option value="Paytm">Paytm</option>
+                              <option value="BHIM UPI">BHIM UPI</option>
+                            </select>
+                          </div>
+                          <div className="form-group-item">
+                            <label>UPI ID (VPA) *</label>
+                            <input required type="text" value={upiForm.vpa} onChange={e => setUpiForm({ ...upiForm, vpa: e.target.value })} placeholder="username@bank" />
+                          </div>
+                        </div>
+                        <div className="form-actions-buttons mt-4">
+                          <button type="submit" className="btn btn-primary">Save UPI ID</button>
+                          <button type="button" className="btn btn-outline" onClick={() => setShowUpiForm(false)}>Cancel</button>
+                        </div>
+                      </form>
+                    ) : (
+                      <div className="upi-list-grid">
+                        {upis.map(u => (
+                          <div key={u.id} className="upi-vpa-card">
+                            <div className="upi-top-row">
+                              <span className="upi-provider-label">{u.provider}</span>
+                              <Zap size={18} color="var(--neon-yellow)" />
+                            </div>
+                            <div className="upi-vpa-text">{u.vpa}</div>
+                            <button className="remove-upi-btn" onClick={() => { setUpis(upis.filter(upi => upi.id !== u.id)); showMsg('UPI ID removed'); }}><Trash2 size={14} /></button>
+                          </div>
+                        ))}
+                        <div className="add-upi-method-card" onClick={() => setShowUpiForm(true)}>
+                          <Plus size={24} />
+                          <span>Add UPI ID</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
