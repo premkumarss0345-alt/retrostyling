@@ -759,6 +759,39 @@ app.get('/api/email/test', async (req, res) => {
   }
 });
 
+/**
+ * GET /api/email/status
+ * Check SMTP credentials and run transporter verification.
+ */
+app.get('/api/email/status', async (req, res) => {
+  try {
+    const smtpConfig = {
+      host: process.env.SMTP_HOST || 'smtp.hostinger.com',
+      port: parseInt(process.env.SMTP_PORT || '465'),
+      secure: process.env.SMTP_SECURE !== 'false',
+      user: process.env.SMTP_USER ? `${process.env.SMTP_USER.slice(0, 5)}***` : 'not set',
+      pass: process.env.SMTP_PASS ? '***' : 'not set',
+    };
+
+    const verifyPromise = new Promise((resolve, reject) => {
+      transporter.verify((err, success) => {
+        if (err) reject(err);
+        else resolve(success);
+      });
+    });
+
+    const success = await Promise.race([
+      verifyPromise,
+      new Promise((_, reject) => setTimeout(() => reject(new Error('SMTP connection verification timed out after 8s')), 8000))
+    ]);
+
+    res.json({ status: 'SMTP server is connected successfully', config: smtpConfig, success });
+  } catch (err) {
+    res.status(500).json({ status: 'SMTP connection failed', error: err.message });
+  }
+});
+
+
 // ─── Cron Job: Auto-sync every 15 minutes ─────────────────────────────────────
 cron.schedule('*/15 * * * *', async () => {
   console.log('[CRON] Running Amazon order auto-sync...');
