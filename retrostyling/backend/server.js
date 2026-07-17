@@ -22,10 +22,11 @@ import admin from 'firebase-admin';
 import cron from 'node-cron';
 import nodemailer from 'nodemailer';
 import fs from 'fs';
+import path from 'path';
 
 // ─── Firebase Admin SDK ───────────────────────────────────────────────────────
 const serviceAccount = JSON.parse(
-  fs.readFileSync(new URL('./serviceAccountKey.json', import.meta.url))
+  fs.readFileSync(path.join(process.cwd(), 'serviceAccountKey.json'))
 );
 
 admin.initializeApp({
