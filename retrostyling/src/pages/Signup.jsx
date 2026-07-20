@@ -26,6 +26,20 @@ const Signup = () => {
     setLoading(true);
     try {
       await signup(email, password, name);
+      
+      // ── Send Welcome Email (fire-and-forget) ──
+      try {
+        const { API_BASE_URL } = await import('../config');
+        fetch(`${API_BASE_URL}/api/email/welcome`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            customerEmail: email,
+            customerName: name,
+          }),
+        }).catch((err) => console.warn('Welcome email trigger failed:', err.message));
+      } catch (e) {}
+
       setToast({ show: true, message: 'Account created! Welcome 🎉', type: 'success' });
       setTimeout(() => navigate('/'), 1200);
     } catch (err) {
