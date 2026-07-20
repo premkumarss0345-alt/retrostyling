@@ -1,28 +1,57 @@
 /**
- * RetroStylings – Backend Server
- * -------------------------------------------------
- * Keeps credentials SERVER-SIDE only.
+ * RetroStylings – Backend Server (v2)
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Email routes (all modular – credentials never reach the client):
  *
- * Routes:
- *   GET  /api/amazon/status       – Amazon SP-API connection health check
- *   GET  /api/amazon/orders       – Fetch last 24h orders from Amazon
- *   GET  /api/amazon/inventory    – Fetch FBA / MFN inventory
- *   POST /api/amazon/sync         – Trigger full sync (orders → Firestore)
+ *   POST /api/email/order-confirm       – Order confirmation
+ *   POST /api/email/order-status        – Status update (packed / shipped …)
+ *   POST /api/email/payment             – Payment success
+ *   POST /api/email/welcome             – Welcome / sign-up
+ *   POST /api/email/verification        – Account / OTP verification
+ *   POST /api/email/password-reset      – Password reset link
+ *   POST /api/email/contact             – Contact-form auto-reply
+ *   POST /api/email/newsletter/confirm  – Newsletter confirmation
+ *   POST /api/email/newsletter/promo    – Promotional campaign
+ *   POST /api/email/return-requested    – Return request received
+ *   POST /api/email/return-approved     – Return approved / pickup
+ *   POST /api/email/refund              – Refund processed
+ *   POST /api/email/retry/:logId        – Retry a failed email from logs
  *
- *   POST /api/email/order-confirm     – Send order confirmation email
- *   POST /api/email/order-status      – Send order status update email
- *   GET  /api/email/test              – Send a test email (dev only)
+ *   GET  /api/email/status              – SMTP health check
+ *   GET  /api/email/test                – Send a test email (dev)
+ *   GET  /api/email/logs                – List email logs (admin)
+ *
+ * Amazon SP-API routes (unchanged):
+ *   GET  /api/amazon/status
+ *   GET  /api/amazon/orders
+ *   GET  /api/amazon/inventory
+ *   POST /api/amazon/sync
  */
 
 import 'dotenv/config';
-import express from 'express';
-import cors from 'cors';
-import axios from 'axios';
-import admin from 'firebase-admin';
-import cron from 'node-cron';
-import nodemailer from 'nodemailer';
-import fs from 'fs';
-import path from 'path';
+import express           from 'express';
+import cors              from 'cors';
+import axios             from 'axios';
+import admin             from 'firebase-admin';
+import cron              from 'node-cron';
+import fs                from 'fs';
+import path              from 'path';
+
+// ─── Mail modules ─────────────────────────────────────────────────────────────
+import { sendEmail, verifySmtp }          from './lib/mail/mailer.js';
+import { buildWelcomeEmail, buildVerificationEmail } from './lib/mail/templates/welcome.js';
+import { buildPasswordResetEmail }        from './lib/mail/templates/passwordReset.js';
+import { buildOrderConfirmEmail }         from './lib/mail/templates/orderConfirm.js';
+import { buildPaymentSuccessEmail }       from './lib/mail/templates/payment.js';
+import { buildOrderStatusEmail, getStatusSubject } from './lib/mail/templates/orderStatus.js';
+import {
+  buildReturnRequestedEmail,
+  buildReturnApprovedEmail,
+  buildRefundEmail,
+}                                         from './lib/mail/templates/returns.js';
+import { buildContactReplyEmail }         from './lib/mail/templates/contact.js';
+import { buildNewsletterConfirmEmail, buildPromoEmail } from './lib/mail/templates/newsletter.js';
+import { startOrderListener }             from './lib/firestoreListener.js';
 
 // ─── Firebase Admin SDK ───────────────────────────────────────────────────────
 let serviceAccount;
@@ -40,24 +69,56 @@ if (!serviceAccount) {
     serviceAccount = JSON.parse(
       fs.readFileSync(path.join(process.cwd(), 'serviceAccountKey.json'), 'utf8')
     );
-  } catch (err) {
-    console.error('⚠️  Failed to load serviceAccountKey.json from disk:', err.message);
+  } catch {
+    console.warn('⚠️  No serviceAccountKey.json – some features may be limited.');
   }
 }
 
-if (serviceAccount) {
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-  });
-} else {
-  console.error('🚨 Firebase Admin SDK could not be initialized: No credentials found!');
+if (serviceAccount && !admin.apps.length) {
+  admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
 }
+
 const db = admin.apps.length > 0 ? admin.firestore() : null;
 
-// ─── Express App ──────────────────────────────────────────────────────────────
+// ─── Express Setup ────────────────────────────────────────────────────────────
 const app = express();
-app.use(cors({ origin: process.env.FRONTEND_URL || 'http://localhost:5173' }));
-app.use(express.json());
+
+const allowedOrigins = [
+  process.env.FRONTEND_URL || 'http://localhost:5173',
+  'https://retrostylings.in',
+  'https://www.retrostylings.in',
+];
+
+app.use(cors({
+  origin: (origin, cb) => {
+    if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
+    cb(new Error(`CORS: origin ${origin} not allowed`));
+  },
+}));
+app.use(express.json({ limit: '2mb' }));
+
+// ─── Simple rate-limiter (in-memory, per IP) ─────────────────────────────────
+const rateLimitStore = new Map();
+const RATE_WINDOW_MS = 60_000;
+const RATE_MAX_REQ   = 20;
+
+function rateLimit(req, res, next) {
+  const ip  = req.ip || req.socket?.remoteAddress || 'unknown';
+  const now = Date.now();
+  const rec = rateLimitStore.get(ip) || { count: 0, start: now };
+
+  if (now - rec.start > RATE_WINDOW_MS) {
+    rec.count = 0;
+    rec.start = now;
+  }
+  rec.count++;
+  rateLimitStore.set(ip, rec);
+
+  if (rec.count > RATE_MAX_REQ) {
+    return res.status(429).json({ error: 'Too many requests – please try again in a minute.' });
+  }
+  next();
+}
 
 // ─── SP-API Config ────────────────────────────────────────────────────────────
 const SP_API = {
@@ -69,745 +130,567 @@ const SP_API = {
   endpoint:      'https://sellingpartnerapi-eu.amazon.com',
 };
 
-// ─── Nodemailer Transporter (Hostinger SMTP) ──────────────────────────────────
-const transporter = nodemailer.createTransport({
-  host:   process.env.SMTP_HOST || 'smtp.hostinger.com',
-  port:   parseInt(process.env.SMTP_PORT || '465'),
-  secure: process.env.SMTP_SECURE !== 'false', // true for port 465
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-});
-
-// Verify SMTP connection at startup
-transporter.verify((err) => {
-  if (err) {
-    console.warn('⚠️  SMTP connection failed:', err.message);
-    console.warn('   Email notifications are disabled. Check SMTP credentials in .env');
+// ─── SMTP startup verification ────────────────────────────────────────────────
+verifySmtp().then(({ connected, error }) => {
+  if (connected) {
+    console.log(`✅ SMTP connected: ${process.env.SMTP_HOST || 'smtp.hostinger.com'}:${process.env.SMTP_PORT || 465}`);
   } else {
-    console.log(`✅ SMTP connected via ${process.env.SMTP_HOST || 'smtp.hostinger.com'}`);
+    console.warn(`⚠️  SMTP connection failed: ${error}`);
+    console.warn('   Emails will be queued/retried but may not deliver until SMTP is fixed.');
   }
 });
 
-// ─── Email Templates ──────────────────────────────────────────────────────────
+// ─── Start Firestore order listener ──────────────────────────────────────────
+startOrderListener(db);
 
-const BRAND = {
-  name:    'RetroStylings',
-  color:   '#DFF71B',       // Primary yellow-green brand colour
-  dark:    '#0a0a0a',
-  accent:  '#8B5CF6',
-  logo:    process.env.FRONTEND_URL
-             ? `${process.env.FRONTEND_URL}/logo.png`
-             : 'https://retrostylings.com/logo.png',
-  website: process.env.FRONTEND_URL || 'https://retrostylings.com',
-  support: 'retrostylings@gmail.com',
-};
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
-/**
- * Shared HTML shell for all emails.
- */
-function emailShell({ title, previewText, bodyHtml }) {
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>${title}</title>
-</head>
-<body style="margin:0;padding:0;background:#111111;font-family:'Segoe UI',Arial,sans-serif;">
-  <!-- Invisible preview text -->
-  <div style="display:none;max-height:0;overflow:hidden;font-size:1px;color:#111111;">
-    ${previewText}
-  </div>
-
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#111111;padding:32px 0;">
-    <tr>
-      <td align="center">
-        <table width="600" cellpadding="0" cellspacing="0"
-               style="max-width:600px;width:100%;background:#1a1a1a;border-radius:16px;overflow:hidden;border:1px solid #2a2a2a;">
-
-          <!-- Header -->
-          <tr>
-            <td style="background:linear-gradient(135deg,#1a1a1a 0%,#0f0f0f 100%);padding:32px 40px;border-bottom:2px solid ${BRAND.color};">
-              <table width="100%" cellpadding="0" cellspacing="0">
-                <tr>
-                  <td>
-                    <div style="font-size:24px;font-weight:900;color:${BRAND.color};letter-spacing:-0.5px;">
-                      RETRO<span style="color:#ffffff;">STYLINGS</span>
-                    </div>
-                    <div style="font-size:11px;color:#666;letter-spacing:3px;text-transform:uppercase;margin-top:2px;">
-                      Standard Retro-Street Tech
-                    </div>
-                  </td>
-                  <td align="right">
-                    <div style="font-size:11px;color:#555;text-transform:uppercase;letter-spacing:1px;">Order Notification</div>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-
-          <!-- Body -->
-          <tr>
-            <td style="padding:40px;">
-              ${bodyHtml}
-            </td>
-          </tr>
-
-          <!-- Footer -->
-          <tr>
-            <td style="background:#111111;padding:28px 40px;border-top:1px solid #2a2a2a;">
-              <table width="100%" cellpadding="0" cellspacing="0">
-                <tr>
-                  <td style="font-size:12px;color:#555;line-height:1.6;">
-                    You're receiving this because you placed an order on
-                    <a href="${BRAND.website}" style="color:${BRAND.color};text-decoration:none;">${BRAND.website}</a>.<br/>
-                    Need help? Email us at
-                    <a href="mailto:${BRAND.support}" style="color:${BRAND.color};text-decoration:none;">${BRAND.support}</a>
-                  </td>
-                  <td align="right" style="font-size:11px;color:#444;">
-                    © ${new Date().getFullYear()} ${BRAND.name}
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>`;
+/** Validate required fields; return 400 if any missing */
+function requireFields(res, body, fields) {
+  const missing = fields.filter(f => !body[f]);
+  if (missing.length) {
+    res.status(400).json({ error: `Missing required fields: ${missing.join(', ')}` });
+    return false;
+  }
+  return true;
 }
 
-/**
- * Renders a product items table.
- */
-function itemsTable(items = []) {
-  if (!items || items.length === 0) return '';
-  const rows = items.map(item => `
-    <tr>
-      <td style="padding:12px 0;border-bottom:1px solid #2a2a2a;vertical-align:middle;">
-        <table cellpadding="0" cellspacing="0">
-          <tr>
-            <td style="padding-right:14px;">
-              ${item.image
-                ? `<img src="${item.image}" width="56" height="72"
-                        style="border-radius:8px;object-fit:cover;background:#222;display:block;" alt="${item.name}"/>`
-                : `<div style="width:56px;height:72px;background:#222;border-radius:8px;"></div>`}
-            </td>
-            <td>
-              <div style="font-size:14px;font-weight:600;color:#ffffff;margin-bottom:4px;">${item.name}</div>
-              ${item.size  ? `<div style="font-size:12px;color:#888;">Size: ${item.size}</div>` : ''}
-              ${item.color ? `<div style="font-size:12px;color:#888;">Color: ${item.color}</div>` : ''}
-              <div style="font-size:12px;color:#888;">Qty: ${item.quantity}</div>
-            </td>
-          </tr>
-        </table>
-      </td>
-      <td style="padding:12px 0;border-bottom:1px solid #2a2a2a;text-align:right;vertical-align:middle;font-weight:700;color:#ffffff;font-size:14px;">
-        ₹${(Number(item.price) * Number(item.quantity)).toLocaleString('en-IN')}
-      </td>
-    </tr>
-  `).join('');
-
-  return `
-    <table width="100%" cellpadding="0" cellspacing="0" style="margin:20px 0;">
-      <thead>
-        <tr>
-          <th style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#666;text-align:left;padding-bottom:10px;border-bottom:1px solid #2a2a2a;">Product</th>
-          <th style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#666;text-align:right;padding-bottom:10px;border-bottom:1px solid #2a2a2a;">Price</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${rows}
-      </tbody>
-    </table>
-  `;
+/** Standard email send + respond wrapper */
+async function handleEmailRoute(res, { to, subject, html, template, orderId }) {
+  try {
+    const result = await sendEmail({ to, subject, html, template, orderId, db });
+    if (!result.success) {
+      return res.status(500).json({ error: result.error, logId: result.logId });
+    }
+    res.json({ success: true, messageId: result.messageId, logId: result.logId });
+  } catch (err) {
+    console.error(`[${template}] Error:`, err.message);
+    res.status(500).json({ error: err.message });
+  }
 }
 
+// ═════════════════════════════════════════════════════════════════════════════
+// ── EMAIL ROUTES ─────────────────────────────────────────────────────────────
+// ═════════════════════════════════════════════════════════════════════════════
+
+// ── Welcome ───────────────────────────────────────────────────────────────────
 /**
- * Status badge HTML.
+ * POST /api/email/welcome
+ * Body: { customerEmail, customerName, verifyLink? }
  */
-function statusBadge(status) {
-  const map = {
-    processing:       { label: 'Order Confirmed',    color: '#4ADE80', bg: 'rgba(74,222,128,0.12)'  },
-    packed:           { label: 'Packed',              color: '#60A5FA', bg: 'rgba(96,165,250,0.12)'  },
-    shipped:          { label: 'Shipped',             color: '#A78BFA', bg: 'rgba(167,139,250,0.12)' },
-    out_for_delivery: { label: 'Out for Delivery',   color: '#FBBF24', bg: 'rgba(251,191,36,0.12)'  },
-    delivered:        { label: 'Delivered ✓',         color: '#DFF71B', bg: 'rgba(223,247,27,0.12)'  },
-    cancelled:        { label: 'Cancelled',           color: '#F87171', bg: 'rgba(248,113,113,0.12)' },
-    return_approved:  { label: 'Return Approved',    color: '#FB923C', bg: 'rgba(251,146,60,0.12)'  },
-    refund_completed: { label: 'Refund Completed ✓', color: '#4ADE80', bg: 'rgba(74,222,128,0.12)'  },
-  };
-  const s = map[status] || { label: status, color: '#aaa', bg: 'rgba(170,170,170,0.1)' };
-  return `<span style="background:${s.bg};color:${s.color};border:1px solid ${s.color}33;
-    border-radius:100px;padding:5px 16px;font-size:13px;font-weight:700;letter-spacing:0.5px;">
-    ${s.label}
-  </span>`;
-}
+app.post('/api/email/welcome', rateLimit, async (req, res) => {
+  const { customerEmail, customerName, verifyLink } = req.body;
+  if (!requireFields(res, req.body, ['customerEmail', 'customerName'])) return;
 
-// ─── Individual Email Builders ─────────────────────────────────────────────────
-
-function buildOrderConfirmEmail({ orderId, customerName, items, total, shippingAddress, phone, paymentMethod }) {
-  const shortId = orderId ? orderId.slice(-6).toUpperCase() : '------';
-  const shipping = total > 999 ? 0 : 99;
-  const subtotal = total - shipping;
-
-  const body = `
-    <div style="margin-bottom:28px;">
-      <h1 style="font-size:26px;font-weight:900;color:#ffffff;margin:0 0 6px 0;">
-        Thank you, ${customerName?.split(' ')[0] || 'there'}! 🎉
-      </h1>
-      <p style="font-size:15px;color:#888;margin:0;">
-        Your order has been placed successfully. We'll start preparing it right away.
-      </p>
-    </div>
-
-    <!-- Status Banner -->
-    <div style="background:rgba(223,247,27,0.06);border:1px solid rgba(223,247,27,0.2);
-                border-radius:12px;padding:20px 24px;margin-bottom:28px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
-        <div>
-          <div style="font-size:11px;text-transform:uppercase;letter-spacing:2px;color:#666;margin-bottom:6px;">Order ID</div>
-          <div style="font-size:22px;font-weight:900;color:#DFF71B;letter-spacing:1px;">#${shortId}</div>
-        </div>
-        <div>${statusBadge('processing')}</div>
-      </div>
-    </div>
-
-    <!-- Order Items -->
-    <div style="margin-bottom:28px;">
-      <h3 style="font-size:13px;text-transform:uppercase;letter-spacing:2px;color:#666;margin:0 0 4px 0;">Your Items</h3>
-      ${itemsTable(items)}
-    </div>
-
-    <!-- Order Totals -->
-    <div style="background:#111;border-radius:12px;padding:20px;margin-bottom:28px;">
-      <table width="100%" cellpadding="0" cellspacing="0">
-        <tr>
-          <td style="font-size:13px;color:#888;padding:4px 0;">Subtotal</td>
-          <td style="font-size:13px;color:#ccc;text-align:right;padding:4px 0;">₹${subtotal.toLocaleString('en-IN')}</td>
-        </tr>
-        <tr>
-          <td style="font-size:13px;color:#888;padding:4px 0;">Shipping</td>
-          <td style="font-size:13px;color:${shipping === 0 ? '#4ADE80' : '#ccc'};text-align:right;padding:4px 0;">
-            ${shipping === 0 ? 'FREE' : `₹${shipping}`}
-          </td>
-        </tr>
-        <tr>
-          <td style="font-size:15px;font-weight:700;color:#fff;padding:12px 0 4px 0;border-top:1px solid #2a2a2a;">Total Paid</td>
-          <td style="font-size:18px;font-weight:900;color:#DFF71B;text-align:right;padding:12px 0 4px 0;border-top:1px solid #2a2a2a;">
-            ₹${Number(total).toLocaleString('en-IN')}
-          </td>
-        </tr>
-      </table>
-    </div>
-
-    <!-- Shipping & Payment -->
-    <div style="display:grid;gap:16px;margin-bottom:28px;">
-      <table width="100%" cellpadding="0" cellspacing="0">
-        <tr>
-          <td width="48%" style="background:#111;border-radius:12px;padding:18px;vertical-align:top;">
-            <div style="font-size:11px;text-transform:uppercase;letter-spacing:2px;color:#666;margin-bottom:8px;">📦 Shipping To</div>
-            <div style="font-size:13px;color:#ccc;line-height:1.6;">${shippingAddress || 'N/A'}</div>
-            ${phone ? `<div style="font-size:12px;color:#777;margin-top:6px;">📱 ${phone}</div>` : ''}
-          </td>
-          <td width="4%"></td>
-          <td width="48%" style="background:#111;border-radius:12px;padding:18px;vertical-align:top;">
-            <div style="font-size:11px;text-transform:uppercase;letter-spacing:2px;color:#666;margin-bottom:8px;">💳 Payment</div>
-            <div style="font-size:13px;color:#ccc;text-transform:capitalize;">
-              ${paymentMethod === 'cod' ? 'Cash on Delivery' : paymentMethod === 'upi_scanner' ? 'UPI / Scanner' : paymentMethod || 'N/A'}
-            </div>
-            <div style="font-size:12px;color:#777;margin-top:4px;">
-              ${paymentMethod === 'cod' ? 'Pay when delivered' : 'Payment received ✓'}
-            </div>
-          </td>
-        </tr>
-      </table>
-    </div>
-
-    <!-- CTA Button -->
-    <div style="text-align:center;margin-bottom:8px;">
-      <a href="${BRAND.website}/profile" style="display:inline-block;background:#DFF71B;color:#000000;
-        font-weight:800;font-size:14px;padding:14px 36px;border-radius:100px;text-decoration:none;
-        letter-spacing:0.5px;">Track Your Order →</a>
-    </div>
-  `;
-
-  return emailShell({
-    title: `Order Confirmed – #${shortId} | RetroStylings`,
-    previewText: `Your order #${shortId} is confirmed! We're getting it ready for you.`,
-    bodyHtml: body,
+  await handleEmailRoute(res, {
+    to:       customerEmail,
+    subject:  `❤️ Welcome to RetroStylings, ${customerName?.split(' ')[0] || 'there'}!`,
+    html:     buildWelcomeEmail({ customerName, verifyLink }),
+    template: 'welcome',
   });
-}
+});
 
-function buildStatusUpdateEmail({ orderId, customerName, status, trackingNumber, courierPartner, estimatedDelivery, items, total }) {
-  const shortId = orderId ? orderId.slice(-6).toUpperCase() : '------';
+// ── Account Verification ───────────────────────────────────────────────────────
+/**
+ * POST /api/email/verification
+ * Body: { customerEmail, customerName, otp?, verifyLink? }
+ */
+app.post('/api/email/verification', rateLimit, async (req, res) => {
+  const { customerEmail, customerName, otp, verifyLink } = req.body;
+  if (!requireFields(res, req.body, ['customerEmail', 'customerName'])) return;
 
-  const statusMessages = {
-    packed: {
-      headline: 'Your order is packed! 📦',
-      sub:      'Great news — your items have been carefully packed and are ready for pickup.',
-      icon:     '📦',
-    },
-    shipped: {
-      headline: 'Your order is on its way! 🚚',
-      sub:      'Your package has been handed over to the courier and is now in transit.',
-      icon:     '🚚',
-    },
-    out_for_delivery: {
-      headline: 'Out for delivery today! 🛵',
-      sub:      'Your order is out for delivery. Expect it at your doorstep very soon!',
-      icon:     '🛵',
-    },
-    delivered: {
-      headline: 'Delivered! Enjoy your style ✓',
-      sub:      'Your order has been delivered. We hope you love your RetroStylings purchase!',
-      icon:     '✅',
-    },
-    cancelled: {
-      headline: 'Your order has been cancelled',
-      sub:      'Your order has been cancelled. If you paid online, a refund will be processed within 5–7 business days.',
-      icon:     '❌',
-    },
-    return_approved: {
-      headline: 'Return request approved ✓',
-      sub:      'Your return request has been approved. Please pack the items and hand them to the courier.',
-      icon:     '↩️',
-    },
-    refund_completed: {
-      headline: 'Refund completed! 💸',
-      sub:      'Your refund has been processed and should reflect in your account within 3–5 business days.',
-      icon:     '💸',
-    },
-  };
-
-  const msg = statusMessages[status] || {
-    headline: 'Order Update',
-    sub:      'Your order status has been updated.',
-    icon:     '📋',
-  };
-
-  const trackingBlock = (status === 'shipped' || status === 'out_for_delivery') && (trackingNumber || courierPartner) ? `
-    <div style="background:rgba(167,139,250,0.08);border:1px solid rgba(167,139,250,0.25);
-                border-radius:12px;padding:20px;margin:24px 0;">
-      <div style="font-size:11px;text-transform:uppercase;letter-spacing:2px;color:#888;margin-bottom:12px;">🔍 Tracking Details</div>
-      <table width="100%" cellpadding="0" cellspacing="0">
-        ${trackingNumber   ? `<tr><td style="font-size:12px;color:#888;padding:3px 0;">Tracking Number</td><td style="font-size:13px;color:#A78BFA;font-weight:700;text-align:right;">${trackingNumber}</td></tr>` : ''}
-        ${courierPartner   ? `<tr><td style="font-size:12px;color:#888;padding:3px 0;">Courier Partner</td><td style="font-size:13px;color:#ccc;text-align:right;">${courierPartner}</td></tr>` : ''}
-        ${estimatedDelivery? `<tr><td style="font-size:12px;color:#888;padding:3px 0;">Estimated Delivery</td><td style="font-size:13px;color:#4ADE80;font-weight:600;text-align:right;">${estimatedDelivery}</td></tr>` : ''}
-      </table>
-    </div>
-  ` : '';
-
-  const body = `
-    <div style="margin-bottom:28px;">
-      <div style="font-size:40px;margin-bottom:12px;">${msg.icon}</div>
-      <h1 style="font-size:24px;font-weight:900;color:#ffffff;margin:0 0 8px 0;">
-        ${msg.headline}
-      </h1>
-      <p style="font-size:14px;color:#888;margin:0;line-height:1.6;">${msg.sub}</p>
-    </div>
-
-    <!-- Status Banner -->
-    <div style="background:rgba(255,255,255,0.03);border:1px solid #2a2a2a;
-                border-radius:12px;padding:20px 24px;margin-bottom:24px;">
-      <table width="100%" cellpadding="0" cellspacing="0">
-        <tr>
-          <td>
-            <div style="font-size:11px;color:#666;text-transform:uppercase;letter-spacing:2px;margin-bottom:4px;">Order</div>
-            <div style="font-size:20px;font-weight:900;color:#DFF71B;">#${shortId}</div>
-          </td>
-          <td align="right">${statusBadge(status)}</td>
-        </tr>
-      </table>
-    </div>
-
-    ${trackingBlock}
-
-    ${items && items.length > 0 ? `
-      <div style="margin-bottom:24px;">
-        <h3 style="font-size:12px;text-transform:uppercase;letter-spacing:2px;color:#666;margin:0 0 4px 0;">Order Items</h3>
-        ${itemsTable(items)}
-        ${total ? `<div style="text-align:right;font-size:15px;font-weight:700;color:#DFF71B;margin-top:8px;">
-          Total: ₹${Number(total).toLocaleString('en-IN')}
-        </div>` : ''}
-      </div>
-    ` : ''}
-
-    <!-- CTA -->
-    <div style="text-align:center;margin-top:8px;">
-      <a href="${BRAND.website}/profile" style="display:inline-block;background:#DFF71B;color:#000000;
-        font-weight:800;font-size:14px;padding:14px 36px;border-radius:100px;text-decoration:none;">
-        View Order Details →
-      </a>
-    </div>
-  `;
-
-  return emailShell({
-    title: `${msg.headline} – #${shortId} | RetroStylings`,
-    previewText: `${msg.headline} — Order #${shortId}`,
-    bodyHtml: body,
+  await handleEmailRoute(res, {
+    to:       customerEmail,
+    subject:  '🔐 Verify Your RetroStylings Account',
+    html:     buildVerificationEmail({ customerName, otp, verifyLink }),
+    template: 'verification',
   });
-}
+});
 
-// ─── Email Sender Helper ──────────────────────────────────────────────────────
+// ── Password Reset ─────────────────────────────────────────────────────────────
+/**
+ * POST /api/email/password-reset
+ * Body: { customerEmail, customerName, resetLink, expiresIn? }
+ */
+app.post('/api/email/password-reset', rateLimit, async (req, res) => {
+  const { customerEmail, customerName, resetLink, expiresIn } = req.body;
+  if (!requireFields(res, req.body, ['customerEmail', 'customerName', 'resetLink'])) return;
 
-async function sendEmail({ to, subject, html }) {
-  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
-    console.warn('⚠️  SMTP not configured — email not sent to:', to);
-    return { skipped: true, reason: 'SMTP_USER or SMTP_PASS not set' };
+  await handleEmailRoute(res, {
+    to:       customerEmail,
+    subject:  '🔐 Reset Your RetroStylings Password',
+    html:     buildPasswordResetEmail({ customerName, resetLink, expiresIn }),
+    template: 'passwordReset',
+  });
+});
+
+// ── Order Confirmation ─────────────────────────────────────────────────────────
+/**
+ * POST /api/email/order-confirm
+ * Body: { orderId, customerName, customerEmail, items[], total, shippingAddress, phone?,
+ *         paymentMethod, orderDate?, estimatedDelivery?, shipping?, discount? }
+ */
+app.post('/api/email/order-confirm', rateLimit, async (req, res) => {
+  const { customerEmail, orderId } = req.body;
+  if (!requireFields(res, req.body, ['customerEmail', 'orderId'])) return;
+
+  const shortId = orderId?.slice(-8)?.toUpperCase();
+  await handleEmailRoute(res, {
+    to:       customerEmail,
+    subject:  `🎉 Your Order #${shortId} has been Confirmed | RetroStylings`,
+    html:     buildOrderConfirmEmail(req.body),
+    template: 'orderConfirm',
+    orderId,
+  });
+});
+
+// ── Payment Success ────────────────────────────────────────────────────────────
+/**
+ * POST /api/email/payment
+ * Body: { orderId, customerName, customerEmail, amount, paymentMethod, transactionId?, paymentDate? }
+ */
+app.post('/api/email/payment', rateLimit, async (req, res) => {
+  const { customerEmail, orderId } = req.body;
+  if (!requireFields(res, req.body, ['customerEmail', 'orderId', 'amount'])) return;
+
+  const shortId = orderId?.slice(-8)?.toUpperCase();
+  await handleEmailRoute(res, {
+    to:       customerEmail,
+    subject:  `✅ Payment Received – #${shortId} | RetroStylings`,
+    html:     buildPaymentSuccessEmail(req.body),
+    template: 'paymentSuccess',
+    orderId,
+  });
+});
+
+// ── Order Status Update ────────────────────────────────────────────────────────
+/**
+ * POST /api/email/order-status
+ * Body: { orderId, customerName, customerEmail, status,
+ *         trackingNumber?, trackingLink?, courierPartner?,
+ *         estimatedDelivery?, items?, total? }
+ */
+app.post('/api/email/order-status', rateLimit, async (req, res) => {
+  const { customerEmail, orderId, status } = req.body;
+  if (!requireFields(res, req.body, ['customerEmail', 'orderId', 'status'])) return;
+
+  await handleEmailRoute(res, {
+    to:       customerEmail,
+    subject:  getStatusSubject(orderId, status),
+    html:     buildOrderStatusEmail(req.body),
+    template: `orderStatus_${status}`,
+    orderId,
+  });
+});
+
+// ── Contact Form Auto-Reply ────────────────────────────────────────────────────
+/**
+ * POST /api/email/contact
+ * Body: { customerEmail, customerName, subject?, message }
+ */
+app.post('/api/email/contact', rateLimit, async (req, res) => {
+  const { customerEmail } = req.body;
+  if (!requireFields(res, req.body, ['customerEmail', 'customerName', 'message'])) return;
+
+  await handleEmailRoute(res, {
+    to:       customerEmail,
+    subject:  '💬 We received your message – RetroStylings Support',
+    html:     buildContactReplyEmail(req.body),
+    template: 'contactReply',
+  });
+});
+
+// ── Newsletter Confirmation ────────────────────────────────────────────────────
+/**
+ * POST /api/email/newsletter/confirm
+ * Body: { email, name? }
+ */
+app.post('/api/email/newsletter/confirm', rateLimit, async (req, res) => {
+  const { email } = req.body;
+  if (!requireFields(res, req.body, ['email'])) return;
+
+  await handleEmailRoute(res, {
+    to:       email,
+    subject:  '📧 Newsletter Subscription Confirmed – RetroStylings',
+    html:     buildNewsletterConfirmEmail(req.body),
+    template: 'newsletterConfirm',
+  });
+});
+
+// ── Promotional Campaign ───────────────────────────────────────────────────────
+/**
+ * POST /api/email/newsletter/promo
+ * Body: { recipients[], recipientName?, headline, subheadline?,
+ *         offerDetails?, ctaText?, ctaUrl?, couponCode?, expiresAt?, bannerEmoji? }
+ *
+ * `recipients` is an array of email addresses.
+ */
+app.post('/api/email/newsletter/promo', rateLimit, async (req, res) => {
+  const { recipients, headline } = req.body;
+  if (!requireFields(res, req.body, ['recipients', 'headline'])) return;
+  if (!Array.isArray(recipients) || recipients.length === 0) {
+    return res.status(400).json({ error: 'recipients must be a non-empty array' });
   }
 
-  const info = await transporter.sendMail({
-    from:    `"${BRAND.name}" <${process.env.SMTP_USER}>`,
-    to,
-    subject,
-    html,
+  const results = [];
+  for (const email of recipients) {
+    const html = buildPromoEmail({ ...req.body, recipientName: req.body.recipientName });
+    const result = await sendEmail({
+      to: email, subject: `🔥 ${headline} | RetroStylings`, html,
+      template: 'promo', db,
+    });
+    results.push({ email, ...result });
+  }
+
+  const sent   = results.filter(r => r.success).length;
+  const failed = results.filter(r => !r.success).length;
+  res.json({ success: true, sent, failed, results });
+});
+
+// ── Return Requested ──────────────────────────────────────────────────────────
+/**
+ * POST /api/email/return-requested
+ * Body: { orderId, customerName, customerEmail, reason?, items? }
+ */
+app.post('/api/email/return-requested', rateLimit, async (req, res) => {
+  const { customerEmail, orderId } = req.body;
+  if (!requireFields(res, req.body, ['customerEmail', 'orderId'])) return;
+
+  const shortId = orderId?.slice(-8)?.toUpperCase();
+  await handleEmailRoute(res, {
+    to:       customerEmail,
+    subject:  `↩️ Return Request Received – #${shortId} | RetroStylings`,
+    html:     buildReturnRequestedEmail(req.body),
+    template: 'returnRequested',
+    orderId,
   });
+});
 
-  console.log(`📧 Email sent to ${to} → ${info.messageId}`);
-  return { success: true, messageId: info.messageId };
-}
+// ── Return Approved ───────────────────────────────────────────────────────────
+/**
+ * POST /api/email/return-approved
+ * Body: { orderId, customerName, customerEmail, pickupDate?, pickupNote? }
+ */
+app.post('/api/email/return-approved', rateLimit, async (req, res) => {
+  const { customerEmail, orderId } = req.body;
+  if (!requireFields(res, req.body, ['customerEmail', 'orderId'])) return;
 
-// ─── Token Cache (Amazon SP-API) ──────────────────────────────────────────────
+  const shortId = orderId?.slice(-8)?.toUpperCase();
+  await handleEmailRoute(res, {
+    to:       customerEmail,
+    subject:  `✅ Return Approved – #${shortId} | RetroStylings`,
+    html:     buildReturnApprovedEmail(req.body),
+    template: 'returnApproved',
+    orderId,
+  });
+});
+
+// ── Refund Processed ──────────────────────────────────────────────────────────
+/**
+ * POST /api/email/refund
+ * Body: { orderId, customerName, customerEmail, refundAmount, refundMethod?, refundNote? }
+ */
+app.post('/api/email/refund', rateLimit, async (req, res) => {
+  const { customerEmail, orderId } = req.body;
+  if (!requireFields(res, req.body, ['customerEmail', 'orderId', 'refundAmount'])) return;
+
+  const shortId = orderId?.slice(-8)?.toUpperCase();
+  await handleEmailRoute(res, {
+    to:       customerEmail,
+    subject:  `💰 Refund Processed – #${shortId} | RetroStylings`,
+    html:     buildRefundEmail(req.body),
+    template: 'refundProcessed',
+    orderId,
+  });
+});
+
+// ── Retry a Failed Email ───────────────────────────────────────────────────────
+/**
+ * POST /api/email/retry/:logId
+ * Re-fetches the email log and re-sends.
+ * NOTE: The html is not stored in logs; re-use the same API endpoints for
+ * proper template regeneration. This endpoint re-sends a simple notification.
+ */
+app.post('/api/email/retry/:logId', rateLimit, async (req, res) => {
+  if (!db) return res.status(503).json({ error: 'Firestore not available' });
+
+  const { logId } = req.params;
+  try {
+    const logDoc = await db.collection('emailLogs').doc(logId).get();
+    if (!logDoc.exists) return res.status(404).json({ error: 'Log entry not found' });
+
+    const log = logDoc.data();
+    if (log.status === 'sent') {
+      return res.status(400).json({ error: 'Email already sent successfully', logId });
+    }
+
+    // Minimal retry: re-send with stored subject & a plain HTML note
+    const html = `<p>This is a retry of email originally sent to ${log.to}.<br/>Subject: ${log.subject}</p>
+                  <p>Please contact support at retrostylings@retrostylings.in if this is unexpected.</p>`;
+
+    const result = await sendEmail({
+      to: log.to, subject: `[Retry] ${log.subject}`,
+      html, template: log.template, orderId: log.orderId, db,
+    });
+
+    // Update original log as retried
+    await db.collection('emailLogs').doc(logId).update({
+      retriedAt: new Date(),
+      retryStatus: result.success ? 'sent' : 'failed',
+    });
+
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Email Logs ────────────────────────────────────────────────────────────────
+/**
+ * GET /api/email/logs?limit=50&status=failed&orderId=xxx
+ */
+app.get('/api/email/logs', rateLimit, async (req, res) => {
+  if (!db) return res.status(503).json({ error: 'Firestore not available' });
+
+  try {
+    const { limit: lim = 50, status, orderId } = req.query;
+    let query = db.collection('emailLogs').orderBy('createdAt', 'desc');
+
+    if (status)  query = query.where('status', '==', status);
+    if (orderId) query = query.where('orderId', '==', orderId);
+
+    query = query.limit(Number(lim));
+    const snap = await query.get();
+    const logs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    res.json({ total: logs.length, logs });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── SMTP Status ───────────────────────────────────────────────────────────────
+/**
+ * GET /api/email/status
+ */
+app.get('/api/email/status', async (req, res) => {
+  const { connected, error } = await verifySmtp();
+  const config = {
+    host:   process.env.SMTP_HOST   || 'smtp.hostinger.com',
+    port:   process.env.SMTP_PORT   || '465',
+    secure: process.env.SMTP_SECURE !== 'false',
+    user:   process.env.SMTP_USER   ? `${process.env.SMTP_USER.slice(0, 6)}***` : 'not set',
+    from:   process.env.EMAIL_FROM  || 'not set',
+  };
+
+  if (connected) {
+    res.json({ connected: true, config });
+  } else {
+    res.status(500).json({ connected: false, error, config });
+  }
+});
+
+// ── Test Email ────────────────────────────────────────────────────────────────
+/**
+ * GET /api/email/test?to=your@email.com&template=orderConfirm
+ */
+app.get('/api/email/test', async (req, res) => {
+  const to       = req.query.to || process.env.SMTP_USER;
+  const template = req.query.template || 'orderConfirm';
+
+  if (!to) return res.status(400).json({ error: 'Provide ?to=email or set SMTP_USER in .env' });
+
+  const SAMPLES = {
+    orderConfirm: () => ({
+      subject: '🧪 [TEST] Order Confirmed – RetroStylings',
+      html:    buildOrderConfirmEmail({
+        orderId: 'TEST123456789',
+        customerName: 'Muneeswaran R',
+        items: [
+          { name: 'Retro Cargo Pants', size: 'M', color: 'Black', quantity: 1, price: 1499 },
+          { name: 'Street Graphic Tee', size: 'L', color: 'White', quantity: 2, price: 699 },
+        ],
+        total: 2897, shipping: 0, discount: 0,
+        shippingAddress: '12, Anna Nagar, Chennai – 600040, Tamil Nadu',
+        phone: '+91 98765 43210',
+        paymentMethod: 'upi',
+        estimatedDelivery: '25–28 Jul 2026',
+      }),
+    }),
+    welcome: () => ({
+      subject: '🧪 [TEST] Welcome – RetroStylings',
+      html:    buildWelcomeEmail({ customerName: 'Muneeswaran R' }),
+    }),
+    shipped: () => ({
+      subject: '🧪 [TEST] Shipped – RetroStylings',
+      html:    buildOrderStatusEmail({
+        orderId: 'TEST123456789',
+        customerName: 'Muneeswaran R',
+        status: 'shipped',
+        trackingNumber: 'DXBIND123456789',
+        courierPartner: 'Delhivery',
+        estimatedDelivery: '25–28 Jul 2026',
+      }),
+    }),
+    payment: () => ({
+      subject: '🧪 [TEST] Payment Received – RetroStylings',
+      html:    buildPaymentSuccessEmail({
+        orderId: 'TEST123456789',
+        customerName: 'Muneeswaran R',
+        amount: 2897,
+        paymentMethod: 'upi',
+        transactionId: 'UPI202607201234',
+      }),
+    }),
+    refund: () => ({
+      subject: '🧪 [TEST] Refund Processed – RetroStylings',
+      html:    buildRefundEmail({
+        orderId: 'TEST123456789',
+        customerName: 'Muneeswaran R',
+        refundAmount: 2897,
+        refundMethod: 'UPI / Bank Account',
+      }),
+    }),
+  };
+
+  const builder = SAMPLES[template] || SAMPLES.orderConfirm;
+  const { subject, html } = builder();
+
+  try {
+    const result = await sendEmail({ to, subject, html, template: `test_${template}`, db });
+    res.json({ message: `Test email (${template}) sent to ${to}`, ...result });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ═════════════════════════════════════════════════════════════════════════════
+// ── AMAZON SP-API ROUTES (unchanged) ─────────────────────────────────────────
+// ═════════════════════════════════════════════════════════════════════════════
+
 let tokenCache = { token: null, expiresAt: 0 };
 
 async function getAccessToken() {
-  if (tokenCache.token && Date.now() < tokenCache.expiresAt - 30_000) {
-    return tokenCache.token;
-  }
-
+  if (tokenCache.token && Date.now() < tokenCache.expiresAt - 30_000) return tokenCache.token;
   const res = await axios.post('https://api.amazon.com/auth/o2/token', {
-    grant_type:    'refresh_token',
+    grant_type: 'refresh_token',
     refresh_token: SP_API.refreshToken,
-    client_id:     SP_API.clientId,
+    client_id: SP_API.clientId,
     client_secret: SP_API.clientSecret,
   });
-
-  tokenCache = {
-    token:     res.data.access_token,
-    expiresAt: Date.now() + res.data.expires_in * 1000,
-  };
+  tokenCache = { token: res.data.access_token, expiresAt: Date.now() + res.data.expires_in * 1000 };
   return tokenCache.token;
 }
 
-// ─── SP-API Helper ────────────────────────────────────────────────────────────
-async function spRequest(method, path, params = {}) {
+async function spRequest(method, spPath, params = {}) {
   const token = await getAccessToken();
-  const res = await axios({
-    method,
-    url: `${SP_API.endpoint}${path}`,
-    params,
-    headers: {
-      'x-amz-access-token': token,
-      'Content-Type': 'application/json',
-    },
-  });
-  return res.data;
+  const response = await axios({ method, url: `${SP_API.endpoint}${spPath}`, params,
+    headers: { 'x-amz-access-token': token, 'Content-Type': 'application/json' } });
+  return response.data;
 }
 
-// ─── Order Mapper ─────────────────────────────────────────────────────────────
+function mapAmazonStatus(status) {
+  const map = {
+    Pending: 'processing', Unshipped: 'packed',
+    PartiallyShipped: 'shipped', Shipped: 'shipped',
+    Canceled: 'cancelled', InvoiceUnconfirmed: 'processing', Unfulfillable: 'cancelled',
+  };
+  return map[status] || 'processing';
+}
+
 function mapAmazonOrder(amazonOrder, items = []) {
   return {
-    id: `AMAZON-${amazonOrder.AmazonOrderId}`,
-    amazonOrderId: amazonOrder.AmazonOrderId,
+    id: `AMAZON-${amazonOrder.AmazonOrderId}`, amazonOrderId: amazonOrder.AmazonOrderId,
     source: 'amazon',
     customerName:  amazonOrder.BuyerInfo?.BuyerName || 'Amazon Customer',
     customerEmail: amazonOrder.BuyerInfo?.BuyerEmail || '',
     total:         parseFloat(amazonOrder.OrderTotal?.Amount || 0),
     currency:      amazonOrder.OrderTotal?.CurrencyCode || 'INR',
     orderStatus:   mapAmazonStatus(amazonOrder.OrderStatus),
-    paymentStatus: amazonOrder.PaymentMethodDetails ? 'paid' : 'pending',
     paymentMethod: amazonOrder.PaymentMethod || 'amazon',
     shippingAddress: {
-      name:   amazonOrder.ShippingAddress?.Name || '',
-      street: amazonOrder.ShippingAddress?.AddressLine1 || '',
-      city:   amazonOrder.ShippingAddress?.City || '',
-      state:  amazonOrder.ShippingAddress?.StateOrRegion || '',
-      zip:    amazonOrder.ShippingAddress?.PostalCode || '',
+      name:    amazonOrder.ShippingAddress?.Name || '',
+      street:  amazonOrder.ShippingAddress?.AddressLine1 || '',
+      city:    amazonOrder.ShippingAddress?.City || '',
+      state:   amazonOrder.ShippingAddress?.StateOrRegion || '',
+      zip:     amazonOrder.ShippingAddress?.PostalCode || '',
       country: amazonOrder.ShippingAddress?.CountryCode || 'IN',
     },
     items: items.map(i => ({
-      productId:    i.ASIN,
-      name:         i.Title,
-      quantity:     i.QuantityOrdered,
-      price:        parseFloat(i.ItemPrice?.Amount || 0),
-      sku:          i.SellerSKU,
+      productId: i.ASIN, name: i.Title,
+      quantity: i.QuantityOrdered, price: parseFloat(i.ItemPrice?.Amount || 0), sku: i.SellerSKU,
     })),
     createdAt: admin.firestore.Timestamp.fromDate(new Date(amazonOrder.PurchaseDate)),
     updatedAt: admin.firestore.Timestamp.now(),
   };
 }
 
-function mapAmazonStatus(status) {
-  const map = {
-    'Pending':              'processing',
-    'Unshipped':            'packed',
-    'PartiallyShipped':     'shipped',
-    'Shipped':              'shipped',
-    'Canceled':             'cancelled',
-    'InvoiceUnconfirmed':   'processing',
-    'Unfulfillable':        'cancelled',
-  };
-  return map[status] || 'processing';
-}
-
-// ─── Sync Orders to Firestore ─────────────────────────────────────────────────
 async function syncOrdersToFirestore(amazonOrders) {
+  if (!db) return 0;
   const batch = db.batch();
   let count = 0;
-
   for (const ao of amazonOrders) {
     let items = [];
     try {
-      const itemsData = await spRequest('GET', `/orders/v0/orders/${ao.AmazonOrderId}/orderItems`, {
-        MarketplaceId: SP_API.marketplaceId,
-      });
-      items = itemsData.payload?.OrderItems || [];
-    } catch (err) {
-      console.warn(`Could not fetch items for ${ao.AmazonOrderId}:`, err.message);
-    }
-
+      const d = await spRequest('GET', `/orders/v0/orders/${ao.AmazonOrderId}/orderItems`,
+        { MarketplaceId: SP_API.marketplaceId });
+      items = d.payload?.OrderItems || [];
+    } catch (e) { console.warn(`Could not fetch items for ${ao.AmazonOrderId}:`, e.message); }
     const mapped = mapAmazonOrder(ao, items);
-    const ref = db.collection('orders').doc(mapped.id);
-    batch.set(ref, mapped, { merge: true });
+    batch.set(db.collection('orders').doc(mapped.id), mapped, { merge: true });
     count++;
   }
-
   await batch.commit();
-
-  await db.collection('settings').doc('amazonSync').set({
-    lastSyncAt: admin.firestore.Timestamp.now(),
-    lastOrderCount: count,
-  }, { merge: true });
-
+  if (db) await db.collection('settings').doc('amazonSync').set(
+    { lastSyncAt: admin.firestore.Timestamp.now(), lastOrderCount: count }, { merge: true });
   return count;
 }
-
-// ─── Routes: Amazon SP-API ────────────────────────────────────────────────────
 
 app.get('/api/amazon/status', async (req, res) => {
   try {
     await getAccessToken();
-    const syncDoc = await db.collection('settings').doc('amazonSync').get();
-    const syncData = syncDoc.exists ? syncDoc.data() : {};
-    res.json({
-      connected: true,
-      lastSyncAt: syncData.lastSyncAt?.toDate().toISOString() || null,
-      lastOrderCount: syncData.lastOrderCount || 0,
-      marketplaceId: SP_API.marketplaceId,
-      sellerId: SP_API.sellerId,
-    });
-  } catch (err) {
-    res.status(500).json({ connected: false, error: err.message });
-  }
+    const syncDoc  = db ? await db.collection('settings').doc('amazonSync').get() : null;
+    const syncData = syncDoc?.exists ? syncDoc.data() : {};
+    res.json({ connected: true, lastSyncAt: syncData.lastSyncAt?.toDate()?.toISOString() || null,
+      lastOrderCount: syncData.lastOrderCount || 0, marketplaceId: SP_API.marketplaceId });
+  } catch (err) { res.status(500).json({ connected: false, error: err.message }); }
 });
 
 app.get('/api/amazon/orders', async (req, res) => {
   try {
     const createdAfter = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-    const data = await spRequest('GET', '/orders/v0/orders', {
-      MarketplaceIds: SP_API.marketplaceId,
-      CreatedAfter:   createdAfter,
-    });
+    const data = await spRequest('GET', '/orders/v0/orders',
+      { MarketplaceIds: SP_API.marketplaceId, CreatedAfter: createdAfter });
     res.json(data.payload?.Orders || []);
-  } catch (err) {
-    console.error('Error fetching Amazon orders:', err.message);
-    res.status(500).json({ error: err.message });
-  }
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 app.get('/api/amazon/inventory', async (req, res) => {
   try {
     const data = await spRequest('GET', '/fba/inventory/v1/summaries', {
-      details:        true,
-      granularityType: 'Marketplace',
-      granularityId:   SP_API.marketplaceId,
-      marketplaceIds:  SP_API.marketplaceId,
+      details: true, granularityType: 'Marketplace',
+      granularityId: SP_API.marketplaceId, marketplaceIds: SP_API.marketplaceId,
     });
     res.json(data.payload?.inventorySummaries || []);
-  } catch (err) {
-    console.error('Error fetching inventory:', err.message);
-    res.status(500).json({ error: err.message });
-  }
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 app.post('/api/amazon/sync', async (req, res) => {
   try {
     const createdAfter = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-    const data = await spRequest('GET', '/orders/v0/orders', {
-      MarketplaceIds: SP_API.marketplaceId,
-      CreatedAfter:   createdAfter,
-    });
-    const orders = data.payload?.Orders || [];
-    const count = await syncOrdersToFirestore(orders);
+    const data = await spRequest('GET', '/orders/v0/orders',
+      { MarketplaceIds: SP_API.marketplaceId, CreatedAfter: createdAfter });
+    const count = await syncOrdersToFirestore(data.payload?.Orders || []);
     res.json({ success: true, syncedCount: count });
-  } catch (err) {
-    console.error('Sync error:', err.message);
-    res.status(500).json({ error: err.message });
-  }
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// ─── Routes: Email Notifications ─────────────────────────────────────────────
-
-/**
- * POST /api/email/order-confirm
- * Send order confirmation email to the customer.
- *
- * Body: { orderId, customerName, customerEmail, items, total, shippingAddress, phone, paymentMethod }
- */
-app.post('/api/email/order-confirm', async (req, res) => {
-  const { orderId, customerName, customerEmail, items, total, shippingAddress, phone, paymentMethod } = req.body;
-
-  if (!customerEmail) {
-    return res.status(400).json({ error: 'customerEmail is required' });
-  }
-
-  try {
-    const html = buildOrderConfirmEmail({ orderId, customerName, items, total, shippingAddress, phone, paymentMethod });
-    const result = await sendEmail({
-      to:      customerEmail,
-      subject: `✅ Order Confirmed – #${(orderId || '').slice(-6).toUpperCase()} | RetroStylings`,
-      html,
-    });
-    res.json(result);
-  } catch (err) {
-    console.error('Error sending order confirm email:', err.message);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-/**
- * POST /api/email/order-status
- * Send a status update email when admin advances order status.
- *
- * Body: { orderId, customerName, customerEmail, status, trackingNumber?, courierPartner?, estimatedDelivery?, items?, total? }
- */
-app.post('/api/email/order-status', async (req, res) => {
-  const {
-    orderId, customerName, customerEmail, status,
-    trackingNumber, courierPartner, estimatedDelivery,
-    items, total,
-  } = req.body;
-
-  if (!customerEmail) {
-    return res.status(400).json({ error: 'customerEmail is required' });
-  }
-  if (!status) {
-    return res.status(400).json({ error: 'status is required' });
-  }
-
-  const STATUS_SUBJECT = {
-    packed:           `📦 Order Packed – #${(orderId||'').slice(-6).toUpperCase()} | RetroStylings`,
-    shipped:          `🚚 Order Shipped – #${(orderId||'').slice(-6).toUpperCase()} | RetroStylings`,
-    out_for_delivery: `🛵 Out for Delivery – #${(orderId||'').slice(-6).toUpperCase()} | RetroStylings`,
-    delivered:        `✅ Delivered – #${(orderId||'').slice(-6).toUpperCase()} | RetroStylings`,
-    cancelled:        `❌ Order Cancelled – #${(orderId||'').slice(-6).toUpperCase()} | RetroStylings`,
-    return_approved:  `↩️ Return Approved – #${(orderId||'').slice(-6).toUpperCase()} | RetroStylings`,
-    refund_completed: `💸 Refund Completed – #${(orderId||'').slice(-6).toUpperCase()} | RetroStylings`,
-  };
-
-  try {
-    const html = buildStatusUpdateEmail({ orderId, customerName, status, trackingNumber, courierPartner, estimatedDelivery, items, total });
-    const result = await sendEmail({
-      to:      customerEmail,
-      subject: STATUS_SUBJECT[status] || `Order Update – #${(orderId||'').slice(-6).toUpperCase()} | RetroStylings`,
-      html,
-    });
-    res.json(result);
-  } catch (err) {
-    console.error('Error sending status email:', err.message);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-/**
- * GET /api/email/test
- * Send a test email to verify SMTP setup.
- * Usage: GET /api/email/test?to=your@email.com
- */
-app.get('/api/email/test', async (req, res) => {
-  const to = req.query.to || process.env.SMTP_USER;
-  if (!to) return res.status(400).json({ error: 'Provide ?to=email param or set SMTP_USER in .env' });
-
-  try {
-    const html = buildOrderConfirmEmail({
-      orderId:       'TEST123456',
-      customerName:  'Test Customer',
-      items: [
-        { name: 'Retro Cargo Pants', size: 'M', color: 'Black', quantity: 1, price: 1499, image: '' },
-        { name: 'Street Graphic Tee', size: 'L', color: 'White', quantity: 2, price: 699, image: '' },
-      ],
-      total:          2897,
-      shippingAddress: '12, Anna Nagar, Chennai - 600040',
-      phone:          '+91 98765 43210',
-      paymentMethod:  'cod',
-    });
-
-    const result = await sendEmail({
-      to,
-      subject: '🧪 Test Email – RetroStylings SMTP Check',
-      html,
-    });
-    res.json({ message: `Test email sent to ${to}`, ...result });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-/**
- * GET /api/email/status
- * Check SMTP credentials and run transporter verification.
- */
-app.get('/api/email/status', async (req, res) => {
-  try {
-    const smtpConfig = {
-      host: process.env.SMTP_HOST || 'smtp.hostinger.com',
-      port: parseInt(process.env.SMTP_PORT || '465'),
-      secure: process.env.SMTP_SECURE !== 'false',
-      user: process.env.SMTP_USER ? `${process.env.SMTP_USER.slice(0, 5)}***` : 'not set',
-      pass: process.env.SMTP_PASS ? '***' : 'not set',
-    };
-
-    const verifyPromise = new Promise((resolve, reject) => {
-      transporter.verify((err, success) => {
-        if (err) reject(err);
-        else resolve(success);
-      });
-    });
-
-    const success = await Promise.race([
-      verifyPromise,
-      new Promise((_, reject) => setTimeout(() => reject(new Error('SMTP connection verification timed out after 8s')), 8000))
-    ]);
-
-    res.json({ status: 'SMTP server is connected successfully', config: smtpConfig, success });
-  } catch (err) {
-    const smtpConfig = {
-      host: process.env.SMTP_HOST || 'smtp.hostinger.com',
-      port: parseInt(process.env.SMTP_PORT || '465'),
-      secure: process.env.SMTP_SECURE !== 'false',
-      user: process.env.SMTP_USER ? `${process.env.SMTP_USER.slice(0, 5)}***` : 'not set',
-      pass: process.env.SMTP_PASS ? '***' : 'not set',
-    };
-    res.status(500).json({ status: 'SMTP connection failed', error: err.message, config: smtpConfig });
-  }
-});
-
-
-// ─── Cron Job: Auto-sync every 15 minutes ─────────────────────────────────────
+// ─── Cron: Amazon auto-sync every 15 minutes ──────────────────────────────────
 cron.schedule('*/15 * * * *', async () => {
-  console.log('[CRON] Running Amazon order auto-sync...');
+  console.log('[CRON] Running Amazon order auto-sync…');
   try {
     const createdAfter = new Date(Date.now() - 20 * 60 * 1000).toISOString();
-    const data = await spRequest('GET', '/orders/v0/orders', {
-      MarketplaceIds: SP_API.marketplaceId,
-      CreatedAfter:   createdAfter,
-    });
+    const data = await spRequest('GET', '/orders/v0/orders',
+      { MarketplaceIds: SP_API.marketplaceId, CreatedAfter: createdAfter });
     const orders = data.payload?.Orders || [];
     if (orders.length > 0) {
       const count = await syncOrdersToFirestore(orders);
@@ -815,13 +698,16 @@ cron.schedule('*/15 * * * *', async () => {
     } else {
       console.log('[CRON] No new Amazon orders.');
     }
-  } catch (err) {
-    console.error('[CRON] Auto-sync failed:', err.message);
-  }
+  } catch (err) { console.error('[CRON] Auto-sync failed:', err.message); }
 });
+
+// ─── Health check ─────────────────────────────────────────────────────────────
+app.get('/health', (_req, res) => res.json({ status: 'ok', ts: new Date().toISOString() }));
 
 // ─── Start Server ─────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
-  console.log(`✅ RetroStylings Backend running on http://localhost:${PORT}`);
+  console.log(`\n✅ RetroStylings Backend  →  http://localhost:${PORT}`);
+  console.log(`   Email sender: ${process.env.EMAIL_FROM || 'RetroStylings <retrostylings@retrostylings.in>'}`);
+  console.log(`   Environment:  ${process.env.NODE_ENV || 'development'}\n`);
 });
