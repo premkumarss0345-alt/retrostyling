@@ -130,13 +130,17 @@ const SP_API = {
   endpoint:      'https://sellingpartnerapi-eu.amazon.com',
 };
 
-// ─── SMTP startup verification ────────────────────────────────────────────────
-verifySmtp().then(({ connected, error }) => {
+// ─── Email Service startup verification ───────────────────────────────────────
+verifySmtp().then(({ connected, service, error }) => {
   if (connected) {
-    console.log(`✅ SMTP connected: ${process.env.SMTP_HOST || 'smtp.hostinger.com'}:${process.env.SMTP_PORT || 465}`);
+    if (service === 'resend') {
+      console.log('✅ Email Service active: Resend HTTP API (HTTPS bypass active)');
+    } else {
+      console.log(`✅ Email Service active: Hostinger SMTP (${process.env.SMTP_HOST || 'smtp.hostinger.com'}:${process.env.SMTP_PORT || 465})`);
+    }
   } else {
-    console.warn(`⚠️  SMTP connection failed: ${error}`);
-    console.warn('   Emails will be queued/retried but may not deliver until SMTP is fixed.');
+    console.warn(`⚠️  Email Service initialization failed: ${error}`);
+    console.warn('   Emails will be queued/retried in Firestore but may not deliver until connection is fixed.');
   }
 });
 
@@ -473,17 +477,25 @@ app.get('/api/email/logs', rateLimit, async (req, res) => {
  * GET /api/email/status
  */
 app.get('/api/email/status', async (req, res) => {
-  const { connected, error } = await verifySmtp();
+  const { connected, service, error } = await verifySmtp();
+  const activeService = service || (process.env.RESEND_API_KEY ? 'resend' : 'smtp');
+  
   const config = {
-    host:   process.env.SMTP_HOST   || 'smtp.hostinger.com',
-    port:   process.env.SMTP_PORT   || '465',
-    secure: process.env.SMTP_SECURE !== 'false',
-    user:   process.env.SMTP_USER   ? `${process.env.SMTP_USER.slice(0, 6)}***` : 'not set',
-    from:   process.env.EMAIL_FROM  || 'not set',
+    activeService,
+    resend: {
+      hasApiKey: !!process.env.RESEND_API_KEY,
+    },
+    smtp: {
+      host:   process.env.SMTP_HOST   || 'smtp.hostinger.com',
+      port:   process.env.SMTP_PORT   || '465',
+      secure: process.env.SMTP_SECURE !== 'false',
+      user:   process.env.SMTP_USER   ? `${process.env.SMTP_USER.slice(0, 6)}***` : 'not set',
+    },
+    from: process.env.EMAIL_FROM || 'not set',
   };
 
   if (connected) {
-    res.json({ connected: true, config });
+    res.json({ connected: true, activeService, config });
   } else {
     res.status(500).json({ connected: false, error, config });
   }
