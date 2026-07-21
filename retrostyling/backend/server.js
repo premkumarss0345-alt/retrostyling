@@ -47,7 +47,12 @@ import { buildOrderStatusEmail, getStatusSubject } from './lib/mail/templates/or
 import {
   buildReturnRequestedEmail,
   buildReturnApprovedEmail,
+  buildReturnRejectedEmail,
+  buildReturnPickedUpEmail,
+  buildReturnReceivedEmail,
+  buildReturnRefundInitiatedEmail,
   buildRefundEmail,
+  buildAdminReturnAlertEmail,
 }                                         from './lib/mail/templates/returns.js';
 import { buildContactReplyEmail }         from './lib/mail/templates/contact.js';
 import { buildNewsletterConfirmEmail, buildPromoEmail } from './lib/mail/templates/newsletter.js';
@@ -407,6 +412,105 @@ app.post('/api/email/refund', rateLimit, async (req, res) => {
     orderId,
   });
 });
+
+// ── Return Rejected ───────────────────────────────────────────────────────────
+/**
+ * POST /api/email/return-rejected
+ * Body: { orderId, customerName, customerEmail, rejectionReason?, rejectionNote? }
+ */
+app.post('/api/email/return-rejected', rateLimit, async (req, res) => {
+  const { customerEmail, orderId } = req.body;
+  if (!requireFields(res, req.body, ['customerEmail', 'orderId'])) return;
+
+  const shortId = orderId?.slice(-8)?.toUpperCase();
+  await handleEmailRoute(res, {
+    to:       customerEmail,
+    subject:  `❌ Return Request Update – #${shortId} | RetroStylings`,
+    html:     buildReturnRejectedEmail(req.body),
+    template: 'returnRejected',
+    orderId,
+  });
+});
+
+// ── Return Picked Up ──────────────────────────────────────────────────────────
+/**
+ * POST /api/email/return-picked-up
+ * Body: { orderId, customerName, customerEmail, courierPartner?, trackingNumber? }
+ */
+app.post('/api/email/return-picked-up', rateLimit, async (req, res) => {
+  const { customerEmail, orderId } = req.body;
+  if (!requireFields(res, req.body, ['customerEmail', 'orderId'])) return;
+
+  const shortId = orderId?.slice(-8)?.toUpperCase();
+  await handleEmailRoute(res, {
+    to:       customerEmail,
+    subject:  `📦 Return Item Picked Up – #${shortId} | RetroStylings`,
+    html:     buildReturnPickedUpEmail(req.body),
+    template: 'returnPickedUp',
+    orderId,
+  });
+});
+
+// ── Return Received ───────────────────────────────────────────────────────────
+/**
+ * POST /api/email/return-received
+ * Body: { orderId, customerName, customerEmail, inspectionNote? }
+ */
+app.post('/api/email/return-received', rateLimit, async (req, res) => {
+  const { customerEmail, orderId } = req.body;
+  if (!requireFields(res, req.body, ['customerEmail', 'orderId'])) return;
+
+  const shortId = orderId?.slice(-8)?.toUpperCase();
+  await handleEmailRoute(res, {
+    to:       customerEmail,
+    subject:  `🏬 Returned Product Received – #${shortId} | RetroStylings`,
+    html:     buildReturnReceivedEmail(req.body),
+    template: 'returnReceived',
+    orderId,
+  });
+});
+
+// ── Refund Initiated ──────────────────────────────────────────────────────────
+/**
+ * POST /api/email/refund-initiated
+ * Body: { orderId, customerName, customerEmail, refundAmount, refundMethod?, estimatedDays? }
+ */
+app.post('/api/email/refund-initiated', rateLimit, async (req, res) => {
+  const { customerEmail, orderId } = req.body;
+  if (!requireFields(res, req.body, ['customerEmail', 'orderId'])) return;
+
+  const shortId = orderId?.slice(-8)?.toUpperCase();
+  await handleEmailRoute(res, {
+    to:       customerEmail,
+    subject:  `💳 Refund Initiated – #${shortId} | RetroStylings`,
+    html:     buildReturnRefundInitiatedEmail(req.body),
+    template: 'refundInitiated',
+    orderId,
+  });
+});
+
+// ── Admin Return Alert ────────────────────────────────────────────────────────
+/**
+ * POST /api/email/admin-return-alert
+ * Body: { orderId, customerName, customerEmail, productName?, reason?, description? }
+ */
+app.post('/api/email/admin-return-alert', rateLimit, async (req, res) => {
+  const adminEmail = process.env.ADMIN_EMAIL || process.env.EMAIL_USER;
+  if (!adminEmail) {
+    return res.status(400).json({ error: 'ADMIN_EMAIL or EMAIL_USER not configured' });
+  }
+
+  const { orderId } = req.body;
+  const shortId = orderId?.slice(-8)?.toUpperCase() || '------';
+  await handleEmailRoute(res, {
+    to:       adminEmail,
+    subject:  `🚨 [Admin Alert] New Return Request – #${shortId}`,
+    html:     buildAdminReturnAlertEmail(req.body),
+    template: 'adminReturnAlert',
+    orderId,
+  });
+});
+
 
 // ── Retry a Failed Email ───────────────────────────────────────────────────────
 /**

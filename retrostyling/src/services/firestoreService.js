@@ -504,6 +504,25 @@ export const orderService = {
     const existing = snap.exists() ? snap.data() : {};
     const history = existing.statusHistory || [];
     history.push({ status, timestamp: new Date().toISOString() });
+
+    // Restore stock if order is cancelled
+    if (status === 'cancelled' && existing.orderStatus !== 'cancelled' && Array.isArray(existing.items)) {
+      const batch = writeBatch(db);
+      for (const item of existing.items) {
+        if (item.productId) {
+          const pRef = doc(db, 'products', item.productId);
+          batch.update(pRef, { stock: increment(item.quantity || 1) });
+        }
+      }
+      batch.update(orderRef, {
+        orderStatus: status,
+        statusHistory: history,
+        updatedAt: serverTimestamp(),
+      });
+      await batch.commit();
+      return;
+    }
+
     await updateDoc(orderRef, {
       orderStatus: status,
       statusHistory: history,
@@ -642,10 +661,26 @@ export const returnService = {
 
   /** Admin: update return status */
   async updateStatus(returnId, status) {
+    const returnRef = doc(db, 'returns', returnId);
+    const snap = await getDoc(returnRef);
+    const retData = snap.exists() ? snap.data() : {};
+
     const updates = { status, updatedAt: serverTimestamp() };
     if (status === 'refund_initiated') updates.refundStatus = 'initiated';
     if (status === 'refund_completed') updates.refundStatus = 'completed';
-    await updateDoc(doc(db, 'returns', returnId), updates);
+
+    // Auto-restock returned product on receipt or refund completion
+    if ((status === 'received' || status === 'refund_completed') && !retData.restocked && retData.productId) {
+      updates.restocked = true;
+      try {
+        const pRef = doc(db, 'products', retData.productId);
+        await updateDoc(pRef, { stock: increment(1) });
+      } catch (e) {
+        console.warn('Could not restock returned product:', e.message);
+      }
+    }
+
+    await updateDoc(returnRef, updates);
   },
 };
 

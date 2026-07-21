@@ -85,4 +85,105 @@ const sendOrderEmail = async (order, items, userEmail, isAdmin = false) => {
     }
 };
 
-module.exports = { sendOrderEmail };
+const sendReturnStatusEmail = async (order, userEmail, status, details = {}, isAdmin = false) => {
+    if (!process.env.EMAIL_USER || process.env.EMAIL_USER.includes('your-email')) {
+        console.warn('⚠️ Email not configured. Skipping return email send.');
+        return;
+    }
+
+    const orderId = order.id || order.orderId;
+    const targetEmail = isAdmin ? (process.env.ADMIN_EMAIL || process.env.EMAIL_USER) : userEmail;
+    if (!targetEmail) return;
+
+    let subject = `Return Update - RETROSTYLINGS #${orderId}`;
+    let title = 'Return Status Update';
+    let bodyMessage = `The return status for order #${orderId} has been updated to: <strong>${status}</strong>.`;
+
+    switch (status) {
+        case 'pending':
+        case 'return_requested':
+            subject = isAdmin ? `🚨 New Return Requested - #${orderId}` : `Return Request Received - RETROSTYLINGS #${orderId}`;
+            title = isAdmin ? '🚨 New Return Request Submitted' : 'Return Request Received ↩️';
+            bodyMessage = isAdmin 
+                ? `Customer (${userEmail}) requested return for order #${orderId}. Reason: <strong>${details.reason || 'N/A'}</strong>.`
+                : `We received your return request for order #${orderId}. Our team will review it within 24–48 hours.`;
+            break;
+        case 'approved':
+        case 'return_approved':
+            subject = `Return Request Approved - RETROSTYLINGS #${orderId}`;
+            title = 'Return Approved ✅';
+            bodyMessage = `Your return request for order #${orderId} has been approved. ${details.pickupDate ? `<br/><strong>Pickup Date:</strong> ${details.pickupDate}` : ''}`;
+            break;
+        case 'rejected':
+        case 'return_rejected':
+            subject = `Return Request Update - RETROSTYLINGS #${orderId}`;
+            title = 'Return Request Rejected ❌';
+            bodyMessage = `We reviewed your return request for order #${orderId}. Unfortunately, we cannot process this return. ${details.rejectionReason ? `<br/><strong>Reason:</strong> ${details.rejectionReason}` : ''}`;
+            break;
+        case 'pickup_scheduled':
+            subject = `Return Pickup Scheduled - RETROSTYLINGS #${orderId}`;
+            title = 'Pickup Scheduled 🚚';
+            bodyMessage = `Pickup agent will arrive to pick up returned items for order #${orderId}. ${details.pickupDate ? `<br/><strong>Scheduled Date:</strong> ${details.pickupDate}` : ''}`;
+            break;
+        case 'return_picked_up':
+            subject = `Return Item Picked Up - RETROSTYLINGS #${orderId}`;
+            title = 'Item Picked Up 📦';
+            bodyMessage = `Your return package for order #${orderId} has been picked up by our courier.`;
+            break;
+        case 'received':
+        case 'return_received':
+            subject = `Returned Item Received - RETROSTYLINGS #${orderId}`;
+            title = 'Returned Product Received 🏬';
+            bodyMessage = `We received your returned item for order #${orderId} at our warehouse. Quality check is in progress.`;
+            break;
+        case 'refund_initiated':
+            subject = `Refund Initiated - RETROSTYLINGS #${orderId}`;
+            title = 'Refund Initiated 💳';
+            bodyMessage = `Quality check passed! Refund of <strong>₹${Number(details.refundAmount || order.total || 0).toFixed(2)}</strong> has been initiated.`;
+            break;
+        case 'refund_completed':
+        case 'refunded':
+            subject = `Refund Processed - RETROSTYLINGS #${orderId}`;
+            title = 'Refund Processed Successfully 💰';
+            bodyMessage = `Your refund of <strong>₹${Number(details.refundAmount || order.total || 0).toFixed(2)}</strong> for order #${orderId} has been completed.`;
+            break;
+    }
+
+    const htmlContent = `
+        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
+            <div style="background: #000; color: #fff; padding: 20px; text-align: center;">
+                <h1 style="margin: 0; letter-spacing: 2px;">RETROSTYLINGS</h1>
+            </div>
+            
+            <div style="padding: 30px; border: 1px solid #eee;">
+                <h2>${title}</h2>
+                <p>${bodyMessage}</p>
+                
+                <div style="background: #fdfdfd; padding: 15px; border: 1px dashed #ccc; margin-top: 20px;">
+                    <p style="margin: 0;"><strong>Order ID:</strong> #${orderId}</p>
+                    <p style="margin: 5px 0 0;"><strong>Status:</strong> ${status}</p>
+                    ${details.note ? `<p style="margin: 5px 0 0;"><strong>Note:</strong> ${details.note}</p>` : ''}
+                </div>
+            </div>
+            
+            <div style="padding: 20px; text-align: center; font-size: 12px; color: #999;">
+                &copy; 2026 RETROSTYLINGS | All Rights Reserved
+            </div>
+        </div>
+    `;
+
+    try {
+        await transporter.sendMail({
+            from: `"RETROSTYLINGS" <${process.env.EMAIL_USER}>`,
+            to: targetEmail,
+            subject: subject,
+            html: htmlContent
+        });
+        console.log(`✅ Return email (${status}) sent to ${targetEmail}`);
+    } catch (err) {
+        console.error('❌ Return email failed:', err.message);
+    }
+};
+
+module.exports = { sendOrderEmail, sendReturnStatusEmail };
+

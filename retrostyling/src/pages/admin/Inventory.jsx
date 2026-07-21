@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import AdminLayout from './AdminLayout';
-import { productService } from '../../services/firestoreService';
+import { productService, orderService } from '../../services/firestoreService';
 import {
   Package, AlertTriangle, TrendingDown, Plus, Search,
   Download, ArrowUpDown, Edit2, Trash2, RefreshCw,
@@ -28,6 +28,7 @@ const itemVariants = { hidden: { opacity: 0, y: 16 }, visible: { opacity: 1, y: 
 
 const Inventory = () => {
   const [products, setProducts] = useState([]);
+  const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('all');
@@ -43,8 +44,12 @@ const Inventory = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const data = await productService.getAllAdmin();
-      setProducts(data);
+      const [prodsData, ordersData] = await Promise.all([
+        productService.getAllAdmin(),
+        orderService.getAll().catch(() => [])
+      ]);
+      setProducts(prodsData || []);
+      setOrders(ordersData || []);
     } catch (err) {
       console.error('Inventory load error:', err);
     } finally {
@@ -59,7 +64,7 @@ const Inventory = () => {
       alert('Please enter a valid quantity');
       return;
     }
-    const currentVal = showAdjust.currentStock;
+    const currentVal = showAdjust.available;
     const newVal = adjustMode === 'add' ? currentVal + qty : Math.max(0, currentVal - qty);
     try {
       const full = await productService.getById(showAdjust.id);
@@ -75,22 +80,44 @@ const Inventory = () => {
     }
   };
 
+  // Build map of reserved stock from active customer orders
+  const reservedStockMap = {};
+  const activeStatuses = ['processing', 'packed', 'shipped', 'out_for_delivery', 'pending'];
+
+  orders.forEach(order => {
+    if (activeStatuses.includes(order.orderStatus)) {
+      (order.items || []).forEach(item => {
+        const key = item.productId || item.name;
+        if (key) {
+          reservedStockMap[key] = (reservedStockMap[key] || 0) + (Number(item.quantity) || 1);
+        }
+      });
+    }
+  });
+
   const inventoryItems = products.map(prod => {
     const threshold = prod.low_stock_threshold || 5;
+    const reserved = (reservedStockMap[prod.id] || reservedStockMap[prod.name]) || 0;
+    
+    // Net available stock on hand
+    const available = Math.max(0, prod.stock || 0);
+    // Total current stock (Physical total = available + active reserved)
+    const currentStock = available + reserved;
+
     let status = 'ok';
-    if (prod.stock === 0) status = 'out';
-    else if (prod.stock <= 3) status = 'critical';
-    else if (prod.stock <= threshold) status = 'low';
+    if (available === 0) status = 'out';
+    else if (available <= 3) status = 'critical';
+    else if (available <= threshold) status = 'low';
 
     return {
       id: prod.id,
       sku: prod.sku || 'N/A',
       name: prod.name,
-      category: prod.categoryName || 'General',
+      category: prod.categoryName || prod.category || 'General',
       brand: prod.brand || 'RetroStylings',
-      currentStock: prod.stock || 0,
-      reserved: 0,
-      available: prod.stock || 0,
+      currentStock,
+      reserved,
+      available,
       reorderPoint: threshold,
       cost: prod.cost_price || 0,
       status

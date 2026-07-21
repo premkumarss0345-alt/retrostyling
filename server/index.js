@@ -53,7 +53,7 @@ pool.getConnection((err, connection) => {
 // Use promise-based wrapper or just use the pool directly
 const db = pool.promise();
 const { authenticateToken, adminOnly } = require('./middleware/auth');
-const { sendOrderEmail } = require('./utils/email');
+const { sendOrderEmail, sendReturnStatusEmail } = require('./utils/email');
 
 // Validate essential environment variables
 const requiredEnv = ['DB_HOST', 'DB_USER', 'DB_PASS', 'DB_NAME'];
@@ -749,6 +749,78 @@ app.put('/api/admin/orders/:id/status', authenticateToken, adminOnly, async (req
     await db.query('UPDATE orders SET order_status = ? WHERE id = ?', [status, req.params.id]);
     res.json({ message: 'Order status updated' });
   } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- RETURN PRODUCT STATUS MAIL SYSTEM ROUTES ---
+
+// Directly send return status email
+app.post('/api/email/return-status', rateLimitStore ? (req, res, next) => next() : (req, res, next) => next(), async (req, res) => {
+  const { orderId, userEmail, status, details } = req.body;
+  if (!orderId || !userEmail || !status) {
+    return res.status(400).json({ error: 'Missing required fields: orderId, userEmail, status' });
+  }
+
+  try {
+    const order = { id: orderId, orderId };
+    await sendReturnStatusEmail(order, userEmail, status, details || {}, false);
+    res.json({ message: `Return status email (${status}) sent successfully to ${userEmail}` });
+  } catch (err) {
+    console.error('Return email error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// User submits return request
+app.post('/api/returns/request', authenticateToken, async (req, res) => {
+  const { orderId, productId, reason, description } = req.body;
+  const userId = req.user.id;
+  const userEmail = req.user.email;
+
+  if (!orderId || !reason) {
+    return res.status(400).json({ error: 'orderId and reason are required' });
+  }
+
+  try {
+    // Update order status if table supports return_status or order_status
+    await db.query('UPDATE orders SET order_status = "return_requested" WHERE id = ? AND user_id = ?', [orderId, userId]);
+
+    const order = { id: orderId, orderId };
+    const details = { reason, description };
+
+    // Send customer confirmation email & admin alert email
+    sendReturnStatusEmail(order, userEmail, 'return_requested', details, false);
+    sendReturnStatusEmail(order, userEmail, 'return_requested', details, true);
+
+    res.json({ message: 'Return request submitted successfully', orderId });
+  } catch (err) {
+    console.error('Return request error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Admin updates return product status
+app.put('/api/admin/returns/:id/status', authenticateToken, adminOnly, async (req, res) => {
+  const { status, pickupDate, rejectionReason, refundAmount, note, userEmail } = req.body;
+  const orderId = req.params.id;
+
+  if (!status) {
+    return res.status(400).json({ error: 'status is required' });
+  }
+
+  try {
+    await db.query('UPDATE orders SET order_status = ? WHERE id = ?', [status, orderId]);
+
+    if (userEmail) {
+      const order = { id: orderId, orderId };
+      const details = { pickupDate, rejectionReason, refundAmount, note };
+      sendReturnStatusEmail(order, userEmail, status, details, false);
+    }
+
+    res.json({ message: `Return status updated to ${status}` });
+  } catch (err) {
+    console.error('Return status update error:', err);
     res.status(500).json({ error: err.message });
   }
 });

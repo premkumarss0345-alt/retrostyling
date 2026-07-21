@@ -189,3 +189,204 @@ export function buildRefundEmail({ orderId, customerName, refundAmount, refundMe
     bodyHtml:    body,
   });
 }
+
+export function buildReturnRejectedEmail({ orderId, customerName, rejectionReason, rejectionNote }) {
+  const firstName = customerName?.split(' ')[0] || 'there';
+  const shortId   = orderId ? `#${orderId.slice(-8).toUpperCase()}` : '#------';
+
+  const body = `
+    <p style="font-size:15px;color:#888888;margin:0 0 24px;">Hi ${escHtml(firstName)},</p>
+
+    <h1 style="font-size:24px;font-weight:800;color:#000000;margin:0 0 8px;">
+      Return Request Update ❌
+    </h1>
+    <p style="font-size:15px;color:#888888;margin:0 0 28px;line-height:1.7;">
+      We reviewed your return request for order ${shortId}. Unfortunately, we are unable to accept this return request based on our return policy guidelines.
+    </p>
+
+    <!-- Rejection card -->
+    <div style="background-color:#FEF2F2;border:1px solid #FECACA;border-radius:8px;padding:20px 22px;margin-bottom:24px;">
+      <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
+        <tr>
+          <td>
+            <div style="font-size:10px;color:#DC2626;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:4px;">Order</div>
+            <div style="font-size:20px;font-weight:800;color:#000000;">${shortId}</div>
+          </td>
+          <td align="right" style="vertical-align:middle;">${statusBadge('return_rejected')}</td>
+        </tr>
+      </table>
+      ${rejectionReason ? `
+      <div style="margin-top:14px;padding-top:14px;border-top:1px solid #FECACA;">
+        <div style="font-size:11px;color:#DC2626;margin-bottom:4px;text-transform:uppercase;letter-spacing:1px;">Reason</div>
+        <div style="font-size:14px;font-weight:600;color:#222222;">${escHtml(rejectionReason)}</div>
+      </div>` : ''}
+      ${rejectionNote ? `
+      <div style="margin-top:8px;font-size:13px;color:#555555;line-height:1.6;">
+        ${escHtml(rejectionNote)}
+      </div>` : ''}
+    </div>
+
+    <p style="font-size:14px;color:#666666;line-height:1.6;margin-bottom:24px;">
+      If you believe this was a mistake or have additional information to provide, please contact our support team at <a href="mailto:support@retrostylings.in" style="color:#000;font-weight:600;">support@retrostylings.in</a>.
+    </p>
+
+    ${ctaButton('💬 Contact Support →', `${BRAND.website}/contact`)}`;
+
+  return emailShell({
+    title:       `Return Request Update – ${shortId} | RetroStylings`,
+    previewText: `Update regarding your return request for ${shortId}.`,
+    bodyHtml:    body,
+  });
+}
+
+export function buildReturnPickedUpEmail({ orderId, customerName, courierPartner, trackingNumber }) {
+  const firstName = customerName?.split(' ')[0] || 'there';
+  const shortId   = orderId ? `#${orderId.slice(-8).toUpperCase()}` : '#------';
+
+  const body = `
+    <p style="font-size:15px;color:#888888;margin:0 0 24px;">Hi ${escHtml(firstName)},</p>
+
+    <h1 style="font-size:24px;font-weight:800;color:#000000;margin:0 0 8px;">
+      Return Product Picked Up 📦
+    </h1>
+    <p style="font-size:15px;color:#888888;margin:0 0 28px;line-height:1.7;">
+      Your return package for order ${shortId} has been picked up by ${escHtml(courierPartner || 'our courier partner')} and is on its way to our fulfillment center.
+    </p>
+
+    <div style="background-color:#F5F3FF;border:1px solid #DDD6FE;border-radius:8px;padding:20px 22px;margin-bottom:24px;">
+      <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
+        <tr>
+          <td>
+            <div style="font-size:10px;color:#7C3AED;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:4px;">Order</div>
+            <div style="font-size:20px;font-weight:800;color:#000000;">${shortId}</div>
+          </td>
+          <td align="right" style="vertical-align:middle;">${statusBadge('return_picked_up')}</td>
+        </tr>
+      </table>
+      ${trackingNumber ? `
+      <div style="margin-top:14px;padding-top:14px;border-top:1px solid #DDD6FE;">
+        <div style="font-size:11px;color:#7C3AED;margin-bottom:4px;text-transform:uppercase;letter-spacing:1px;">Tracking Number</div>
+        <div style="font-size:16px;font-weight:700;color:#000000;">${escHtml(trackingNumber)}</div>
+      </div>` : ''}
+    </div>
+
+    ${ctaButton('📦 Track Return →', `${BRAND.website}/orders/${orderId}`)}`;
+
+  return emailShell({
+    title:       `Return Picked Up – ${shortId} | RetroStylings`,
+    previewText: `Your return item for order ${shortId} has been picked up.`,
+    bodyHtml:    body,
+  });
+}
+
+export function buildReturnReceivedEmail({ orderId, customerName, inspectionNote }) {
+  const firstName = customerName?.split(' ')[0] || 'there';
+  const shortId   = orderId ? `#${orderId.slice(-8).toUpperCase()}` : '#------';
+
+  const body = `
+    <p style="font-size:15px;color:#888888;margin:0 0 24px;">Hi ${escHtml(firstName)},</p>
+
+    <h1 style="font-size:24px;font-weight:800;color:#000000;margin:0 0 8px;">
+      Returned Product Received 🏬
+    </h1>
+    <p style="font-size:15px;color:#888888;margin:0 0 28px;line-height:1.7;">
+      We have received your returned item for order ${shortId} at our warehouse. Our team is conducting a quick quality check before releasing your refund.
+    </p>
+
+    <div style="background-color:#F5F3FF;border:1px solid #DDD6FE;border-radius:8px;padding:20px 22px;margin-bottom:24px;">
+      <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
+        <tr>
+          <td>
+            <div style="font-size:10px;color:#6D28D9;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:4px;">Order</div>
+            <div style="font-size:20px;font-weight:800;color:#000000;">${shortId}</div>
+          </td>
+          <td align="right" style="vertical-align:middle;">${statusBadge('return_received')}</td>
+        </tr>
+      </table>
+      ${inspectionNote ? `
+      <div style="margin-top:14px;padding-top:14px;border-top:1px solid #DDD6FE;font-size:13px;color:#333;">
+        ${escHtml(inspectionNote)}
+      </div>` : ''}
+    </div>
+
+    ${ctaButton('View Order →', `${BRAND.website}/orders/${orderId}`)}`;
+
+  return emailShell({
+    title:       `Returned Item Received – ${shortId} | RetroStylings`,
+    previewText: `We received your returned product for ${shortId} and quality check is in progress.`,
+    bodyHtml:    body,
+  });
+}
+
+export function buildReturnRefundInitiatedEmail({ orderId, customerName, refundAmount, refundMethod, estimatedDays }) {
+  const firstName = customerName?.split(' ')[0] || 'there';
+  const shortId   = orderId ? `#${orderId.slice(-8).toUpperCase()}` : '#------';
+
+  const body = `
+    <p style="font-size:15px;color:#888888;margin:0 0 24px;">Hi ${escHtml(firstName)},</p>
+
+    <h1 style="font-size:24px;font-weight:800;color:#000000;margin:0 0 8px;">
+      Refund Initiated 💳
+    </h1>
+    <p style="font-size:15px;color:#888888;margin:0 0 28px;line-height:1.7;">
+      Great news! Quality check passed and your refund for order ${shortId} has been initiated.
+    </p>
+
+    <div style="background-color:#FFFBEB;border:1px solid #FDE68A;border-radius:8px;padding:20px 22px;margin-bottom:24px;">
+      <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
+        <tr>
+          <td>
+            <div style="font-size:10px;color:#B45309;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:4px;">Refund Amount</div>
+            <div style="font-size:26px;font-weight:800;color:#B45309;">₹${Number(refundAmount || 0).toLocaleString('en-IN')}</div>
+          </td>
+          <td align="right" style="vertical-align:middle;">${statusBadge('refund_initiated')}</td>
+        </tr>
+      </table>
+      <div style="margin-top:14px;padding-top:14px;border-top:1px solid #FDE68A;font-size:13px;color:#444;">
+        💳 Mode: <strong>${escHtml(refundMethod || 'Original Payment Method')}</strong><br/>
+        ⏱️ Estimated processing time: <strong>${escHtml(estimatedDays || '3–5 business days')}</strong>
+      </div>
+    </div>
+
+    ${ctaButton('🛍️ View Store →', `${BRAND.website}/shop`)}`;
+
+  return emailShell({
+    title:       `Refund Initiated – ${shortId} | RetroStylings`,
+    previewText: `Refund of ₹${Number(refundAmount||0).toLocaleString('en-IN')} for ${shortId} has been initiated.`,
+    bodyHtml:    body,
+  });
+}
+
+export function buildAdminReturnAlertEmail({ orderId, customerName, customerEmail, productName, reason, description }) {
+  const shortId = orderId ? `#${orderId.slice(-8).toUpperCase()}` : '#------';
+
+  const body = `
+    <h1 style="font-size:22px;font-weight:800;color:#000000;margin:0 0 8px;">
+      🚨 New Return Request Received
+    </h1>
+    <p style="font-size:14px;color:#666666;margin:0 0 20px;">
+      A customer has submitted a return request. Details are below:
+    </p>
+
+    <div style="background-color:#FFFBEB;border:1px solid #FDE68A;border-radius:8px;padding:18px 20px;margin-bottom:24px;">
+      <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="font-size:13px;color:#333;">
+        ${infoRow('Order ID', `<strong>${shortId}</strong>`)}
+        ${infoRow('Customer', `${escHtml(customerName || 'N/A')} (${escHtml(customerEmail || 'N/A')})`)}
+        ${productName ? infoRow('Product', escHtml(productName)) : ''}
+        ${reason ? infoRow('Reason', `<strong>${escHtml(reason)}</strong>`) : ''}
+      </table>
+      ${description ? `
+      <div style="margin-top:12px;padding-top:12px;border-top:1px solid #FDE68A;font-size:13px;color:#555;">
+        <strong>Description:</strong> ${escHtml(description)}
+      </div>` : ''}
+    </div>
+
+    ${ctaButton('🛠️ Manage Return in Admin Panel →', `${BRAND.website}/admin/returns`)}`;
+
+  return emailShell({
+    title:       `[Admin Alert] Return Requested – ${shortId}`,
+    previewText: `New return request received for order ${shortId}`,
+    bodyHtml:    body,
+  });
+}
+
