@@ -23,28 +23,21 @@ const Footer = () => {
                     <h3>INFORMATION</h3>
                     <ul>
                         <li><Link to="/about">About Company</Link></li>
-                        <li><a href="#">Payment Type</a></li>
-                        <li><a href="#">Award Winning</a></li>
-                        <li><a href="#">World Media Partner</a></li>
-                        <li><a href="#">Become an Agent</a></li>
+                        <li><Link to="/payment-type">Payment Type</Link></li>
                     </ul>
                 </div>
 
                 <div className="footer-links">
                     <h3>CATEGORY</h3>
                     <ul>
-                        <li><a href="#">Handbags & Wallets</a></li>
+                        <li><a href="#">Men's Clothing</a></li>
                         <li><a href="#">Women's Clothing</a></li>
-                        <li><a href="#">Plus Sizes</a></li>
-                        <li><a href="#">Complete Your Look</a></li>
-                        <li><a href="#">Baby Corner</a></li>
                     </ul>
                 </div>
 
                 <div className="footer-links">
                     <h3>HELP & SUPPORT</h3>
                     <ul>
-                        <li><a href="#">Dealers & Agents</a></li>
                         <li><Link to="/return-policy">FAQ Information</Link></li>
                         <li><Link to="/return-policy">Return Policy</Link></li>
                         <li><Link to="/shipping-info">Shipping & Delivery</Link></li>

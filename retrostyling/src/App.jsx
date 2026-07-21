@@ -24,6 +24,7 @@ import Rewards from './pages/Rewards';
 import ReturnPolicy from './pages/ReturnPolicy';
 import ShippingInfo from './pages/ShippingInfo';
 import TrackOrder from './pages/TrackOrder';
+import PaymentType from './pages/PaymentType';
 
 /* ─── Admin Pages ────────────────────────────────────────── */
 import AdminDashboard from './pages/admin/Dashboard';
@@ -61,6 +62,10 @@ function AppContent() {
     localStorage.setItem('theme', 'dark');
   }, []);
 
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
+
   const adminRoute = (path, Component) => (
     <Route
       path={path}
@@ -95,6 +100,7 @@ function AppContent() {
         <Route path="/return-policy" element={<ReturnPolicy />} />
         <Route path="/shipping-info" element={<ShippingInfo />} />
         <Route path="/track-order" element={<TrackOrder />} />
+        <Route path="/payment-type" element={<PaymentType />} />
         <Route path="/blog" element={
           <div className="container section">
             <h1>Our Blog</h1>

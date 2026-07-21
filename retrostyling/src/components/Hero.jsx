@@ -97,7 +97,7 @@ const Hero = () => {
                 href="/shop"
                 initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: 0.5 }}
-                className="btn btn-hero"
+                className="btn btn-primary btn-hero"
                 style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
               >
                 Shop Collection <ChevronRight size={20} />
@@ -123,10 +123,6 @@ const Hero = () => {
         )}
       </div>
 
-      <div className="hero-scroll-indicator">
-        <div className="mouse" />
-        <span>Scroll Down</span>
-      </div>
     </section>
   );
 };

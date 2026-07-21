@@ -188,11 +188,11 @@ const Navbar = () => {
                                 <Heart size={20} />
                             </Link>
 
-                            <Link to="/cart" className="action-btn">
+                            <Link to="/cart" className="action-btn desktop-only">
                                 <ShoppingBag size={20} />
                                 {cartCount > 0 && <span className="cart-count">{cartCount}</span>}
                             </Link>
-
+                                                    
                             <div className="user-profile desktop-only">
                                 {currentUser ? (
                                     <div className="profile-container" onClick={() => setIsProfileOpen(!isProfileOpen)}>

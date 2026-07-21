@@ -9,7 +9,6 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../services/AuthContext';
 import { addressService, orderService, wishlistService, cartService, productService, returnService, shippingSettingsService, rewardsService, invoiceTemplateService, reviewService } from '../services/firestoreService';
-import html2pdf from 'html2pdf.js';
 import Toast from '../components/Toast';
 import './Profile.css';
 
@@ -364,11 +363,11 @@ const Profile = () => {
     let settings = {
       brandName: 'RetroStylings',
       tagline: 'Standard Retro-Street Tech',
-      billingStreet: '12/A, Tech Hub Area',
-      billingCity: 'Chennai, Tamil Nadu',
-      billingZip: '600001',
+      billingStreet: 'First avenue, 28-32',
+      billingCity: 'Chicago, Illinois, 64000, USA',
+      billingZip: '64000',
       taxPercentage: 18,
-      footerNote: 'Thank you for shopping with RetroStylings! For any support or returns, visit retrostylings.com/support',
+      footerNote: 'Prototype-based programming is a style of object-oriented programming in which behaviour is preserved across items.',
       invoicePrefix: 'RS'
     };
     try {
@@ -379,30 +378,39 @@ const Profile = () => {
     }
 
     const formattedDate = formatDate(order.createdAt);
-    const itemsHtml = order.items?.map(item => `
-      <tr class="item">
-        <td>
-          <strong style="color: #111827;">${item.name}</strong>
-          ${item.size ? `<span style="font-size: 12px; color: #6B7280; margin-left: 10px;">Size: ${item.size}</span>` : ''}
-          ${item.color ? `<span style="font-size: 12px; color: #6B7280; margin-left: 10px;">Color: ${item.color}</span>` : ''}
-        </td>
-        <td style="text-align: center; color: #374151;">${item.quantity}</td>
-        <td style="color: #374151; text-align: right;">₹${Number(item.price_override || item.discount_price || item.price).toLocaleString()}</td>
-        <td style="color: #111827; font-weight: 600; text-align: right;">₹${(Number(item.price_override || item.discount_price || item.price) * item.quantity).toLocaleString()}</td>
-      </tr>
-    `).join('') || '';
-
+    
     const shippingInfo = order.shippingAddress || {
       name: displayName,
-      street: 'Default Address',
-      city: 'Delhi',
-      zip: '110001'
+      street: 'First avenue, 28-32',
+      city: 'Chicago, Illinois, 64000, USA',
+      zip: '64000'
     };
+
+    const taxPercent = Number(settings.taxPercentage || 18);
+
+    const itemsHtml = order.items?.map((item, idx) => {
+      const price = Number(item.price_override || item.discount_price || item.price);
+      const total = price * item.quantity;
+      const isEven = idx % 2 === 1;
+      return `
+        <tr class="${isEven ? 'even-row' : ''}">
+          <td style="padding: 12px 14px; text-align: left;">
+            <div style="font-weight: 700; color: #0f172a; font-size: 13px;">${item.name}</div>
+            ${(item.size || item.color) ? `<div style="font-size: 11px; color: #64748b; margin-top: 2px;">${item.size ? `Size: ${item.size}` : ''} ${item.color ? `| Color: ${item.color}` : ''}</div>` : ''}
+          </td>
+          <td style="padding: 12px 14px; text-align: right; color: #334155;">₹${price.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+          <td style="padding: 12px 14px; text-align: center; color: #334155;">${item.quantity}</td>
+          <td style="padding: 12px 14px; text-align: center; color: #334155;">${taxPercent}.00%</td>
+          <td style="padding: 12px 14px; text-align: center; color: #334155;">-</td>
+          <td style="padding: 12px 14px; text-align: right; font-weight: 700; color: #0f172a;">₹${total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+        </tr>
+      `;
+    }).join('') || '';
 
     const subtotal = order.items?.reduce((acc, item) => acc + (Number(item.price_override || item.discount_price || item.price) * item.quantity), 0) || 0;
     const shippingCost = order.shippingCost || 0;
-    const taxPercent = Number(settings.taxPercentage || 18);
     const tax = Math.round(subtotal * (taxPercent / 100));
+    const grandTotal = (order.total || (subtotal + shippingCost + tax));
 
     const invoiceContent = `
       <!DOCTYPE html>
@@ -410,163 +418,282 @@ const Profile = () => {
       <head>
         <title>Invoice - ${settings.brandName} - #${order.id.slice(-8).toUpperCase()}</title>
         <style>
-          * { box-sizing: border-box; }
+          * { 
+            box-sizing: border-box; 
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          @page {
+            size: A4 portrait;
+            margin: 15mm;
+          }
+          @media print {
+            body { padding: 0 !important; }
+            .invoice-card { max-width: 100% !important; padding: 0 !important; }
+          }
           body {
-            font-family: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif;
-            color: #374151;
-            background-color: #FFFFFF;
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            color: #1e293b;
+            background-color: #ffffff;
             margin: 0;
-            padding: 40px;
+            padding: 35px;
           }
           .invoice-card {
-            max-width: 850px;
+            width: 100%;
+            max-width: 800px;
             margin: 0 auto;
-            background: #FFFFFF;
-            padding: 20px;
+            background: #ffffff;
           }
-          .invoice-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            border-bottom: 2px solid #E5E7EB;
-            padding-bottom: 30px;
-            margin-bottom: 30px;
-          }
-          .brand {
-            font-size: 28px;
-            font-weight: 800;
-            color: #111827;
-            letter-spacing: 1px;
-            text-transform: uppercase;
-          }
-          .meta-title {
-            text-align: right;
-          }
-          .meta-title h2 {
-            margin: 0 0 5px 0;
-            color: #111827;
-            font-size: 32px;
-            font-weight: 800;
-            letter-spacing: -0.02em;
-          }
-          .meta-title p {
-            margin: 0;
-            color: #6B7280;
-            font-size: 14px;
-            font-weight: 500;
-          }
-          .details-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 20px;
-            margin-bottom: 40px;
-          }
-          .details-column h3 {
-            font-size: 12px;
-            color: #6B7280;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin: 0 0 10px 0;
-          }
-          .details-column p {
-            margin: 4px 0;
-            font-size: 14px;
-            color: #111827;
-            line-height: 1.5;
-          }
-          table.invoice-items {
+          table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 40px;
           }
-          table.invoice-items th {
-            text-align: left;
-            padding: 12px 16px;
-            font-size: 12px;
-            color: #6B7280;
+          td, th {
+            vertical-align: top;
+          }
+          
+          /* Header */
+          .logo-badge {
+            width: 44px;
+            height: 44px;
+            background: linear-gradient(135deg, #ef4444 0%, #2563eb 100%);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #ffffff;
+            font-weight: 900;
+            font-size: 22px;
+            line-height: 44px;
+            text-align: center;
+          }
+          .brand-title {
+            font-size: 20px;
+            font-weight: 800;
+            color: #0f172a;
+            letter-spacing: -0.5px;
             text-transform: uppercase;
-            letter-spacing: 1px;
-            border-bottom: 2px solid #E5E7EB;
-            background-color: #F9FAFB;
           }
-          table.invoice-items td {
-            padding: 16px;
-            font-size: 15px;
-            color: #374151;
-            border-bottom: 1px solid #E5E7EB;
+          .brand-subtitle {
+            font-size: 11px;
+            color: #64748b;
+            margin-top: 2px;
+            letter-spacing: 0.5px;
           }
-          .item-price, .item-qty, .item-total {
-            text-align: right !important;
+          .invoice-title {
+            font-size: 38px;
+            font-weight: 800;
+            color: #0f172a;
+            text-align: right;
+            line-height: 1;
+            margin: 0 0 12px 0;
+            letter-spacing: -1px;
           }
-          .summary-table {
-            width: 300px;
+          .meta-table {
+            font-size: 12px;
+            text-align: right;
             margin-left: auto;
-            border-collapse: collapse;
+          }
+          .meta-table td {
+            padding: 2px 0;
+          }
+          .meta-label {
+            color: #94a3b8;
+            padding-right: 12px;
+          }
+          .meta-val {
+            color: #0f172a;
+            font-weight: 600;
+          }
+          
+          /* Addresses */
+          .address-section {
+            margin-top: 35px;
+            margin-bottom: 25px;
+          }
+          .addr-heading {
+            font-size: 13px;
+            font-weight: 700;
+            color: #0f172a;
+            margin-bottom: 6px;
+          }
+          .addr-name {
+            font-size: 15px;
+            font-weight: 800;
+            color: #0f172a;
+            margin-bottom: 4px;
+          }
+          .addr-line {
+            font-size: 12px;
+            color: #475569;
+            line-height: 1.5;
+          }
+          
+          /* Table */
+          .items-table {
+            margin-top: 20px;
+            margin-bottom: 25px;
+          }
+          .items-table th {
+            background-color: #0066ff;
+            color: #ffffff;
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 10px 14px;
+          }
+          .items-table tr.even-row td {
+            background-color: #f8fafc;
+          }
+          .items-table td {
+            border-bottom: 1px solid #f1f5f9;
+          }
+          
+          /* Lower Layout */
+          .instruction-title {
+            font-size: 14px;
+            font-weight: 800;
+            color: #0f172a;
+            margin-bottom: 8px;
+          }
+          .instruction-text {
+            font-size: 12px;
+            color: #475569;
+            line-height: 1.6;
+          }
+          
+          .summary-table {
+            font-size: 13px;
+            margin-left: auto;
           }
           .summary-table td {
-            padding: 10px 16px;
+            padding: 5px 0;
+            text-align: right;
+          }
+          .summary-label {
+            color: #475569;
+            padding-right: 15px;
+            font-weight: 500;
+          }
+          .summary-val {
+            color: #0f172a;
+            font-weight: 700;
+          }
+          .summary-bold .summary-label,
+          .summary-bold .summary-val {
             font-size: 14px;
-            color: #4B5563;
-          }
-          .summary-table tr.total-row td {
-            font-size: 18px;
-            color: #111827;
             font-weight: 800;
-            padding-top: 15px;
-            border-top: 2px solid #E5E7EB;
+            color: #0f172a;
           }
-          .footer-note {
-            margin-top: 60px;
+          
+          .balance-due-row {
+            background-color: #f1f5f9;
+            border-radius: 6px;
+          }
+          .balance-due-row td {
+            padding: 10px 14px !important;
+            font-size: 15px !important;
+            font-weight: 800 !important;
+            color: #0f172a !important;
+          }
+
+          /* Signatures */
+          .sig-title {
+            border-top: 1px solid #cbd5e1;
+            width: 170px;
+            margin: 0 auto;
+            padding-top: 6px;
+            font-size: 11px;
+            font-weight: 700;
+            color: #64748b;
             text-align: center;
-            font-size: 13px;
-            color: #9CA3AF;
-            border-top: 1px solid #E5E7EB;
-            padding-top: 20px;
+          }
+          .sig-name {
+            font-size: 11px;
+            font-weight: 700;
+            color: #0f172a;
+            text-align: center;
+            margin-top: 2px;
           }
         </style>
       </head>
       <body>
         <div class="invoice-card">
-          <div class="invoice-header">
-            <div>
-              <div class="brand">${settings.brandName}</div>
-              <p style="margin: 5px 0 0 0; font-size: 14px; color: #6B7280;">${settings.tagline}</p>
-            </div>
-            <div class="meta-title">
-              <h2>INVOICE</h2>
-              <p>Invoice #: ${settings.invoicePrefix || 'RS'}-${order.id.slice(-8).toUpperCase()}</p>
-              <p>Date: ${formattedDate}</p>
-            </div>
-          </div>
+          <!-- Header -->
+          <table>
+            <tr>
+              <td style="width: 50%;">
+                <table>
+                  <tr>
+                    <td style="width: 48px; padding-right: 10px;">
+                      <div class="logo-badge">R</div>
+                    </td>
+                    <td>
+                      <div class="brand-title">${settings.brandName}</div>
+                      <div class="brand-subtitle">${settings.tagline}</div>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+              <td style="width: 50%;">
+                <div class="invoice-title">Invoice</div>
+                <table class="meta-table">
+                  <tr>
+                    <td class="meta-label">Invoice no.:</td>
+                    <td class="meta-val">${order.id.slice(-6).toUpperCase()}</td>
+                  </tr>
+                  <tr>
+                    <td class="meta-label">Invoice date:</td>
+                    <td class="meta-val">${formattedDate}</td>
+                  </tr>
+                  <tr>
+                    <td class="meta-label">Due:</td>
+                    <td class="meta-val">${formattedDate}</td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
 
-          <div class="details-grid">
-            <div class="details-column">
-              <h3>Billed To</h3>
-              <p><strong>${shippingInfo.name || displayName}</strong></p>
-              <p>${shippingInfo.street || ''}</p>
-              <p>${shippingInfo.city || ''} ${shippingInfo.zip ? `- ${shippingInfo.zip}` : ''}</p>
-            </div>
-            <div class="details-column">
-              <h3>Billed From</h3>
-              <p><strong>${settings.brandName}</strong></p>
-              <p>${settings.billingStreet || ''}</p>
-              <p>${settings.billingCity || ''} ${settings.billingZip ? `- ${settings.billingZip}` : ''}</p>
-            </div>
-            <div class="details-column">
-              <h3>Payment & Details</h3>
-              <p>Payment Method: <strong>${order.paymentMethod || 'Credit Card'}</strong></p>
-              <p>Payment Status: <strong>${(order.paymentStatus || 'paid').toUpperCase()}</strong></p>
-              <p>Order Status: <strong>${(order.orderStatus || 'processing').toUpperCase()}</strong></p>
-            </div>
-          </div>
+          <!-- Addresses -->
+          <table class="address-section">
+            <tr>
+              <td style="width: 50%; padding-right: 20px;">
+                <div class="addr-heading">From</div>
+                <div class="addr-name">${settings.brandName}</div>
+                <div class="addr-line">${settings.billingStreet || 'First avenue, 28-32'}</div>
+                <div class="addr-line">sale@company.com</div>
+                <div class="addr-line">+1 (46) 542-85-89</div>
+                <div class="addr-line">company.com</div>
+                <div class="addr-line">${settings.billingCity || 'Chicago, Illinois, 64000, USA'}</div>
+              </td>
+              <td style="width: 50%; text-align: right;">
+                <div class="addr-heading">Bill to</div>
+                <div class="addr-name">${shippingInfo.name || displayName}</div>
+                <div class="addr-line">${email}</div>
+                <div class="addr-line">${order.phone || '+1 (46) 343-85-40'}</div>
+                <div class="addr-line">${shippingInfo.street || 'First avenue, 28-32'}</div>
+                <div class="addr-line">${shippingInfo.city || 'Chicago, Illinois, 64000, USA'}</div>
 
-          <table class="invoice-items">
+                <div class="addr-heading" style="margin-top: 14px;">Ship to</div>
+                <div class="addr-line">${shippingInfo.street || 'First avenue, 28-32'}</div>
+                <div class="addr-line">${shippingInfo.city || 'Chicago, Illinois, 64000, USA'}</div>
+                ${order.trackingNumber ? `<div class="addr-line" style="margin-top: 3px;"><strong>Track #:</strong> ${order.trackingNumber}</div>` : ''}
+              </td>
+            </tr>
+          </table>
+
+          <!-- Table -->
+          <table class="items-table">
             <thead>
               <tr>
-                <th>Product Details</th>
-                <th class="item-qty" style="width: 10%;">Qty</th>
-                <th class="item-price" style="width: 20%;">Price</th>
-                <th class="item-total" style="width: 20%;">Total</th>
+                <th style="width: 40%; text-align: left;">DESCRIPTION</th>
+                <th style="width: 15%; text-align: right;">RATE, INR</th>
+                <th style="width: 10%; text-align: center;">QTY</th>
+                <th style="width: 11%; text-align: center;">TAX, %</th>
+                <th style="width: 10%; text-align: center;">DISC, %</th>
+                <th style="width: 14%; text-align: right;">AMOUNT, INR</th>
               </tr>
             </thead>
             <tbody>
@@ -574,41 +701,112 @@ const Profile = () => {
             </tbody>
           </table>
 
-          <table class="summary-table">
+          <!-- Lower Section -->
+          <table style="width: 100%; margin-top: 15px;">
             <tr>
-              <td>Subtotal:</td>
-              <td style="text-align: right; color: #111827; font-weight: 500;">₹${subtotal.toLocaleString()}</td>
-            </tr>
-            <tr>
-              <td>Tax (${taxPercent}% GST Incl.):</td>
-              <td style="text-align: right; color: #111827; font-weight: 500;">₹${tax.toLocaleString()}</td>
-            </tr>
-            <tr>
-              <td>Shipping:</td>
-              <td style="text-align: right; color: #111827; font-weight: 500;">${shippingCost === 0 ? 'FREE' : `₹${shippingCost.toLocaleString()}`}</td>
-            </tr>
-            <tr class="total-row">
-              <td>Total Due:</td>
-              <td style="text-align: right;">₹${(order.total || subtotal).toLocaleString()}</td>
+              <!-- Payment Instructions & Notes -->
+              <td style="width: 50%; padding-right: 30px;">
+                <div class="instruction-title">Payment instruction</div>
+                <div class="instruction-text">
+                  <strong>Payment Method:</strong> ${order.paymentMethod || 'Credit Card / UPI'}<br />
+                  <strong>Status:</strong> ${(order.paymentStatus || 'paid').toUpperCase()}<br />
+                  Make payments payable to Retrostylings Commerce.
+                </div>
+
+                <div class="instruction-title" style="margin-top: 22px;">Notes</div>
+                <div class="instruction-text">
+                  ${settings.footerNote || 'Prototype-based programming is a style of object-oriented programming in which behaviour is preserved.'}
+                </div>
+              </td>
+
+              <!-- Summary Totals -->
+              <td style="width: 50%;">
+                <table class="summary-table">
+                  <tr>
+                    <td class="summary-label">Subtotal:</td>
+                    <td class="summary-val">₹${subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                  </tr>
+                  <tr>
+                    <td class="summary-label">Shipping Cost:</td>
+                    <td class="summary-val">${shippingCost === 0 ? '₹0.00' : `₹${shippingCost.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`}</td>
+                  </tr>
+                  <tr>
+                    <td class="summary-label">Sales Tax (${taxPercent}%):</td>
+                    <td class="summary-val">₹${tax.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                  </tr>
+                  <tr class="summary-bold">
+                    <td class="summary-label" style="padding-top: 6px;">Total:</td>
+                    <td class="summary-val" style="padding-top: 6px;">₹${grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                  </tr>
+                  <tr>
+                    <td class="summary-label">Amount paid:</td>
+                    <td class="summary-val">₹${grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                  </tr>
+                </table>
+
+                <!-- Balance Due Pill -->
+                <table style="width: 100%; margin-top: 10px;">
+                  <tr class="balance-due-row">
+                    <td style="text-align: left;">Balance Due:</td>
+                    <td style="text-align: right;">₹0.00</td>
+                  </tr>
+                </table>
+              </td>
             </tr>
           </table>
 
-          <div class="footer-note">
-            <p>${settings.footerNote}</p>
-          </div>
+          <!-- Signatures -->
+          <table style="width: 100%; margin-top: 50px;">
+            <tr>
+              <td style="width: 50%; text-align: center;">
+                <div style="font-family: 'Brush Script MT', cursive, sans-serif; font-size: 24px; color: #0f172a; height: 32px;">${shippingInfo.name || displayName}</div>
+                <div class="sig-title">Client signature</div>
+                <div class="sig-name">${shippingInfo.name || displayName}</div>
+              </td>
+              <td style="width: 50%; text-align: center;">
+                <div style="font-family: 'Brush Script MT', cursive, sans-serif; font-size: 24px; color: #0f172a; height: 32px;">Retro Stylings</div>
+                <div class="sig-title">Business signature</div>
+                <div class="sig-name">Authorized Signatory</div>
+              </td>
+            </tr>
+          </table>
+
         </div>
       </body>
       </html>
     `;
 
-    const opt = {
-      margin:       0,
-      filename:     `invoice-${settings.invoicePrefix || 'RS'}-${order.id.slice(-8).toUpperCase()}.pdf`,
-      image:        { type: 'jpeg', quality: 0.98 },
-      html2canvas:  { scale: 2, useCORS: true },
-      jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
-    };
-    html2pdf().from(invoiceContent).set(opt).save();
+    const printWindow = window.open('', '_blank', 'width=850,height=1000');
+    if (printWindow) {
+      printWindow.document.write(invoiceContent);
+      printWindow.document.close();
+      printWindow.focus();
+      setTimeout(() => {
+        printWindow.print();
+      }, 350);
+    } else {
+      const iframe = document.createElement('iframe');
+      iframe.style.position = 'fixed';
+      iframe.style.right = '0';
+      iframe.style.bottom = '0';
+      iframe.style.width = '0';
+      iframe.style.height = '0';
+      iframe.style.border = '0';
+      document.body.appendChild(iframe);
+      const doc = iframe.contentWindow.document;
+      doc.open();
+      doc.write(invoiceContent);
+      doc.close();
+      setTimeout(() => {
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+        setTimeout(() => {
+          if (document.body.contains(iframe)) {
+            document.body.removeChild(iframe);
+          }
+        }, 1500);
+      }, 350);
+    }
   };
 
   return (

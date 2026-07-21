@@ -141,21 +141,51 @@
     .hero {
         text-align: center;
         min-height: 100vh;
+        height: auto;
+        padding: 120px 0 60px;
+    }
+
+    .hero-content {
+        margin: 0 auto;
+        padding: 0 1rem;
     }
 
     .hero-subtitle {
         justify-content: center;
+        font-size: 0.75rem !important;
+        margin-bottom: 1.25rem !important;
+        gap: 8px !important;
     }
 
     .hero-subtitle::before {
         display: none;
     }
 
+    .hero-title {
+        font-size: clamp(2rem, 9vw, 2.75rem) !important;
+        line-height: 1.1 !important;
+        margin-bottom: 1.25rem !important;
+        letter-spacing: -1px !important;
+    }
+
     .hero-description {
+        font-size: 1rem !important;
+        margin-bottom: 2rem !important;
         margin-inline: auto;
+        max-width: 320px !important;
+        line-height: 1.5 !important;
+    }
+
+    .btn-hero {
+        padding: 0.85rem 2rem !important;
+        font-size: 0.85rem !important;
     }
 
     .hero-controls {
         display: none;
+    }
+
+    .hero-scroll-indicator {
+        bottom: 1.5rem;
     }
 }

@@ -62,57 +62,7 @@ const About = () => {
                 </div>
             </section>
 
-            <section className="team-section section">
-                <div className="container">
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true }}
-                        className="section-header"
-                    >
-                        <Users size={40} className="section-icon" />
-                        <h2 className="h2">Meet Our Team</h2>
-                        <p className="text-light">The creative minds behind Retro Stylings</p>
-                    </motion.div>
-
-                    <div className="team-grid">
-                        {teamMembers.map((member, index) => (
-                            <motion.div
-                                key={index}
-                                className="team-card"
-                                initial={{ opacity: 0, y: 30 }}
-                                whileInView={{ opacity: 1, y: 0 }}
-                                viewport={{ once: true }}
-                                transition={{ delay: index * 0.1 }}
-                            >
-                                <div className="team-img-wrapper">
-                                    <img
-                                        src={member.image}
-                                        alt={member.name}
-                                        onError={(e) => { e.target.src = fallbackImg + `&name=${member.name}`; }}
-                                    />
-                                </div>
-                                <div className="team-info">
-                                    <h3>{member.name}</h3>
-                                    <p className="team-role">{member.role}</p>
-
-                                    <div className="social-links">
-                                        {member.socials.facebook && (
-                                            <a href={member.socials.facebook} className="social-icon fb"><Facebook size={18} /></a>
-                                        )}
-                                        {member.socials.linkedin && (
-                                            <a href={member.socials.linkedin} className="social-icon li"><Linkedin size={18} /></a>
-                                        )}
-                                        {member.socials.instagram && (
-                                            <a href={member.socials.instagram} className="social-icon ig"><Instagram size={18} /></a>
-                                        )}
-                                    </div>
-                                </div>
-                            </motion.div>
-                        ))}
-                    </div>
-                </div>
-            </section>
+            
         </div>
     );
 };
