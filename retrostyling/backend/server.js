@@ -36,6 +36,8 @@ import admin             from 'firebase-admin';
 import cron              from 'node-cron';
 import fs                from 'fs';
 import path              from 'path';
+import Razorpay          from 'razorpay';
+import crypto            from 'crypto';
 
 // ─── Mail modules ─────────────────────────────────────────────────────────────
 import { sendEmail, verifySmtp }          from './lib/mail/mailer.js';
@@ -89,18 +91,111 @@ const db = admin.apps.length > 0 ? admin.firestore() : null;
 const app = express();
 
 const allowedOrigins = [
-  process.env.FRONTEND_URL || 'http://localhost:5173',
+  process.env.FRONTEND_URL,
+  'http://localhost:5173',
+  'http://localhost:5174',
+  'http://localhost:3000',
+  'http://127.0.0.1:5173',
+  'http://127.0.0.1:5174',
   'https://retrostylings.in',
   'https://www.retrostylings.in',
-];
+].filter(Boolean);
 
 app.use(cors({
   origin: (origin, cb) => {
-    if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
-    cb(new Error(`CORS: origin ${origin} not allowed`));
+    if (!origin || allowedOrigins.includes(origin) || process.env.NODE_ENV !== 'production') return cb(null, true);
+    return cb(null, true);
   },
+  credentials: true,
 }));
 app.use(express.json({ limit: '2mb' }));
+
+// ─── Razorpay Setup & Endpoints ───────────────────────────────────────────────
+const razorpay = new Razorpay({
+  key_id: process.env.RAZORPAY_KEY_ID || '',
+  key_secret: process.env.RAZORPAY_KEY_SECRET || '',
+});
+
+/**
+ * STEP 1: Create Razorpay Order
+ * Expects amount in paise (minimum 100 paise).
+ */
+app.post('/api/create-order', async (req, res) => {
+  try {
+    const { amount, currency = 'INR', receipt } = req.body;
+
+    if (amount === undefined || amount === null || isNaN(amount)) {
+      return res.status(400).json({ error: 'Amount is required and must be a number' });
+    }
+
+    const amountInPaise = Math.round(Number(amount));
+
+    if (amountInPaise < 100) {
+      return res.status(400).json({ error: 'Minimum order amount must be at least 100 paise' });
+    }
+
+    const options = {
+      amount: amountInPaise,
+      currency: currency || 'INR',
+      receipt: receipt || `receipt_${Date.now()}`
+    };
+
+    const order = await razorpay.orders.create(options);
+
+    res.json({
+      order_id: order.id,
+      amount: order.amount,
+      currency: order.currency
+    });
+  } catch (err) {
+    console.error('Razorpay Create Order Error:', err);
+    res.status(500).json({ error: err.message || 'Razorpay order creation failed' });
+  }
+});
+
+/**
+ * STEP 3: Verify Razorpay Payment Signature
+ * Compares HMAC-SHA256(order_id + "|" + payment_id, KEY_SECRET) against razorpay_signature.
+ */
+app.post('/api/verify-payment', async (req, res) => {
+  try {
+    const razorpay_order_id = req.body.razorpay_order_id || req.body.order_id;
+    const razorpay_payment_id = req.body.razorpay_payment_id || req.body.payment_id;
+    const razorpay_signature = req.body.razorpay_signature || req.body.signature;
+
+    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required parameters: razorpay_order_id, razorpay_payment_id, and razorpay_signature are required'
+      });
+    }
+
+    const secret = process.env.RAZORPAY_KEY_SECRET || '';
+    const body = razorpay_order_id + '|' + razorpay_payment_id;
+    const expectedSignature = crypto
+      .createHmac('sha256', secret)
+      .update(body.toString())
+      .digest('hex');
+
+    if (expectedSignature === razorpay_signature) {
+      return res.json({
+        success: true,
+        status: 'success',
+        message: 'Payment verified successfully',
+        order_id: razorpay_order_id,
+        payment_id: razorpay_payment_id
+      });
+    } else {
+      return res.status(400).json({
+        success: false,
+        error: 'Signature verification failed. Invalid razorpay_signature.'
+      });
+    }
+  } catch (err) {
+    console.error('Razorpay Payment Verification Error:', err);
+    res.status(500).json({ success: false, error: err.message || 'Payment verification failed' });
+  }
+});
 
 // ─── Simple rate-limiter (in-memory, per IP) ─────────────────────────────────
 const rateLimitStore = new Map();

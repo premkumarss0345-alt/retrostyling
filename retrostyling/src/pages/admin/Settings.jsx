@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import AdminLayout from './AdminLayout';
 import { globalSettingsService } from '../../services/firestoreService';
-import { ShieldCheck, CreditCard, Settings, RefreshCw } from 'lucide-react';
+import { ShieldCheck, CreditCard, Settings, RefreshCw, Sliders } from 'lucide-react';
 
 const AdminSettings = () => {
     const [settings, setSettings] = useState({
@@ -117,6 +117,57 @@ const AdminSettings = () => {
                             <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-main)', fontSize: '0.875rem' }}>Global Shop Payment Link</label>
                             <input name="globalPaymentLink" type="url" value={settings.globalPaymentLink || ''} onChange={handleInput} placeholder="e.g. https://rzp.io/l/xxxxxxxx" style={{ width: '100%', background: 'var(--bg-main)', border: 'var(--border)', color: 'var(--white)', padding: '0.75rem', borderRadius: '8px', fontSize: '0.9rem', outline: 'none' }} required />
                         </div>
+                    </div>
+                </div>
+
+                {/* Payment Methods Enable / Disable */}
+                <div className="admin-card" style={{ background: 'var(--bg-soft)', padding: '2rem', borderRadius: 'var(--radius-lg)', border: 'var(--border)' }}>
+                    <div style={{ marginBottom: '1.5rem' }}>
+                        <h3 style={{ color: 'var(--white)', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <Sliders size={18} color="var(--primary)" /> Payment Method Enable / Disable
+                        </h3>
+                        <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Control which payment modes are active on the checkout page for customers.</p>
+                    </div>
+
+                    <div style={{ display: 'grid', gap: '1rem' }}>
+                        <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem', background: 'var(--bg-main)', borderRadius: '10px', border: 'var(--border)', cursor: 'pointer' }}>
+                            <div>
+                                <strong style={{ color: 'var(--white)', display: 'block', fontSize: '0.9rem' }}>Cash on Delivery (COD)</strong>
+                                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Allow customers to pay cash when order arrives</span>
+                            </div>
+                            <input
+                                type="checkbox"
+                                checked={settings.enableCod !== false}
+                                onChange={(e) => setSettings({ ...settings, enableCod: e.target.checked })}
+                                style={{ width: '20px', height: '20px', accentColor: 'var(--primary)', cursor: 'pointer' }}
+                            />
+                        </label>
+
+                        <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem', background: 'var(--bg-main)', borderRadius: '10px', border: 'var(--border)', cursor: 'pointer' }}>
+                            <div>
+                                <strong style={{ color: 'var(--white)', display: 'block', fontSize: '0.9rem' }}>Cards / Netbanking (Razorpay Box)</strong>
+                                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Standard Razorpay checkout modal (Card / Netbanking / Wallets)</span>
+                            </div>
+                            <input
+                                type="checkbox"
+                                checked={settings.enableRazorpayModal !== false}
+                                onChange={(e) => setSettings({ ...settings, enableRazorpayModal: e.target.checked })}
+                                style={{ width: '20px', height: '20px', accentColor: 'var(--primary)', cursor: 'pointer' }}
+                            />
+                        </label>
+
+                        <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem', background: 'var(--bg-main)', borderRadius: '10px', border: 'var(--border)', cursor: 'pointer' }}>
+                            <div>
+                                <strong style={{ color: 'var(--white)', display: 'block', fontSize: '0.9rem' }}>UPI QR Scanner & Payment Link</strong>
+                                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Direct UPI QR scanner modal and instant payment link options</span>
+                            </div>
+                            <input
+                                type="checkbox"
+                                checked={settings.enableRazorpayQr !== false}
+                                onChange={(e) => setSettings({ ...settings, enableRazorpayQr: e.target.checked })}
+                                style={{ width: '20px', height: '20px', accentColor: 'var(--primary)', cursor: 'pointer' }}
+                            />
+                        </label>
                     </div>
                 </div>
 

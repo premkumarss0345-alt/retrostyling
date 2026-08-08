@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { MapPin, Phone, CreditCard, ShieldCheck, ChevronLeft, Truck, Calendar } from 'lucide-react';
 import Toast from '../components/Toast';
-import { cartService, orderService, shippingSettingsService } from '../services/firestoreService';
+import { cartService, orderService, shippingSettingsService, globalSettingsService } from '../services/firestoreService';
 import { useAuth } from '../services/AuthContext';
 import { API_BASE_URL } from '../config';
 import './Checkout.css';
@@ -16,6 +16,7 @@ const Checkout = () => {
   const [formData, setFormData]   = useState({ shippingAddress: '', phone: '', city: '', pincode: '' });
   const [shippingSettings, setShippingSettings] = useState({ freeShippingLimit: 999, standardCharge: 99, minDeliveryDays: 3, maxDeliveryDays: 7 });
   const [selectedPayment, setSelectedPayment] = useState('cod'); // 'cod', 'razorpay_modal', or 'razorpay_link_qr'
+  const [paymentModes, setPaymentModes] = useState({ enableCod: true, enableRazorpayModal: true, enableRazorpayQr: true });
   const [showQRModal, setShowQRModal] = useState(false);
   const [payLink, setPayLink] = useState('');
   const [qrCodeUrl, setQrCodeUrl] = useState('');
@@ -46,6 +47,28 @@ const Checkout = () => {
           minDeliveryDays: s.minDeliveryDays ?? 3,
           maxDeliveryDays: s.maxDeliveryDays ?? 7,
         });
+      }
+    }).catch(() => {});
+
+    globalSettingsService.get().then(gs => {
+      if (gs) {
+        const modes = {
+          enableCod: gs.enableCod !== false,
+          enableRazorpayModal: gs.enableRazorpayModal !== false,
+          enableRazorpayQr: gs.enableRazorpayQr !== false,
+        };
+        setPaymentModes(modes);
+
+        // Auto-select first available enabled payment mode
+        if (modes.enableCod) {
+          setSelectedPayment('cod');
+        } else if (modes.enableRazorpayModal) {
+          setSelectedPayment('razorpay_modal');
+        } else if (modes.enableRazorpayQr) {
+          setSelectedPayment('razorpay_link_qr');
+        } else {
+          setSelectedPayment('');
+        }
       }
     }).catch(() => {});
   }, [currentUser]);
@@ -96,19 +119,58 @@ const Checkout = () => {
           throw new Error('Razorpay SDK is loading. Please wait a moment and try again.');
         }
 
+        // Step 1: Call backend API to create order
+        const createOrderRes = await fetch(`${API_BASE_URL}/api/create-order`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            amount: Math.round(total * 100),
+            currency: 'INR',
+            receipt: `receipt_${Date.now()}`
+          })
+        });
+
+        if (!createOrderRes.ok) {
+          const errData = await createOrderRes.json().catch(() => ({}));
+          throw new Error(errData.error || 'Failed to create Razorpay payment order.');
+        }
+
+        const razorpayOrder = await createOrderRes.json();
+
+        // Step 2: Open Razorpay checkout modal with generated order_id
+        const keyId = import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_live_TNI7as0omD55Ri';
+
         const paymentResult = await new Promise((resolve, reject) => {
           const options = {
-            key: 'rzp_test_TETHQUCGGso1F5', // Razorpay Test Key
-            amount: total * 100, // Amount in paise
-            currency: 'INR',
+            key: keyId,
+            amount: razorpayOrder.amount,
+            currency: razorpayOrder.currency,
             name: 'RetroStylings',
-            description: 'Order Payment (UPI/Scanner)',
+            description: 'Order Payment',
             image: 'https://images.unsplash.com/photo-1557683316-973673baf926?w=128&h=128&fit=crop',
-            handler: function (response) {
-              if (response.razorpay_payment_id) {
-                resolve(response.razorpay_payment_id);
-              } else {
-                reject(new Error('Razorpay payment ID was missing.'));
+            order_id: razorpayOrder.order_id,
+            handler: async function (response) {
+              try {
+                // Step 3: Call backend endpoint to verify signature
+                const verifyRes = await fetch(`${API_BASE_URL}/api/verify-payment`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    razorpay_payment_id: response.razorpay_payment_id,
+                    razorpay_order_id: response.razorpay_order_id,
+                    razorpay_signature: response.razorpay_signature
+                  })
+                });
+
+                const verifyData = await verifyRes.json().catch(() => ({}));
+
+                if (verifyRes.ok && (verifyData.success || verifyData.status === 'success')) {
+                  resolve(response.razorpay_payment_id);
+                } else {
+                  reject(new Error(verifyData.error || 'Payment signature verification failed.'));
+                }
+              } catch (verifyErr) {
+                reject(verifyErr);
               }
             },
             prefill: {
@@ -128,11 +190,17 @@ const Checkout = () => {
               }
             }
           };
+
           const rzp = new window.Razorpay(options);
+
+          rzp.on('payment.failed', function (resp) {
+            reject(new Error(resp.error?.description || 'Payment failed. Please try again.'));
+          });
+
           rzp.open();
         });
 
-        pMethod = 'upi_scanner';
+        pMethod = 'razorpay';
         pStatus = 'paid';
         pId = paymentResult;
       } else if (selectedPayment === 'razorpay_link_qr') {
@@ -235,7 +303,7 @@ const Checkout = () => {
               quantity: item.quantity,
               price: item.price_override || (item.on_sale ? item.discount_price : item.price),
             })),
-            total: qrSubtotal + (qrSubtotal > 999 ? 0 : 99),
+            total: qrSubtotal + (qrSubtotal > shippingSettings.freeShippingLimit ? 0 : shippingSettings.standardCharge),
             shippingAddress: tempOrderData.shippingAddress,
             phone: tempOrderData.phone,
             paymentMethod: 'razorpay_link_qr',
@@ -295,67 +363,83 @@ const Checkout = () => {
               <h3><CreditCard size={20} /> Payment Method</h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                 {/* Cash On Delivery Option */}
-                <div
-                  className={`payment-option ${selectedPayment === 'cod' ? 'selected' : ''}`}
-                  onClick={() => setSelectedPayment('cod')}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: '1rem',
-                    padding: '1.1rem', borderRadius: '12px', background: 'var(--bg-card)',
-                    border: selectedPayment === 'cod' ? '2px solid var(--primary)' : '1px solid var(--border)',
-                    cursor: 'pointer', transition: 'all 0.2s', width: '100%'
-                  }}
-                >
-                  <CreditCard size={24} color={selectedPayment === 'cod' ? 'var(--primary)' : 'var(--text-muted)'} style={{ flexShrink: 0 }} />
-                  <div className="payment-text">
-                    <strong style={{ color: selectedPayment === 'cod' ? 'var(--primary)' : 'var(--white)', fontSize: '0.9rem' }}>Cash on Delivery (COD)</strong>
-                    <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: '1.4' }}>Safe and easy. Pay when your order arrives.</p>
+                {paymentModes.enableCod && (
+                  <div
+                    className={`payment-option ${selectedPayment === 'cod' ? 'selected' : ''}`}
+                    onClick={() => setSelectedPayment('cod')}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '1rem',
+                      padding: '1.1rem', borderRadius: '12px', background: 'var(--bg-card)',
+                      border: selectedPayment === 'cod' ? '2px solid var(--primary)' : '1px solid var(--border)',
+                      cursor: 'pointer', transition: 'all 0.2s', width: '100%'
+                    }}
+                  >
+                    <CreditCard size={24} color={selectedPayment === 'cod' ? 'var(--primary)' : 'var(--text-muted)'} style={{ flexShrink: 0 }} />
+                    <div className="payment-text">
+                      <strong style={{ color: selectedPayment === 'cod' ? 'var(--primary)' : 'var(--white)', fontSize: '0.9rem' }}>Cash on Delivery (COD)</strong>
+                      <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: '1.4' }}>Safe and easy. Pay when your order arrives.</p>
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {/* Razorpay Standard Card Modal Option */}
-                <div
-                  className={`payment-option ${selectedPayment === 'razorpay_modal' ? 'selected' : ''}`}
-                  onClick={() => setSelectedPayment('razorpay_modal')}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: '1rem',
-                    padding: '1.1rem', borderRadius: '12px', background: 'var(--bg-card)',
-                    border: selectedPayment === 'razorpay_modal' ? '2px solid var(--primary)' : '1px solid var(--border)',
-                    cursor: 'pointer', transition: 'all 0.2s', width: '100%'
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, background: selectedPayment === 'razorpay_modal' ? 'rgba(223,255,27,0.1)' : 'var(--bg-soft)', borderRadius: '6px', color: selectedPayment === 'razorpay_modal' ? 'var(--primary)' : 'var(--text-muted)', fontSize: '0.65rem', fontWeight: '900', border: '1px solid var(--border)', flexShrink: 0, textTransform: 'uppercase' }}>
-                    SDK
+                {paymentModes.enableRazorpayModal && (
+                  <div
+                    className={`payment-option ${selectedPayment === 'razorpay_modal' ? 'selected' : ''}`}
+                    onClick={() => setSelectedPayment('razorpay_modal')}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '1rem',
+                      padding: '1.1rem', borderRadius: '12px', background: 'var(--bg-card)',
+                      border: selectedPayment === 'razorpay_modal' ? '2px solid var(--primary)' : '1px solid var(--border)',
+                      cursor: 'pointer', transition: 'all 0.2s', width: '100%'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, background: selectedPayment === 'razorpay_modal' ? 'rgba(223,255,27,0.1)' : 'var(--bg-soft)', borderRadius: '6px', color: selectedPayment === 'razorpay_modal' ? 'var(--primary)' : 'var(--text-muted)', fontSize: '0.65rem', fontWeight: '900', border: '1px solid var(--border)', flexShrink: 0, textTransform: 'uppercase' }}>
+                      SDK
+                    </div>
+                    <div className="payment-text">
+                      <strong style={{ color: selectedPayment === 'razorpay_modal' ? 'var(--primary)' : 'var(--white)', fontSize: '0.9rem' }}>Cards / Netbanking (Razorpay Box)</strong>
+                      <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: '1.4' }}>Pay with card or bank inside standard Razorpay popup.</p>
+                    </div>
                   </div>
-                  <div className="payment-text">
-                    <strong style={{ color: selectedPayment === 'razorpay_modal' ? 'var(--primary)' : 'var(--white)', fontSize: '0.9rem' }}>Cards / Netbanking (Razorpay Box)</strong>
-                    <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: '1.4' }}>Pay with card or bank inside standard Razorpay popup.</p>
-                  </div>
-                </div>
+                )}
 
                 {/* Razorpay Link & QR Code Simulator Option */}
-                <div
-                  className={`payment-option ${selectedPayment === 'razorpay_link_qr' ? 'selected' : ''}`}
-                  onClick={() => setSelectedPayment('razorpay_link_qr')}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: '1rem',
-                    padding: '1.1rem', borderRadius: '12px', background: 'var(--bg-card)',
-                    border: selectedPayment === 'razorpay_link_qr' ? '2px solid var(--primary)' : '1px solid var(--border)',
-                    cursor: 'pointer', transition: 'all 0.2s', width: '100%'
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, background: selectedPayment === 'razorpay_link_qr' ? 'rgba(223,255,27,0.1)' : 'var(--bg-soft)', borderRadius: '6px', color: selectedPayment === 'razorpay_link_qr' ? 'var(--primary)' : 'var(--text-muted)', fontSize: '0.65rem', fontWeight: '900', border: '1px solid var(--border)', flexShrink: 0, textTransform: 'uppercase' }}>
-                    UPI
+                {paymentModes.enableRazorpayQr && (
+                  <div
+                    className={`payment-option ${selectedPayment === 'razorpay_link_qr' ? 'selected' : ''}`}
+                    onClick={() => setSelectedPayment('razorpay_link_qr')}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '1rem',
+                      padding: '1.1rem', borderRadius: '12px', background: 'var(--bg-card)',
+                      border: selectedPayment === 'razorpay_link_qr' ? '2px solid var(--primary)' : '1px solid var(--border)',
+                      cursor: 'pointer', transition: 'all 0.2s', width: '100%'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, background: selectedPayment === 'razorpay_link_qr' ? 'rgba(223,255,27,0.1)' : 'var(--bg-soft)', borderRadius: '6px', color: selectedPayment === 'razorpay_link_qr' ? 'var(--primary)' : 'var(--text-muted)', fontSize: '0.65rem', fontWeight: '900', border: '1px solid var(--border)', flexShrink: 0, textTransform: 'uppercase' }}>
+                      UPI
+                    </div>
+                    <div className="payment-text">
+                      <strong style={{ color: selectedPayment === 'razorpay_link_qr' ? 'var(--primary)' : 'var(--white)', fontSize: '0.9rem' }}>UPI QR Scanner & Payment Link</strong>
+                      <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: '1.4' }}>Scan UPI QR code or open a customized Razorpay Payment Link.</p>
+                    </div>
                   </div>
-                  <div className="payment-text">
-                    <strong style={{ color: selectedPayment === 'razorpay_link_qr' ? 'var(--primary)' : 'var(--white)', fontSize: '0.9rem' }}>UPI QR Scanner & Payment Link</strong>
-                    <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: '1.4' }}>Scan UPI QR code or open a customized Razorpay Payment Link.</p>
+                )}
+
+                {!paymentModes.enableCod && !paymentModes.enableRazorpayModal && !paymentModes.enableRazorpayQr && (
+                  <div style={{ padding: '1rem', borderRadius: '8px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#FCA5A5', fontSize: '0.88rem' }}>
+                    No payment methods are currently available. Please contact store support.
                   </div>
-                </div>
+                )}
               </div>
             </motion.div>
 
             <motion.div>
-              <button type="submit" className="btn btn-primary checkout-pay-btn" disabled={submitting}>
+              <button
+                type="submit"
+                className="btn btn-primary checkout-pay-btn"
+                disabled={submitting || (!paymentModes.enableCod && !paymentModes.enableRazorpayModal && !paymentModes.enableRazorpayQr)}
+              >
                 {submitting ? 'PLACING ORDER...' : `Place Order • ₹${total.toLocaleString()}`}
               </button>
               <p className="secure-text"><ShieldCheck size={16} /> Secure Checkout - SSL Encrypted</p>

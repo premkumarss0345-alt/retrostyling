@@ -1,0 +1,16 @@
+# Ignore environment variables (never commit credentials!)
+.env
+*.env
+backend/.env
+server/.env
+retrostyling/.env
+retrostyling/backend/.env
+
+# Ignore node_modules across all directories
+node_modules/
+**/node_modules/**
+
+# Build outputs
+dist/
+dist-ssr/
+*.log

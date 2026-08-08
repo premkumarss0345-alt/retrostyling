@@ -398,7 +398,18 @@ export const orderService = {
       return acc + price * item.quantity;
     }, 0);
 
-    const shipping = total > 999 ? 0 : 99;
+    // Fetch dynamic shipping settings from Firestore
+    let freeLimit = 999;
+    let charge = 99;
+    try {
+      const shipConfig = await shippingSettingsService.get();
+      if (shipConfig) {
+        if (shipConfig.freeShippingLimit !== undefined) freeLimit = Number(shipConfig.freeShippingLimit);
+        if (shipConfig.standardCharge !== undefined) charge = Number(shipConfig.standardCharge);
+      }
+    } catch (_) {}
+
+    const shipping = total > freeLimit ? 0 : charge;
     const grandTotal = total + shipping;
 
     // Prepare order items
@@ -716,16 +727,20 @@ export const globalSettingsService = {
 
   async get() {
     const snap = await getDoc(this._ref());
+    const defaults = {
+      storeName: 'Retrostylings',
+      contactEmail: 'support@retrostylings.com',
+      razorpayKeyId: 'rzp_live_TNI7as0omD55Ri',
+      defaultUpiId: 'retrostylings@razorpay',
+      globalPaymentLink: 'https://rzp.io/l/retrostylings',
+      enableCod: true,
+      enableRazorpayModal: true,
+      enableRazorpayQr: true,
+    };
     if (!snap.exists()) {
-      return {
-        storeName: 'Retrostylings',
-        contactEmail: 'support@retrostylings.com',
-        razorpayKeyId: 'rzp_test_TETHQUCGGso1F5',
-        defaultUpiId: 'retrostylings@razorpay',
-        globalPaymentLink: 'https://rzp.io/l/retrostylings'
-      };
+      return defaults;
     }
-    return snap.data();
+    return { ...defaults, ...snap.data() };
   },
 
   async update(data) {
@@ -835,12 +850,13 @@ export const userService = {
     const ref = doc(db, 'users', firebaseUser.uid);
     const snap = await getDoc(ref);
     
-    // Default data for new users
+    // Default data for users
     const userData = {
       uid: firebaseUser.uid,
       email: firebaseUser.email,
       displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User',
       role: 'customer', // Default role
+      lastLogin: serverTimestamp(),
       updatedAt: serverTimestamp(),
       ...extraData
     };

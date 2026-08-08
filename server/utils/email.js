@@ -11,7 +11,7 @@ const transporter = nodemailer.createTransport({
 const sendOrderEmail = async (order, items, userEmail, isAdmin = false) => {
     // Safety check for mail configuration
     if (!process.env.EMAIL_USER || process.env.EMAIL_USER.includes('your-email')) {
-        console.warn('⚠️ Email not configured. Skipping email send.');
+        console.warn(' Email not configured. Skipping email send.');
         return;
     }
 
@@ -111,7 +111,7 @@ const sendReturnStatusEmail = async (order, userEmail, status, details = {}, isA
         case 'approved':
         case 'return_approved':
             subject = `Return Request Approved - RETROSTYLINGS #${orderId}`;
-            title = 'Return Approved ✅';
+            title = 'Return Approved ';
             bodyMessage = `Your return request for order #${orderId} has been approved. ${details.pickupDate ? `<br/><strong>Pickup Date:</strong> ${details.pickupDate}` : ''}`;
             break;
         case 'rejected':

@@ -3,7 +3,7 @@ import { Trash2, Plus, Minus, ShoppingBag, ArrowRight, ChevronLeft } from 'lucid
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import Toast from '../components/Toast';
-import { cartService } from '../services/firestoreService';
+import { cartService, shippingSettingsService } from '../services/firestoreService';
 import { useAuth } from '../services/AuthContext';
 import './Cart.css';
 
@@ -11,6 +11,7 @@ const Cart = () => {
   const [cartItems, setCartItems] = useState([]);
   const [loading, setLoading]     = useState(true);
   const [toast, setToast]         = useState({ show: false, message: '', type: 'success' });
+  const [shippingSettings, setShippingSettings] = useState({ freeShippingLimit: 999, standardCharge: 99 });
   const { currentUser }           = useAuth();
   const navigate                  = useNavigate();
 
@@ -20,6 +21,15 @@ const Cart = () => {
     } else {
       setLoading(false);
     }
+
+    shippingSettingsService.get().then(s => {
+      if (s) {
+        setShippingSettings({
+          freeShippingLimit: Number(s.freeShippingLimit ?? 999),
+          standardCharge: Number(s.standardCharge ?? 99),
+        });
+      }
+    }).catch(() => {});
   }, [currentUser]);
 
   const loadCart = async () => {
@@ -59,7 +69,7 @@ const Cart = () => {
   };
 
   const subtotal = cartItems.reduce((acc, item) => acc + getItemPrice(item) * item.quantity, 0);
-  const shipping = subtotal > 999 ? 0 : 99;
+  const shipping = subtotal > shippingSettings.freeShippingLimit ? 0 : shippingSettings.standardCharge;
   const total    = subtotal + shipping;
 
   if (!currentUser) {
@@ -164,9 +174,9 @@ const Cart = () => {
                 {shipping > 0 && (
                   <div className="shipping-progress">
                     <div className="progress-bar">
-                      <div className="progress-fill" style={{ width: `${Math.min(100, (subtotal / 999) * 100)}%` }} />
+                      <div className="progress-fill" style={{ width: `${Math.min(100, (subtotal / shippingSettings.freeShippingLimit) * 100)}%` }} />
                     </div>
-                    <p>Add ₹{999 - subtotal} more for **FREE SHIPPING**</p>
+                    <p>Add ₹{Math.max(0, shippingSettings.freeShippingLimit - subtotal)} more for **FREE SHIPPING**</p>
                   </div>
                 )}
                 <div className="summary-row total">
