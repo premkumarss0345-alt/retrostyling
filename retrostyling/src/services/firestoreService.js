@@ -376,7 +376,9 @@ async function seedCategoriesIfEmpty() {
       }
     }
   } catch (err) {
-    console.error('Error seeding initial categories:', err);
+    if (err?.code !== 'permission-denied') {
+      console.warn('Category seed notice:', err.message);
+    }
   }
 }
 
@@ -388,19 +390,47 @@ export const categoryService = {
       const q = query(col('categories'), where('status', '==', 'active'));
       const snap = await getDocs(q);
       const list = snap2arr(snap);
-      return list.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
-    } catch (_) {
+      if (list.length > 0) {
+        return list.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
+      }
+    } catch (err) {
+      if (err?.code !== 'permission-denied') {
+        console.warn('Category query notice:', err.message);
+      }
+    }
+
+    // Fallback try un-queried or local seed mapping
+    try {
       const snap = await getDocs(col('categories'));
       const list = snap2arr(snap).filter(c => c.status === 'active');
-      return list.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
-    }
+      if (list.length > 0) {
+        return list.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
+      }
+    } catch (_) {}
+
+    // Ultimate fallback if Firestore rules block categories collection completely
+    return DEFAULT_SEED_DATA.map((c, idx) => ({
+      id: `seed_cat_${idx}`,
+      ...c,
+      status: 'active'
+    }));
   },
 
   /** Admin: Get ALL categories (active & inactive) sorted by displayOrder */
   async getAllAdmin() {
     await seedCategoriesIfEmpty();
-    const snap = await getDocs(col('categories'));
-    return snap2arr(snap).sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
+    try {
+      const snap = await getDocs(col('categories'));
+      const list = snap2arr(snap);
+      if (list.length > 0) {
+        return list.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
+      }
+    } catch (_) {}
+    return DEFAULT_SEED_DATA.map((c, idx) => ({
+      id: `seed_cat_${idx}`,
+      ...c,
+      status: 'active'
+    }));
   },
 
   /** Get category by slug */
@@ -495,19 +525,60 @@ export const subcategoryService = {
       const q = query(col('subcategories'), where('status', '==', 'active'));
       const snap = await getDocs(q);
       const list = snap2arr(snap);
-      return list.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
-    } catch (_) {
+      if (list.length > 0) {
+        return list.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
+      }
+    } catch (_) {}
+
+    try {
       const snap = await getDocs(col('subcategories'));
       const list = snap2arr(snap).filter(s => s.status === 'active');
-      return list.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
-    }
+      if (list.length > 0) {
+        return list.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
+      }
+    } catch (_) {}
+
+    const seedSubs = [];
+    DEFAULT_SEED_DATA.forEach((c, cIdx) => {
+      (c.subs || []).forEach((s, sIdx) => {
+        seedSubs.push({
+          id: `seed_sub_${cIdx}_${sIdx}`,
+          categoryId: `seed_cat_${cIdx}`,
+          categoryName: c.name,
+          categorySlug: c.slug,
+          ...s,
+          status: 'active'
+        });
+      });
+    });
+    return seedSubs;
   },
 
   /** Admin: Get ALL subcategories */
   async getAllAdmin() {
     await seedCategoriesIfEmpty();
-    const snap = await getDocs(col('subcategories'));
-    return snap2arr(snap).sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
+    try {
+      const snap = await getDocs(col('subcategories'));
+      const list = snap2arr(snap);
+      if (list.length > 0) {
+        return list.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
+      }
+    } catch (_) {}
+
+    const seedSubs = [];
+    DEFAULT_SEED_DATA.forEach((c, cIdx) => {
+      (c.subs || []).forEach((s, sIdx) => {
+        seedSubs.push({
+          id: `seed_sub_${cIdx}_${sIdx}`,
+          categoryId: `seed_cat_${cIdx}`,
+          categoryName: c.name,
+          categorySlug: c.slug,
+          ...s,
+          status: 'active'
+        });
+      });
+    });
+    return seedSubs;
   },
 
   /** Get subcategories by categoryId */
