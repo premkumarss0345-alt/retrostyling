@@ -115,12 +115,7 @@ const AdminLayout = ({ children }) => {
     closed: { x: -280, opacity: 0 },
   };
 
-  const mockNotifications = [
-    { id: 1, type: 'order', text: 'New order #ORD-2847 placed', time: '2m ago', unread: true },
-    { id: 2, type: 'stock', text: '3 products running low on stock', time: '15m ago', unread: true },
-    { id: 3, type: 'review', text: 'New review pending approval', time: '1h ago', unread: false },
-    { id: 4, type: 'user', text: 'New customer registered', time: '3h ago', unread: false },
-  ];
+  const mockNotifications = [];
 
   return (
     <div className={`admin-layout ${isCollapsed ? 'sidebar-collapsed' : ''}`}>

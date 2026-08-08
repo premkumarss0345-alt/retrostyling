@@ -293,144 +293,37 @@ export const variantService = {
 };
 
 // ─── CATEGORIES & SUBCATEGORIES ──────────────────────────────────────────────
-const DEFAULT_SEED_DATA = [
-  {
-    name: "Women's Clothing",
-    slug: "womens-clothing",
-    image: "https://images.unsplash.com/photo-1483985988355-763728e1935b?q=80&w=1974&auto=format&fit=crop",
-    description: "Elegant dresses, tops, jackets, and fashion apparel for women.",
-    status: "active",
-    featured: true,
-    displayOrder: 1,
-    seoTitle: "Women's Clothing & Apparel | RetroStylings",
-    seoDescription: "Shop women's dresses, tops, jackets, jeans, and fashion apparel.",
-    subs: [
-      { name: "Dresses", slug: "dresses", image: "https://images.unsplash.com/photo-1595777457583-95e059d581b8?q=80&w=1974&auto=format&fit=crop", description: "Sundresses, party dresses, and midi dresses.", status: "active", featured: true, displayOrder: 1, seoTitle: "Women's Dresses", seoDescription: "Shop sundresses, party dresses, and midi dresses." },
-      { name: "Tops", slug: "tops", image: "https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?q=80&w=1974&auto=format&fit=crop", description: "Casual and dressy tops.", status: "active", featured: true, displayOrder: 2, seoTitle: "Women's Tops", seoDescription: "Fashion tops and blouses." },
-      { name: "T-Shirts", slug: "t-shirts", image: "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?q=80&w=1974&auto=format&fit=crop", description: "Casual cotton tees and tops.", status: "active", featured: false, displayOrder: 3, seoTitle: "Women's T-Shirts", seoDescription: "Casual women's t-shirts." },
-      { name: "Shirts", slug: "shirts", image: "https://images.unsplash.com/photo-1598033129183-c4f50c7176c8?q=80&w=1974&auto=format&fit=crop", description: "Button-downs and casual shirts.", status: "active", featured: false, displayOrder: 4, seoTitle: "Women's Shirts", seoDescription: "Button down shirts for women." },
-      { name: "Jeans", slug: "jeans", image: "https://images.unsplash.com/photo-1541099649105-f69ad21f3246?q=80&w=1974&auto=format&fit=crop", description: "High-waist and skinny fit jeans.", status: "active", featured: true, displayOrder: 5, seoTitle: "Women's Denim Jeans", seoDescription: "Trendy denim jeans." },
-      { name: "Jackets", slug: "jackets", image: "https://images.unsplash.com/photo-1551028719-00167b16eac5?q=80&w=1974&auto=format&fit=crop", description: "Coats, blazers, and denim jackets.", status: "active", featured: false, displayOrder: 6, seoTitle: "Women's Jackets", seoDescription: "Jackets and outerwear." }
-    ]
-  },
-  {
-    name: "Men's Clothing",
-    slug: "mens-clothing",
-    image: "https://images.unsplash.com/photo-1490578474895-699bc4e2cf59?q=80&w=1974&auto=format&fit=crop",
-    description: "Smart shirts, casual tees, hoodies, and denim for men.",
-    status: "active",
-    featured: true,
-    displayOrder: 2,
-    seoTitle: "Men's Clothing Collection | RetroStylings",
-    seoDescription: "Explore men's t-shirts, shirts, hoodies, and jeans.",
-    subs: [
-      { name: "T-Shirts", slug: "t-shirts", image: "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?q=80&w=1974&auto=format&fit=crop", description: "Graphic tees and classic cotton tees.", status: "active", featured: true, displayOrder: 1, seoTitle: "Men's T-Shirts", seoDescription: "Cotton tees for men." },
-      { name: "Shirts", slug: "shirts", image: "https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?q=80&w=1974&auto=format&fit=crop", description: "Casual and formal button down shirts.", status: "active", featured: true, displayOrder: 2, seoTitle: "Men's Shirts", seoDescription: "Button down shirts for men." },
-      { name: "Hoodies", slug: "hoodies", image: "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?q=80&w=1974&auto=format&fit=crop", description: "Cozy hoodies and sweatshirts.", status: "active", featured: false, displayOrder: 3, seoTitle: "Men's Hoodies", seoDescription: "Hoodies and sweatshirts." },
-      { name: "Jeans", slug: "jeans", image: "https://images.unsplash.com/photo-1542272604-780c96856592?q=80&w=1974&auto=format&fit=crop", description: "Slim fit and relaxed denim jeans.", status: "active", featured: false, displayOrder: 4, seoTitle: "Men's Jeans", seoDescription: "Denim jeans for men." }
-    ]
-  },
-  {
-    name: "Handbags & Wallets",
-    slug: "handbags-wallets",
-    image: "https://images.unsplash.com/photo-1584917865442-de89df76afd3?q=80&w=1974&auto=format&fit=crop",
-    description: "Luxury handbags, shoulder bags, clutches, and leather wallets.",
-    status: "active",
-    featured: true,
-    displayOrder: 3,
-    seoTitle: "Handbags & Wallets Collection | RetroStylings",
-    seoDescription: "Shop handbags, crossbody bags, clutches, and genuine leather wallets.",
-    subs: [
-      { name: "Handbags", slug: "handbags", image: "https://images.unsplash.com/photo-1584917865442-de89df76afd3?q=80&w=1974&auto=format&fit=crop", description: "Leather handbags and totes.", status: "active", featured: true, displayOrder: 1, seoTitle: "Handbags & Totes", seoDescription: "Leather handbags." },
-      { name: "Shoulder Bags", slug: "shoulder-bags", image: "https://images.unsplash.com/photo-1590874103328-eac38a683ce7?q=80&w=1974&auto=format&fit=crop", description: "Stylish shoulder bags.", status: "active", featured: false, displayOrder: 2, seoTitle: "Shoulder Bags", seoDescription: "Shoulder bags for women." },
-      { name: "Crossbody Bags", slug: "crossbody-bags", image: "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?q=80&w=1974&auto=format&fit=crop", description: "Hands-free compact crossbody bags.", status: "active", featured: true, displayOrder: 3, seoTitle: "Crossbody Bags", seoDescription: "Crossbody bags." },
-      { name: "Clutches", slug: "clutches", image: "https://images.unsplash.com/photo-1566150905458-1bf1fc113f0d?q=80&w=1974&auto=format&fit=crop", description: "Party clutches and evening purses.", status: "active", featured: false, displayOrder: 4, seoTitle: "Clutches", seoDescription: "Evening clutches." },
-      { name: "Wallets", slug: "wallets", image: "https://images.unsplash.com/photo-1627123424574-724758594e93?q=80&w=1974&auto=format&fit=crop", description: "Leather wallets and cardholders.", status: "active", featured: false, displayOrder: 5, seoTitle: "Wallets", seoDescription: "Leather wallets." },
-      { name: "Pouches", slug: "pouches", image: "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?q=80&w=1974&auto=format&fit=crop", description: "Travel and makeup pouches.", status: "active", featured: false, displayOrder: 6, seoTitle: "Pouches", seoDescription: "Utility pouches." }
-    ]
-  }
-];
-
-async function seedCategoriesIfEmpty() {
-  try {
-    const catSnap = await getDocs(col('categories'));
-    if (!catSnap.empty) return;
-
-    for (const cData of DEFAULT_SEED_DATA) {
-      const { subs, ...catPayload } = cData;
-      const catRef = await addDoc(col('categories'), {
-        ...catPayload,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      });
-
-      for (const sData of subs) {
-        await addDoc(col('subcategories'), {
-          ...sData,
-          categoryId: catRef.id,
-          categoryName: cData.name,
-          categorySlug: cData.slug,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp()
-        });
-      }
-    }
-  } catch (err) {
-    if (err?.code !== 'permission-denied') {
-      console.warn('Category seed notice:', err.message);
-    }
-  }
-}
-
 export const categoryService = {
   /** Customer: Get all active categories sorted by displayOrder */
   async getAll() {
-    await seedCategoriesIfEmpty();
     try {
       const q = query(col('categories'), where('status', '==', 'active'));
       const snap = await getDocs(q);
       const list = snap2arr(snap);
-      if (list.length > 0) {
-        return list.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
-      }
+      return list.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
     } catch (err) {
       if (err?.code !== 'permission-denied') {
         console.warn('Category query notice:', err.message);
       }
     }
 
-    // Fallback try un-queried or local seed mapping
     try {
       const snap = await getDocs(col('categories'));
       const list = snap2arr(snap).filter(c => c.status === 'active');
-      if (list.length > 0) {
-        return list.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
-      }
+      return list.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
     } catch (_) {}
 
-    // Ultimate fallback if Firestore rules block categories collection completely
-    return DEFAULT_SEED_DATA.map((c, idx) => ({
-      id: `seed_cat_${idx}`,
-      ...c,
-      status: 'active'
-    }));
+    return [];
   },
 
   /** Admin: Get ALL categories (active & inactive) sorted by displayOrder */
   async getAllAdmin() {
-    await seedCategoriesIfEmpty();
     try {
       const snap = await getDocs(col('categories'));
       const list = snap2arr(snap);
-      if (list.length > 0) {
-        return list.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
-      }
+      return list.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
     } catch (_) {}
-    return DEFAULT_SEED_DATA.map((c, idx) => ({
-      id: `seed_cat_${idx}`,
-      ...c,
-      status: 'active'
-    }));
+    return [];
   },
 
   /** Get category by slug */
@@ -536,65 +429,31 @@ export const categoryService = {
 export const subcategoryService = {
   /** Customer: Get all active subcategories */
   async getAll() {
-    await seedCategoriesIfEmpty();
     try {
       const q = query(col('subcategories'), where('status', '==', 'active'));
       const snap = await getDocs(q);
       const list = snap2arr(snap);
-      if (list.length > 0) {
-        return list.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
-      }
+      return list.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
     } catch (_) {}
 
     try {
       const snap = await getDocs(col('subcategories'));
       const list = snap2arr(snap).filter(s => s.status === 'active');
-      if (list.length > 0) {
-        return list.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
-      }
+      return list.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
     } catch (_) {}
 
-    const seedSubs = [];
-    DEFAULT_SEED_DATA.forEach((c, cIdx) => {
-      (c.subs || []).forEach((s, sIdx) => {
-        seedSubs.push({
-          id: `seed_sub_${cIdx}_${sIdx}`,
-          categoryId: `seed_cat_${cIdx}`,
-          categoryName: c.name,
-          categorySlug: c.slug,
-          ...s,
-          status: 'active'
-        });
-      });
-    });
-    return seedSubs;
+    return [];
   },
 
   /** Admin: Get ALL subcategories */
   async getAllAdmin() {
-    await seedCategoriesIfEmpty();
     try {
       const snap = await getDocs(col('subcategories'));
       const list = snap2arr(snap);
-      if (list.length > 0) {
-        return list.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
-      }
+      return list.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
     } catch (_) {}
 
-    const seedSubs = [];
-    DEFAULT_SEED_DATA.forEach((c, cIdx) => {
-      (c.subs || []).forEach((s, sIdx) => {
-        seedSubs.push({
-          id: `seed_sub_${cIdx}_${sIdx}`,
-          categoryId: `seed_cat_${cIdx}`,
-          categoryName: c.name,
-          categorySlug: c.slug,
-          ...s,
-          status: 'active'
-        });
-      });
-    });
-    return seedSubs;
+    return [];
   },
 
   /** Get subcategories by categoryId */
@@ -1883,295 +1742,24 @@ export const brandService = {
 
 // ─── DATABASE SEEDER ──────────────────────────────────────────────────────────
 export const seedService = {
-  async run() {
-    // 0. Clear all existing products, categories, heroSlides, orders, rewards, reviews, brands, roles, and activityLogs to remove all dummy data
-    const collectionsToClear = ['products', 'categories', 'heroSlides', 'orders', 'rewards', 'reviews', 'brands', 'roles', 'activityLogs'];
+  /** Clear all dummy products, categories, subcategories, heroSlides, orders, rewards, reviews, and activity logs */
+  async clearAllData() {
+    const collectionsToClear = ['products', 'categories', 'subcategories', 'heroSlides', 'orders', 'rewards', 'reviews', 'brands', 'activityLogs'];
     for (const colName of collectionsToClear) {
-      const snap = await getDocs(col(colName));
-      for (const d of snap.docs) {
-        await deleteDoc(d.ref);
-      }
-    }
-
-    // 1. Categories matching products.js
-    const categories = [
-      { id: 'cat_casual', name: 'Casual', slug: 'casual', image: 'https://images.unsplash.com/photo-1596755094514-f87034a7a241?w=400' },
-      { id: 'cat_formal', name: 'Formal', slug: 'formal', image: 'https://images.unsplash.com/photo-1598033129183-c4f50c7176c8?w=400' },
-      { id: 'cat_denim', name: 'Denim', slug: 'denim', image: 'https://images.unsplash.com/photo-1542272604-787c3835535d?w=400' }
-    ];
-
-    for (const cat of categories) {
-      const { id, ...data } = cat;
-      await setDoc(doc(db, 'categories', id), {
-        ...data,
-        createdAt: serverTimestamp()
-      });
-    }
-
-    // 2. Real Products from products.js
-    const products = [
-      {
-        name: 'Essential Summer Shirt',
-        slug: 'essential-summer-shirt',
-        description: 'Lightweight and breathable cotton shirt designed for hot summer days. Standard collar and button closure.',
-        price: 429,
-        discount_price: 390,
-        on_sale: true,
-        is_new: true,
-        category_id: 'cat_casual',
-        categoryName: 'Casual',
-        categorySlug: 'casual',
-        stock: 50,
-        image: 'https://images.unsplash.com/photo-1596755094514-f87034a7a241?q=80&w=1974&auto=format&fit=crop',
-        status: 'active',
-        sku: 'ESS-01',
-        brand: 'Retro',
-        variants: [
-          { size: 'M', color: 'White', stock: 25 },
-          { size: 'L', color: 'White', stock: 25 }
-        ]
-      },
-      {
-        name: 'Officer Linen Shirt',
-        slug: 'officer-linen-shirt',
-        description: 'Sophisticated mandarin collar linen shirt. Premium quality, comfortable for business casual wear.',
-        price: 654,
-        discount_price: 600,
-        on_sale: true,
-        is_new: false,
-        category_id: 'cat_formal',
-        categoryName: 'Formal',
-        categorySlug: 'formal',
-        stock: 40,
-        image: 'https://images.unsplash.com/photo-1598033129183-c4f50c7176c8?q=80&w=1974&auto=format&fit=crop',
-        status: 'active',
-        sku: 'OLS-02',
-        brand: 'ClassicCo',
-        variants: [
-          { size: 'S', color: 'White', stock: 15 },
-          { size: 'M', color: 'White', stock: 15 },
-          { size: 'L', color: 'White', stock: 10 }
-        ]
-      },
-      {
-        name: 'Vertical Striped Shirt',
-        slug: 'vertical-striped-shirt',
-        description: 'Vibrant casual vertical striped button down shirt. Loose fit and relaxed vibe.',
-        price: 497,
-        discount_price: 452,
-        on_sale: true,
-        is_new: true,
-        category_id: 'cat_casual',
-        categoryName: 'Casual',
-        categorySlug: 'casual',
-        stock: 30,
-        image: 'https://images.unsplash.com/photo-1626497748470-3623761a3d81?q=80&w=1974&auto=format&fit=crop',
-        status: 'active',
-        sku: 'VSS-03',
-        brand: 'ModernStreet',
-        variants: [
-          { size: 'M', color: 'Blue/White', stock: 15 },
-          { size: 'L', color: 'Blue/White', stock: 15 }
-        ]
-      },
-      {
-        name: 'Classic Earth Brown',
-        slug: 'classic-earth-brown',
-        description: 'Comfortable cotton casual shirt in earth brown tone. Ideal for layering.',
-        price: 152,
-        discount_price: 140,
-        on_sale: true,
-        is_new: false,
-        category_id: 'cat_casual',
-        categoryName: 'Casual',
-        categorySlug: 'casual',
-        stock: 60,
-        image: 'https://images.unsplash.com/photo-1563243567-450a80dc955c?q=80&w=1964&auto=format&fit=crop',
-        status: 'active',
-        sku: 'CEB-04',
-        brand: 'Retro',
-        variants: [
-          { size: 'S', color: 'Brown', stock: 20 },
-          { size: 'M', color: 'Brown', stock: 20 },
-          { size: 'L', color: 'Brown', stock: 20 }
-        ]
-      },
-      {
-        name: 'Oxford Button Down',
-        slug: 'oxford-button-down',
-        description: 'Premium heavyweight Oxford fabric cotton shirt. Tailored fit with classic button-down collar.',
-        price: 899,
-        discount_price: 750,
-        on_sale: false,
-        is_new: false,
-        category_id: 'cat_formal',
-        categoryName: 'Formal',
-        categorySlug: 'formal',
-        stock: 25,
-        image: 'https://images.unsplash.com/photo-1594932224010-75b4367c4c5c?q=80&w=2080&auto=format&fit=crop',
-        status: 'active',
-        sku: 'OBD-05',
-        brand: 'ClassicCo',
-        variants: [
-          { size: 'M', color: 'Blue', stock: 15 },
-          { size: 'L', color: 'Blue', stock: 10 }
-        ]
-      },
-      {
-        name: 'Denim Utility Overshirt',
-        slug: 'denim-utility-overshirt',
-        description: 'Rugged and stylish denim utility overshirt with multiple storage pockets and dual stitching.',
-        price: 1299,
-        discount_price: 1100,
-        on_sale: true,
-        is_new: true,
-        category_id: 'cat_denim',
-        categoryName: 'Denim',
-        categorySlug: 'denim',
-        stock: 20,
-        image: 'https://images.unsplash.com/photo-1542272604-787c3835535d?q=80&w=1926&auto=format&fit=crop',
-        status: 'active',
-        sku: 'DUO-06',
-        brand: 'UrbanEdge',
-        variants: [
-          { size: 'M', color: 'Dark Blue', stock: 10 },
-          { size: 'L', color: 'Dark Blue', stock: 10 }
-        ]
-      }
-    ];
-
-    for (const prod of products) {
-      const q = query(col('products'), where('slug', '==', prod.slug));
-      const snap = await getDocs(q);
-      if (snap.empty) {
-        await addDoc(col('products'), {
-          ...prod,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp()
-        });
-      }
-    }
-
-    // 3. Hero Slides
-    const slides = [
-      {
-        title: "Summer Collection '26",
-        subtitle: "Elevate Your Street Game",
-        description: "Discover our latest drops inspired by vintage aesthetics.",
-        image: "https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=1200",
-        active: true,
-        order: 1
-      },
-      {
-        title: "The Hoodie Season",
-        subtitle: "Comfort Meets Style",
-        description: "Premium fleece essentials for the urban explorer.",
-        image: "https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=1200",
-        active: true,
-        order: 2
-      }
-    ];
-
-    const slideSnap = await getDocs(col('heroSlides'));
-    if (slideSnap.empty) {
-      for (const slide of slides) {
-        await addDoc(col('heroSlides'), {
-          ...slide,
-          createdAt: serverTimestamp()
-        });
-      }
-    }
-
-    // 4. Dummy Orders using real products
-    const orderSnap = await getDocs(col('orders'));
-    if (orderSnap.empty) {
-      const dummyOrders = [
-        {
-          customerName: 'Muneeswaran P',
-          customerEmail: 'muneeswaranmd2004@gmail.com',
-          total: 1098,
-          orderStatus: 'processing',
-          paymentStatus: 'paid',
-          paymentMethod: 'cod',
-          items: [
-            { productId: 'mock1', name: 'Essential Summer Shirt', quantity: 1, price: 390 }
-          ],
-          createdAt: serverTimestamp()
-        },
-        {
-          customerName: 'Premkumar',
-          customerEmail: 'premkumarss0345@gmail.com',
-          total: 1098,
-          orderStatus: 'processing',
-          paymentStatus: 'paid',
-          paymentMethod: 'cod',
-          items: [
-            { productId: 'mock1', name: 'Essential Summer Shirt', quantity: 1, price: 390 }
-          ],
-          createdAt: serverTimestamp()
-        },
-        {
-          customerName: 'admin@retrostylings.com',
-          customerEmail: 'admin@retrostylings.com',
-          total: 1999,
-          orderStatus: 'processing',
-          paymentStatus: 'paid',
-          paymentMethod: 'razorpay',
-          items: [
-            { productId: 'mock2', name: 'Officer Linen Shirt', quantity: 1, price: 600 }
-          ],
-          createdAt: serverTimestamp()
+      try {
+        const snap = await getDocs(col(colName));
+        for (const d of snap.docs) {
+          await deleteDoc(d.ref);
         }
-      ];
-      for (const order of dummyOrders) {
-        await addDoc(col('orders'), order);
+      } catch (err) {
+        console.warn(`Clean ${colName} notice:`, err.message);
       }
     }
+  },
 
-    // 5. Seed default Redeemable Rewards
-    const defaultRewards = [
-      { title: '₹100 Coupon', points: 1000, desc: 'Flat discount on any order', available: true },
-      { title: '₹250 Coupon', points: 2200, desc: 'Flat discount on any order', available: true },
-      { title: '₹500 Coupon', points: 4000, desc: 'Flat discount on any order', available: true },
-      { title: '₹1000 Coupon', points: 7500, desc: 'Flat discount on any order', available: true },
-      { title: 'Free Express Shipping', points: 800, desc: 'Free express shipping on your next order', available: true },
-      { title: 'Retro Oversized Hoodie', points: 12000, desc: 'Exclusive member merchandise', available: true },
-      { title: 'Vintage Logo T-Shirt', points: 8000, desc: 'Limited edition graphic tee', available: false }
-    ];
-    for (const reward of defaultRewards) {
-      await addDoc(col('rewards'), {
-        ...reward,
-        createdAt: serverTimestamp()
-      });
-    }
-
-    // 6. (Mock reviews removed)
-    // 7. Seed default Roles
-    const defaultRoles = [
-      { id: 'superadmin', name: 'Super Admin', slug: 'superadmin', permissions: ['all'], color: '#FF4D4D' },
-      { id: 'admin', name: 'Admin', slug: 'admin', permissions: ['products', 'orders', 'customers', 'coupons', 'reports'], color: '#8B5CF6' },
-      { id: 'staff', name: 'Staff', slug: 'staff', permissions: ['orders', 'inventory'], color: '#3B82F6' }
-    ];
-    for (const r of defaultRoles) {
-      const { id, ...data } = r;
-      await setDoc(doc(db, 'roles', id), {
-        ...data,
-        createdAt: serverTimestamp()
-      });
-    }
-
-    // 8. Seed initial Activity Logs
-    const initialLogs = [
-      { user: 'Muneeswaran', action: 'Updated product: Leather Jacket', module: 'Products', createdAt: serverTimestamp(), ip: '192.168.1.1' },
-      { user: 'Priya Admin', action: 'Approved review #R-1024', module: 'Reviews', createdAt: serverTimestamp(), ip: '192.168.1.2' },
-      { user: 'Muneeswaran', action: 'Created coupon: SUMMER30', module: 'Coupons', createdAt: serverTimestamp(), ip: '192.168.1.1' },
-      { user: 'Kiran Staff', action: 'Updated order #ORD-2841 status to Shipped', module: 'Orders', createdAt: serverTimestamp(), ip: '192.168.1.3' },
-      { user: 'Muneeswaran', action: 'Deleted product: Old Model Sneakers', module: 'Products', createdAt: serverTimestamp(), ip: '192.168.1.1' },
-      { user: 'Priya Admin', action: 'Created banner: Flash Sale', module: 'Banners', createdAt: serverTimestamp(), ip: '192.168.1.2' }
-    ];
-    for (const log of initialLogs) {
-      await addDoc(col('activityLogs'), log);
-    }
+  async run() {
+    // Clear dummy data
+    await this.clearAllData();
   }
 };
 

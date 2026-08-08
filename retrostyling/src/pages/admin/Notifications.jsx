@@ -3,11 +3,7 @@ import AdminLayout from './AdminLayout';
 import { Bell, Send, Users, User, Tag, Package, ShoppingBag, Plus, Trash2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
-const mockSent = [
-  { id: 1, title: 'Summer Sale Live!', body: 'Shop up to 50% off on all summer styles.', segment: 'All Customers', sent: '2026-07-05', reads: 2840, clicks: 412 },
-  { id: 2, title: 'Your order has shipped', body: 'Order #ORD-2841 is on its way!', segment: 'Customers with pending orders', sent: '2026-07-04', reads: 156, clicks: 98 },
-  { id: 3, title: 'Flash Sale Tonight!', body: 'Midnight flash sale — 40% off for 6 hours only.', segment: 'All Customers', sent: '2026-07-03', reads: 3120, clicks: 620 },
-];
+const mockSent = [];
 
 const containerVariants = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.06 } } };
 const itemVariants = { hidden: { opacity: 0, y: 16 }, visible: { opacity: 1, y: 0 } };

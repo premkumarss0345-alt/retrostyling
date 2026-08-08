@@ -13,13 +13,7 @@ const itemVariants = { hidden: { opacity: 0, y: 16 }, visible: { opacity: 1, y: 
 
 /* mockFlashSales removed - loaded from Firestore */
 
-const mockLoyaltyRules = [
-  { id: 1, action: 'Purchase', points: 10, description: '10 points per ₹100 spent', active: true },
-  { id: 2, action: 'Review', points: 50, description: '50 points for writing a review', active: true },
-  { id: 3, action: 'Referral', points: 200, description: '200 points per successful referral', active: true },
-  { id: 4, action: 'Birthday', points: 100, description: '100 bonus points on birthday', active: false },
-  { id: 5, action: 'First Order', points: 150, description: '150 points on first purchase', active: true },
-];
+const mockLoyaltyRules = [];
 
 const CountdownTimer = ({ endTime }) => {
   const end = new Date(endTime);
