@@ -19,11 +19,23 @@ service cloud.firestore {
       allow read: if true;
       allow update: if isSignedIn();
       allow create, delete: if isAdmin();
+
+      match /variants/{variantId} {
+        allow read: if true;
+        allow write: if isAdmin();
+      }
     }
+
     match /categories/{categoryId} {
       allow read: if true;
       allow write: if isAdmin();
     }
+
+    match /subcategories/{subcategoryId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
     match /heroSlides/{slideId} {
       allow read: if true;
       allow write: if isAdmin();
