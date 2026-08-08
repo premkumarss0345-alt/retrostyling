@@ -679,7 +679,7 @@
         display: block !important;
     }
 
-    .logo {
+    .header-container > .logo {
         position: absolute;
         left: 50%;
         top: 50%;
@@ -691,6 +691,16 @@
         margin: 0;
         z-index: 5;
         white-space: nowrap;
+    }
+
+    .drawer-header .logo {
+        position: relative !important;
+        top: auto !important;
+        left: auto !important;
+        transform: none !important;
+        font-size: 1.1rem !important;
+        margin: 0 !important;
+        z-index: 1 !important;
     }
     
     .logo span::after {
@@ -754,7 +764,7 @@
 }
 
 @media (max-width: 480px) {
-    .logo {
+    .header-container > .logo {
         font-size: 1rem;
     }
     
@@ -765,4 +775,4 @@
     .header-actions {
         gap: 0.5rem;
     }
-}
+}
