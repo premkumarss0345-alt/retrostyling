@@ -135,7 +135,11 @@ const AdminCategories = () => {
       await loadAllData();
     } catch (err) {
       console.error('Failed to save category:', err);
-      alert('Failed to save category: ' + err.message);
+      if (err?.code === 'permission-denied' || err?.message?.includes('permissions')) {
+        alert('Firebase Firestore Permission Error!\n\nYour Firestore rules in Firebase Console are blocking writes to the "categories" collection.\n\nPlease update rules in Firebase Console:\n\nmatch /categories/{id} {\n  allow read, write: if true;\n}');
+      } else {
+        alert('Failed to save category: ' + err.message);
+      }
     } finally {
       setSaving(false);
     }
@@ -241,7 +245,11 @@ const AdminCategories = () => {
       await loadAllData();
     } catch (err) {
       console.error('Failed to save subcategory:', err);
-      alert('Failed to save subcategory: ' + err.message);
+      if (err?.code === 'permission-denied' || err?.message?.includes('permissions')) {
+        alert('Firebase Firestore Permission Error!\n\nYour Firestore rules in Firebase Console are blocking writes to the "subcategories" collection.\n\nPlease update rules in Firebase Console:\n\nmatch /subcategories/{id} {\n  allow read, write: if true;\n}');
+      } else {
+        alert('Failed to save subcategory: ' + err.message);
+      }
     } finally {
       setSaving(false);
     }

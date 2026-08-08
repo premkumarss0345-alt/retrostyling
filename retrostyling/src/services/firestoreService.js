@@ -446,9 +446,19 @@ export const categoryService = {
   /** Get category by ID */
   async getById(id) {
     if (!id) return null;
-    const snap = await getDoc(doc(db, 'categories', id));
-    if (!snap.exists()) return null;
-    return { id: snap.id, ...snap.data() };
+    if (String(id).startsWith('seed_cat_')) {
+      const idx = parseInt(String(id).replace('seed_cat_', ''), 10);
+      if (!isNaN(idx) && DEFAULT_SEED_DATA[idx]) {
+        return { id, ...DEFAULT_SEED_DATA[idx] };
+      }
+    }
+    try {
+      const snap = await getDoc(doc(db, 'categories', id));
+      if (!snap.exists()) return null;
+      return { id: snap.id, ...snap.data() };
+    } catch (_) {
+      return null;
+    }
   },
 
   /** Create category */
@@ -472,6 +482,11 @@ export const categoryService = {
 
   /** Update category */
   async update(id, data) {
+    if (String(id).startsWith('seed_cat_')) {
+      // Re-create as real doc in Firestore if updating seed category
+      const { id: _ignore, ...realData } = data;
+      return await this.create(realData);
+    }
     const ref = doc(db, 'categories', id);
     const payload = {
       ...data,
@@ -481,7 +496,6 @@ export const categoryService = {
     };
     await updateDoc(ref, payload);
 
-    // If category name or slug changed, sync existing subcategories & products
     if (data.name || data.slug) {
       try {
         const subSnap = await getDocs(query(col('subcategories'), where('categoryId', '==', id)));
@@ -497,7 +511,9 @@ export const categoryService = {
 
   /** Delete category and its subcategories */
   async delete(id) {
-    await deleteDoc(doc(db, 'categories', id));
+    if (!String(id).startsWith('seed_cat_')) {
+      await deleteDoc(doc(db, 'categories', id));
+    }
     try {
       const subSnap = await getDocs(query(col('subcategories'), where('categoryId', '==', id)));
       for (const d of subSnap.docs) {
@@ -510,7 +526,7 @@ export const categoryService = {
   async reorder(orderedList = []) {
     for (let i = 0; i < orderedList.length; i++) {
       const item = orderedList[i];
-      if (item.id) {
+      if (item.id && !String(item.id).startsWith('seed_cat_')) {
         await updateDoc(doc(db, 'categories', item.id), { displayOrder: i + 1, updatedAt: serverTimestamp() });
       }
     }
@@ -635,6 +651,10 @@ export const subcategoryService = {
 
   /** Update subcategory */
   async update(id, data) {
+    if (String(id).startsWith('seed_sub_')) {
+      const { id: _ignore, ...realData } = data;
+      return await this.create(realData);
+    }
     let categoryName = data.categoryName;
     let categorySlug = data.categorySlug;
 
@@ -660,14 +680,16 @@ export const subcategoryService = {
 
   /** Delete subcategory */
   async delete(id) {
-    await deleteDoc(doc(db, 'subcategories', id));
+    if (!String(id).startsWith('seed_sub_')) {
+      await deleteDoc(doc(db, 'subcategories', id));
+    }
   },
 
   /** Reorder subcategories */
   async reorder(orderedList = []) {
     for (let i = 0; i < orderedList.length; i++) {
       const item = orderedList[i];
-      if (item.id) {
+      if (item.id && !String(item.id).startsWith('seed_sub_')) {
         await updateDoc(doc(db, 'subcategories', item.id), { displayOrder: i + 1, updatedAt: serverTimestamp() });
       }
     }
