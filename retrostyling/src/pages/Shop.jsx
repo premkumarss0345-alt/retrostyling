@@ -3,7 +3,7 @@ import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { Search, SlidersHorizontal, X, ChevronRight, Filter, Check, Star, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ProductCard from '../components/ProductCard';
-import { productService, categoryService, subcategoryService } from '../services/firestoreService';
+import { productService, categoryService, subcategoryService, labelService } from '../services/firestoreService';
 import './Shop.css';
 
 const Shop = () => {
@@ -16,6 +16,7 @@ const Shop = () => {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [subcategories, setSubcategories] = useState([]);
+  const [labels, setLabels] = useState([]);
   const [currentCategory, setCurrentCategory] = useState(null);
   const [currentSubcategory, setCurrentSubcategory] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -31,24 +32,27 @@ const Shop = () => {
   const [selectedBrand, setSelectedBrand] = useState('');
   const [selectedSize, setSelectedSize] = useState('');
   const [selectedColor, setSelectedColor] = useState('');
+  const [selectedLabel, setSelectedLabel] = useState('');
   const [inStockOnly, setInStockOnly] = useState(false);
   const [onSaleOnly, setOnSaleOnly] = useState(false);
 
   useEffect(() => {
     loadCategoryDataAndProducts();
-  }, [activeCatSlug, activeSubSlug, sortBy, minPrice, maxPrice, selectedBrand, selectedSize, selectedColor, inStockOnly, onSaleOnly]);
+  }, [activeCatSlug, activeSubSlug, sortBy, minPrice, maxPrice, selectedBrand, selectedSize, selectedColor, selectedLabel, inStockOnly, onSaleOnly]);
 
   const loadCategoryDataAndProducts = async () => {
     setLoading(true);
     try {
-      // 1. Fetch categories and active subcategories
-      const [allCats, allSubs] = await Promise.all([
+      // 1. Fetch categories, active subcategories, and active labels
+      const [allCats, allSubs, activeLbls] = await Promise.all([
         categoryService.getAll(),
         subcategoryService.getAll(),
+        labelService.getActive(),
       ]);
 
       setCategories(allCats);
       setSubcategories(allSubs);
+      setLabels(activeLbls);
 
       let catObj = null;
       let subObj = null;
@@ -81,7 +85,11 @@ const Shop = () => {
         onSale: onSaleOnly,
       });
 
-      setProducts(prods);
+      let filteredProds = prods;
+      if (selectedLabel) {
+        filteredProds = prods.filter(p => (p.labelIds || []).includes(selectedLabel));
+      }
+      setProducts(filteredProds);
 
       // 3. Dynamic SEO Metadata Update
       const pageTitle = subObj?.seoTitle || catObj?.seoTitle || (subObj ? `${subObj.name} | RetroStylings` : catObj ? `${catObj.name} | RetroStylings` : 'Shop All Products | RetroStylings');
@@ -105,6 +113,7 @@ const Shop = () => {
     setSelectedBrand('');
     setSelectedSize('');
     setSelectedColor('');
+    setSelectedLabel('');
     setInStockOnly(false);
     setOnSaleOnly(false);
     setSearchTerm('');
@@ -278,6 +287,35 @@ const Shop = () => {
                     ))}
                   </div>
                 </div>
+
+                {/* Product Labels Filter */}
+                {labels.length > 0 && (
+                  <div className="filter-block">
+                    <h4>Product Labels</h4>
+                    <div className="label-filter-pills">
+                      <button
+                        className={`label-filter-btn ${!selectedLabel ? 'active' : ''}`}
+                        onClick={() => setSelectedLabel('')}
+                      >
+                        All
+                      </button>
+                      {labels.map((lbl) => (
+                        <button
+                          key={lbl.id}
+                          className={`label-filter-btn ${selectedLabel === lbl.id ? 'active' : ''}`}
+                          style={{
+                            backgroundColor: selectedLabel === lbl.id ? (lbl.bgColor || '#8B5CF6') : 'rgba(255,255,255,0.05)',
+                            color: selectedLabel === lbl.id ? (lbl.textColor || '#FFFFFF') : 'var(--text-secondary, #94a3b8)',
+                            borderColor: lbl.bgColor || '#8B5CF6',
+                          }}
+                          onClick={() => setSelectedLabel(selectedLabel === lbl.id ? '' : lbl.id)}
+                        >
+                          {lbl.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Checkbox Toggles */}
                 <div className="filter-block">

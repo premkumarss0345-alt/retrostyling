@@ -385,3 +385,33 @@
         gap: 1rem;
     }
 }
+
+/* 🔹 Label Filter Pills */
+.label-filter-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.label-filter-btn {
+    padding: 5px 12px;
+    border-radius: 16px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    cursor: pointer;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: transparent;
+    color: var(--text-secondary, #94a3b8);
+    transition: all 0.2s ease;
+}
+
+.label-filter-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+}
+
+.label-filter-btn.active {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}

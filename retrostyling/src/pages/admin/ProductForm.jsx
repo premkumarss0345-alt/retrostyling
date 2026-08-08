@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Camera, Save, X, ChevronLeft, Upload, Image as ImageIcon, RefreshCw, Trash2, Copy, CheckCircle, AlertTriangle } from 'lucide-react';
 import { storage } from '../../firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { subcategoryService } from '../../services/firestoreService';
+import { subcategoryService, labelService } from '../../services/firestoreService';
 import './ProductForm.css';
 
 const ProductForm = ({ product, onSave, onCancel, categories }) => {
@@ -16,6 +16,7 @@ const ProductForm = ({ product, onSave, onCancel, categories }) => {
         subcategoryId: '',
         subcategoryName: '',
         subcategorySlug: '',
+        labelIds: [],
         brand: '',
         description: '',
         costPrice: '',
@@ -33,9 +34,14 @@ const ProductForm = ({ product, onSave, onCancel, categories }) => {
     });
 
     const [subcategories, setSubcategories] = useState([]);
+    const [availableLabels, setAvailableLabels] = useState([]);
     const [uploadingMain, setUploadingMain] = useState(false);
     const [uploadingVariantIndex, setUploadingVariantIndex] = useState(null);
     const [invalidImageUrls, setInvalidImageUrls] = useState({});
+
+    useEffect(() => {
+        labelService.getAll().then(setAvailableLabels).catch(() => setAvailableLabels([]));
+    }, []);
 
     useEffect(() => {
         if (product) {
@@ -49,6 +55,7 @@ const ProductForm = ({ product, onSave, onCancel, categories }) => {
                 subcategoryId: product.subcategoryId || '',
                 subcategoryName: product.subcategoryName || '',
                 subcategorySlug: product.subcategorySlug || '',
+                labelIds: product.labelIds || [],
                 brand: product.brand || '',
                 description: product.description || '',
                 costPrice: product.cost_price ?? product.costPrice ?? '',
@@ -113,6 +120,16 @@ const ProductForm = ({ product, onSave, onCancel, categories }) => {
             subcategoryName: sub?.name || '',
             subcategorySlug: sub?.slug || ''
         }));
+    };
+
+    const handleLabelToggle = (labelId) => {
+        setFormData(prev => {
+            const current = prev.labelIds || [];
+            const next = current.includes(labelId)
+                ? current.filter(id => id !== labelId)
+                : [...current, labelId];
+            return { ...prev, labelIds: next };
+        });
     };
 
     const handleChange = (e) => {
@@ -248,6 +265,40 @@ const ProductForm = ({ product, onSave, onCancel, categories }) => {
                                     ))}
                                 </select>
                             </div>
+                        </div>
+
+                        {/* Product Labels Selector */}
+                        <div className="form-group" style={{ marginTop: '0.5rem' }}>
+                            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 700 }}>
+                                Product Labels (Select Multiple)
+                            </label>
+                            {availableLabels.length === 0 ? (
+                                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                                    No custom labels created yet. Add labels in <a href="/admin/labels" target="_blank" rel="noreferrer" style={{ color: 'var(--primary)' }}>Admin &gt; Product Labels</a>.
+                                </p>
+                            ) : (
+                                <div className="labels-multi-select-grid">
+                                    {availableLabels.map((lbl) => {
+                                        const isSelected = (formData.labelIds || []).includes(lbl.id);
+                                        return (
+                                            <button
+                                                key={lbl.id}
+                                                type="button"
+                                                className={`label-pill-toggle ${isSelected ? 'selected' : ''}`}
+                                                style={{
+                                                    backgroundColor: isSelected ? lbl.bgColor || '#8B5CF6' : 'rgba(255,255,255,0.06)',
+                                                    color: isSelected ? lbl.textColor || '#FFFFFF' : 'var(--text-secondary, #94a3b8)',
+                                                    borderColor: isSelected ? lbl.bgColor || '#8B5CF6' : 'rgba(255,255,255,0.15)',
+                                                }}
+                                                onClick={() => handleLabelToggle(lbl.id)}
+                                            >
+                                                {lbl.name}
+                                                {isSelected && <CheckCircle size={13} style={{ marginLeft: 5 }} />}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            )}
                         </div>
                         <div className="form-group">
                             <label>SKU *</label>

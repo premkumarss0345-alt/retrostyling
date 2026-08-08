@@ -36,6 +36,11 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    match /labels/{labelId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
     match /heroSlides/{slideId} {
       allow read: if true;
       allow write: if isAdmin();

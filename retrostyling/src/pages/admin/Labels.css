@@ -1,0 +1,125 @@
+.admin-labels-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.labels-table-card {
+  padding: 0;
+  overflow: hidden;
+  border-radius: 14px;
+}
+
+.label-badge-preview {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.label-badge-preview.large {
+  padding: 8px 18px;
+  font-size: 0.95rem;
+  border-radius: 24px;
+}
+
+.badge-live-preview-box {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 1rem;
+  border-radius: 12px;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.badge-live-preview-box label {
+  display: block;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary, #94a3b8);
+  margin-bottom: 0.75rem;
+}
+
+.preview-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 48px;
+}
+
+.color-swatches-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.swatch-bubble {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  display: inline-block;
+}
+
+.color-picker-input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.color-picker-input input[type='color'] {
+  width: 42px;
+  height: 42px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  background: transparent;
+  padding: 0;
+}
+
+.color-picker-input input[type='text'] {
+  flex: 1;
+}
+
+.preset-colors-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.preset-color-btn {
+  border: none;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.preset-color-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.order-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.label-name-text {
+  font-size: 0.95rem;
+  color: var(--text-primary, #f8fafc);
+}
+
+.empty-cell {
+  padding: 3rem 1rem !important;
+  color: var(--text-secondary, #94a3b8);
+}

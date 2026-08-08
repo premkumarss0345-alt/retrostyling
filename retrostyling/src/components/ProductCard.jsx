@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Eye, ShoppingBag, Heart } from 'lucide-react';
-import { cartService, wishlistService } from '../services/firestoreService';
+import { cartService, wishlistService, labelService } from '../services/firestoreService';
 import { useAuth } from '../services/AuthContext';
 import Toast from './Toast';
 import './ProductCard.css';
@@ -11,14 +11,17 @@ const ProductCard = ({ product }) => {
     const { currentUser } = useAuth();
     const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
     const [loading, setLoading] = useState(false);
+    const [activeLabels, setActiveLabels] = useState([]);
+
+    React.useEffect(() => {
+        labelService.getActive().then(setActiveLabels).catch(() => setActiveLabels([]));
+    }, []);
 
     const handleAddToCart = async () => {
         if (!currentUser) return navigate('/login');
         setLoading(true);
 
         try {
-            // Add to cart using firestoreService
-            // Defaulting to first variant if exists, or null
             const variant = product.variants && product.variants.length > 0 ? product.variants[0] : null;
             await cartService.addItem(product, variant, 1);
             setToast({ show: true, message: `${product.name} added to cart!`, type: 'success' });
@@ -45,6 +48,10 @@ const ProductCard = ({ product }) => {
     const isSale = Number(product.on_sale) === 1 || product.on_sale === true;
     const isNew = Number(product.is_new) === 1 || product.is_new === true;
 
+    // Resolve assigned active labels
+    const prodLabelIds = product.labelIds || [];
+    const matchedLabels = activeLabels.filter(l => prodLabelIds.includes(l.id) && l.status === 'active');
+
     return (
         <div className="product-card">
             <figure className="card-banner">
@@ -52,8 +59,28 @@ const ProductCard = ({ product }) => {
                     <img src={product.image} alt={product.name} className="w-100" />
                 </a>
 
-                {isSale && <div className="card-badge red">SALE</div>}
-                {isNew && <div className="card-badge green">New</div>}
+                {/* Dynamic Product Badging */}
+                <div className="product-badges-stack">
+                    {matchedLabels.length > 0 ? (
+                        matchedLabels.map((lbl) => (
+                            <span
+                                key={lbl.id}
+                                className="dynamic-card-badge"
+                                style={{
+                                    backgroundColor: lbl.bgColor || '#8B5CF6',
+                                    color: lbl.textColor || '#FFFFFF',
+                                }}
+                            >
+                                {lbl.name}
+                            </span>
+                        ))
+                    ) : (
+                        <>
+                            {isSale && <div className="card-badge red">SALE</div>}
+                            {isNew && <div className="card-badge green">New</div>}
+                        </>
+                    )}
+                </div>
 
                 <div className="card-actions">
                     <button className="card-action-btn" aria-label="Quick view" onClick={() => navigate(`/product/${product.slug}`)}>

@@ -27,6 +27,7 @@ const NAV_SECTIONS = [
     items: [
       { path: '/admin/products', label: 'Products', icon: Package },
       { path: '/admin/categories', label: 'Categories', icon: Layers },
+      { path: '/admin/labels', label: 'Product Labels', icon: Tag },
       { path: '/admin/brands', label: 'Brands', icon: Tag },
       { path: '/admin/inventory', label: 'Inventory', icon: Boxes },
     ],

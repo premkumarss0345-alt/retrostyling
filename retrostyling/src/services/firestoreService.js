@@ -555,6 +555,135 @@ export const subcategoryService = {
   }
 };
 
+// ─── PRODUCT LABELS ───────────────────────────────────────────────────────────
+const DEFAULT_SEED_LABELS = [
+  { name: 'HOT', slug: 'hot', bgColor: '#EF4444', textColor: '#FFFFFF', status: 'active', displayOrder: 1 },
+  { name: 'NEW', slug: 'new', bgColor: '#10B981', textColor: '#FFFFFF', status: 'active', displayOrder: 2 },
+  { name: 'BESTSELLER', slug: 'bestseller', bgColor: '#8B5CF6', textColor: '#FFFFFF', status: 'active', displayOrder: 3 },
+  { name: 'LIMITED EDITION', slug: 'limited-edition', bgColor: '#F59E0B', textColor: '#FFFFFF', status: 'active', displayOrder: 4 },
+  { name: 'SALE', slug: 'sale', bgColor: '#EC4899', textColor: '#FFFFFF', status: 'active', displayOrder: 5 },
+];
+
+let _activeLabelsCache = null;
+let _activeLabelsPromise = null;
+
+export const labelService = {
+  clearCache() {
+    _activeLabelsCache = null;
+    _activeLabelsPromise = null;
+  },
+
+  /** Customer: Get all active labels sorted by displayOrder */
+  async getActive() {
+    if (_activeLabelsCache) return _activeLabelsCache;
+    if (_activeLabelsPromise) return _activeLabelsPromise;
+
+    _activeLabelsPromise = (async () => {
+      try {
+        const q = query(col('labels'), where('status', '==', 'active'));
+        const snap = await getDocs(q);
+        const list = snap2arr(snap);
+        if (list.length > 0) {
+          _activeLabelsCache = list.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
+          return _activeLabelsCache;
+        }
+      } catch (_) {}
+
+      try {
+        const snap = await getDocs(col('labels'));
+        const list = snap2arr(snap).filter(l => l.status === 'active');
+        if (list.length > 0) {
+          _activeLabelsCache = list.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
+          return _activeLabelsCache;
+        }
+      } catch (_) {}
+
+      _activeLabelsCache = DEFAULT_SEED_LABELS.map((l, idx) => ({ id: `seed_lbl_${idx}`, ...l }));
+      return _activeLabelsCache;
+    })();
+
+    return _activeLabelsPromise;
+  },
+
+  /** Admin: Get ALL labels (active & inactive) sorted by displayOrder */
+  async getAll() {
+    try {
+      const snap = await getDocs(col('labels'));
+      const list = snap2arr(snap);
+      if (list.length > 0) {
+        return list.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
+      }
+    } catch (_) {}
+
+    return DEFAULT_SEED_LABELS.map((l, idx) => ({ id: `seed_lbl_${idx}`, ...l }));
+  },
+
+  async getById(id) {
+    if (!id) return null;
+    if (String(id).startsWith('seed_lbl_')) {
+      const idx = parseInt(String(id).replace('seed_lbl_', ''), 10);
+      if (!isNaN(idx) && DEFAULT_SEED_LABELS[idx]) {
+        return { id, ...DEFAULT_SEED_LABELS[idx] };
+      }
+    }
+    try {
+      const snap = await getDoc(doc(db, 'labels', id));
+      if (!snap.exists()) return null;
+      return { id: snap.id, ...snap.data() };
+    } catch (_) {
+      return null;
+    }
+  },
+
+  async create(data) {
+    this.clearCache();
+    const payload = {
+      name: data.name || '',
+      slug: data.slug || data.name.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, ''),
+      bgColor: data.bgColor || '#8B5CF6',
+      textColor: data.textColor || '#FFFFFF',
+      status: data.status || 'active',
+      displayOrder: Number(data.displayOrder) || 1,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    };
+    const ref = await addDoc(col('labels'), payload);
+    return ref.id;
+  },
+
+  async update(id, data) {
+    this.clearCache();
+    if (String(id).startsWith('seed_lbl_')) {
+      const { id: _ignore, ...realData } = data;
+      return await this.create(realData);
+    }
+    const ref = doc(db, 'labels', id);
+    const payload = {
+      ...data,
+      displayOrder: data.displayOrder !== undefined ? Number(data.displayOrder) : 1,
+      updatedAt: serverTimestamp(),
+    };
+    await updateDoc(ref, payload);
+  },
+
+  async delete(id) {
+    this.clearCache();
+    if (!String(id).startsWith('seed_lbl_')) {
+      await deleteDoc(doc(db, 'labels', id));
+    }
+  },
+
+  async reorder(orderedList = []) {
+    this.clearCache();
+    for (let i = 0; i < orderedList.length; i++) {
+      const item = orderedList[i];
+      if (item.id && !String(item.id).startsWith('seed_lbl_')) {
+        await updateDoc(doc(db, 'labels', item.id), { displayOrder: i + 1, updatedAt: serverTimestamp() });
+      }
+    }
+  }
+};
+
 // ─── CART ─────────────────────────────────────────────────────────────────────
 /**
  * Cart is stored as a single document per user in 'carts' collection.

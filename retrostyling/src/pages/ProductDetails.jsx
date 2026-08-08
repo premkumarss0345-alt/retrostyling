@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ShoppingBag, Heart, Truck, RotateCcw, ShieldCheck } from 'lucide-react';
-import { productService, cartService, wishlistService } from '../services/firestoreService';
+import { productService, cartService, wishlistService, labelService } from '../services/firestoreService';
 import { useAuth } from '../services/AuthContext';
 import Toast from '../components/Toast';
 import './ProductDetails.css';
@@ -12,12 +12,17 @@ const ProductDetails = () => {
   const { currentUser }    = useAuth();
 
   const [product, setProduct]         = useState(null);
+  const [activeLabels, setActiveLabels] = useState([]);
   const [loading, setLoading]         = useState(true);
   const [selectedSize, setSelectedSize]   = useState('');
   const [selectedColor, setSelectedColor] = useState('');
   const [quantity, setQuantity]       = useState(1);
   const [adding, setAdding]           = useState(false);
   const [toast, setToast]             = useState({ show: false, message: '', type: 'success' });
+
+  useEffect(() => {
+    labelService.getActive().then(setActiveLabels).catch(() => setActiveLabels([]));
+  }, []);
 
   useEffect(() => { loadProduct(); }, [slug]);
 
@@ -98,6 +103,37 @@ const ProductDetails = () => {
         {/* Info */}
         <div className="product-info">
           <p className="product-category-label">{product.categoryName || product.category_name}</p>
+
+          {/* Active Product Badges Bar */}
+          {(() => {
+            const matchedLabels = activeLabels.filter(
+              (l) => (product.labelIds || []).includes(l.id) && l.status === 'active'
+            );
+            if (matchedLabels.length === 0) return null;
+            return (
+              <div className="details-labels-bar" style={{ display: 'flex', gap: '8px', margin: '0.25rem 0 0.75rem 0', flexWrap: 'wrap' }}>
+                {matchedLabels.map((lbl) => (
+                  <span
+                    key={lbl.id}
+                    style={{
+                      backgroundColor: lbl.bgColor || '#8B5CF6',
+                      color: lbl.textColor || '#FFFFFF',
+                      padding: '5px 14px',
+                      borderRadius: '20px',
+                      fontSize: '0.78rem',
+                      fontWeight: 800,
+                      letterSpacing: '0.06em',
+                      textTransform: 'uppercase',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                    }}
+                  >
+                    {lbl.name}
+                  </span>
+                ))}
+              </div>
+            );
+          })()}
+
           <h1 className="h2">{product.name}</h1>
 
           <div className="product-price-section">

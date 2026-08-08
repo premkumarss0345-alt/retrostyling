@@ -34,6 +34,7 @@ import AdminUsers from './pages/admin/Users';
 import AdminHeroSlides from './pages/admin/HeroSlides';
 import AdminSettings from './pages/admin/Settings';
 import AdminCategories from './pages/admin/Categories';
+import AdminLabels from './pages/admin/Labels';
 import AdminInventory from './pages/admin/Inventory';
 import AdminBrands from './pages/admin/Brands';
 import AdminCoupons from './pages/admin/Coupons';
@@ -113,6 +114,7 @@ function AppContent() {
         {adminRoute('/admin', AdminDashboard)}
         {adminRoute('/admin/products', AdminProducts)}
         {adminRoute('/admin/categories', AdminCategories)}
+        {adminRoute('/admin/labels', AdminLabels)}
         {adminRoute('/admin/brands', AdminBrands)}
         {adminRoute('/admin/inventory', AdminInventory)}
         {adminRoute('/admin/orders', AdminOrders)}

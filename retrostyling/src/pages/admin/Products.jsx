@@ -1,18 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import AdminLayout from './AdminLayout';
-import { productService, categoryService } from '../../services/firestoreService';
+import { productService, categoryService, labelService } from '../../services/firestoreService';
 import ProductForm from './ProductForm';
-import { Plus, Search, Edit, Trash2 } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Tag } from 'lucide-react';
 import './Products.css';
 
 const AdminProducts = () => {
   const [view, setView]                   = useState('list');
   const [products, setProducts]           = useState([]);
   const [categories, setCategories]       = useState([]);
+  const [labels, setLabels]               = useState([]);
   const [loading, setLoading]             = useState(true);
   const [editingProduct, setEditing]      = useState(null);
   const [searchTerm, setSearch]           = useState('');
   const [filterCategory, setFilterCat]   = useState('');
+  const [filterLabel, setFilterLabel]     = useState('');
 
   useEffect(() => {
     loadData();
@@ -21,12 +23,14 @@ const AdminProducts = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [prods, cats] = await Promise.all([
+      const [prods, cats, lbls] = await Promise.all([
         productService.getAllAdmin(),
         categoryService.getAll(),
+        labelService.getAll(),
       ]);
       setProducts(prods);
       setCategories(cats);
+      setLabels(lbls);
     } catch (err) {
       console.error(err);
     } finally {
@@ -58,26 +62,15 @@ const AdminProducts = () => {
 
   const handleSave = async (formData) => {
     const slug = formData.slug || formData.name.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, '');
-    const catId = formData.categoryId || formData.category_id || null;
-    const cat = categories.find((c) => c.id === catId);
-
     const payload = {
-      name: formData.name,
+      ...formData,
       slug,
-      description: formData.description || '',
-      price: Number(formData.price),
-      discount_price: Number(formData.discount_price) || 0,
-      stock: Number(formData.stock),
-      image: formData.image || '',
-      category_id: catId,
-      categoryId: catId,
-      categoryName: formData.categoryName || cat?.name || '',
-      categorySlug: formData.categorySlug || cat?.slug || '',
-      subcategoryId: formData.subcategoryId || null,
-      subcategoryName: formData.subcategoryName || '',
-      subcategorySlug: formData.subcategorySlug || '',
+      price: Number(formData.price) || 0,
+      discount_price: Number(formData.discount_price) || Number(formData.price) || 0,
+      stock: Number(formData.stock) || 0,
       on_sale: Boolean(formData.on_sale),
       is_new: Boolean(formData.is_new),
+      labelIds: formData.labelIds || [],
       sku: formData.sku || '',
       brand: formData.brand || '',
       cost_price: Number(formData.cost_price || formData.costPrice) || 0,
@@ -104,8 +97,9 @@ const AdminProducts = () => {
 
   const filtered = products.filter((p) => {
     const matchSearch = p.name?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchCat = filterCategory ? p.category_id === filterCategory : true;
-    return matchSearch && matchCat;
+    const matchCat = filterCategory ? (p.categoryId === filterCategory || p.category_id === filterCategory) : true;
+    const matchLabel = filterLabel ? (p.labelIds || []).includes(filterLabel) : true;
+    return matchSearch && matchCat && matchLabel;
   });
 
   if (view === 'form') {
@@ -154,6 +148,12 @@ const AdminProducts = () => {
               <option key={cat.id} value={cat.id}>{cat.name}</option>
             ))}
           </select>
+          <select value={filterLabel} onChange={(e) => setFilterLabel(e.target.value)} className="filter-select">
+            <option value="">All Labels</option>
+            {labels.map((lbl) => (
+              <option key={lbl.id} value={lbl.id}>{lbl.name}</option>
+            ))}
+          </select>
         </div>
       </div>
 
@@ -175,20 +175,43 @@ const AdminProducts = () => {
               <tr><td colSpan="7" style={{ textAlign: 'center', padding: '2rem' }}>Loading products...</td></tr>
             ) : filtered.length === 0 ? (
               <tr><td colSpan="7" style={{ textAlign: 'center', padding: '2rem' }}>No products found.</td></tr>
-            ) : filtered.map((p) => (
-              <tr key={p.id}>
-                <td>
-                  <div className="product-thumb">
-                    <img src={p.image || 'https://via.placeholder.com/40'} alt={p.name} />
-                  </div>
-                </td>
-                <td>
-                  <div className="product-name-cell">
-                    <strong>{p.name}</strong>
-                    <span className="sku-text">{p.sku || p.id.slice(0, 8)}</span>
-                  </div>
-                </td>
-                <td>{p.categoryName || 'Uncategorized'}</td>
+            ) : filtered.map((p) => {
+              const activeProdLabels = labels.filter(l => (p.labelIds || []).includes(l.id) && l.status === 'active');
+              return (
+                <tr key={p.id}>
+                  <td>
+                    <div className="product-thumb">
+                      <img src={p.image || 'https://via.placeholder.com/40'} alt={p.name} />
+                    </div>
+                  </td>
+                  <td>
+                    <div className="product-name-cell">
+                      <strong className="p-name">{p.name}</strong>
+                      <span className="p-sku">SKU: {p.sku || p.id}</span>
+                      {activeProdLabels.length > 0 && (
+                        <div style={{ display: 'flex', gap: '4px', marginTop: '4px', flexWrap: 'wrap' }}>
+                          {activeProdLabels.map(l => (
+                            <span
+                              key={l.id}
+                              style={{
+                                backgroundColor: l.bgColor || '#8B5CF6',
+                                color: l.textColor || '#FFFFFF',
+                                fontSize: '0.68rem',
+                                fontWeight: 800,
+                                padding: '2px 6px',
+                                borderRadius: '10px',
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.04em'
+                              }}
+                            >
+                              {l.name}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </td>
+                  <td>{p.categoryName || 'Uncategorized'}</td>
                 <td>₹{p.price}</td>
                 <td>
                   <span className={`stock-badge ${p.stock < 10 ? 'low' : ''}`}>{p.stock}</span>
@@ -205,7 +228,8 @@ const AdminProducts = () => {
                   </div>
                 </td>
               </tr>
-            ))}
+            );
+          })}
           </tbody>
         </table>
       </div>
