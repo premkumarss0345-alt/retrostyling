@@ -13,7 +13,7 @@ import {
 // eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../services/AuthContext';
-import { categoryService, cartService } from '../services/firestoreService';
+import { categoryService, subcategoryService, cartService } from '../services/firestoreService';
 import './Navbar.css';
 
 const Navbar = () => {
@@ -22,6 +22,8 @@ const Navbar = () => {
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     const [isScrolled, setIsScrolled] = useState(false);
     const [categories, setCategories] = useState([]);
+    const [subcategories, setSubcategories] = useState([]);
+    const [expandedMobileCat, setExpandedMobileCat] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [currentNotice, setCurrentNotice] = useState(0);
     const [cartCount, setCartCount] = useState(0);
@@ -37,12 +39,16 @@ const Navbar = () => {
         "✨ USE CODE 'RETRO10' FOR EXTRA 10% DISCOUNT"
     ];
 
-    async function loadCategories() {
+    async function loadNavigationData() {
         try {
-            const data = await categoryService.getAll();
-            setCategories(data);
+            const [cats, subs] = await Promise.all([
+                categoryService.getAll(),
+                subcategoryService.getAll(),
+            ]);
+            setCategories(cats.filter(c => c.status === 'active').sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0)));
+            setSubcategories(subs.filter(s => s.status === 'active').sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0)));
         } catch (err) {
-            console.error('Error fetching categories:', err);
+            console.error('Error fetching navigation data:', err);
         }
     }
 
@@ -66,7 +72,7 @@ const Navbar = () => {
     useEffect(() => {
         const handleScroll = () => setIsScrolled(window.scrollY > 50);
         window.addEventListener('scroll', handleScroll);
-        loadCategories();
+        loadNavigationData();
         return () => window.removeEventListener('scroll', handleScroll);
     }, []);
 
@@ -76,7 +82,7 @@ const Navbar = () => {
         } else {
             setCartCount(0);
         }
-    }, [currentUser, location.pathname]); // Update count on page change as well
+    }, [currentUser, location.pathname]);
 
     useEffect(() => {
         setIsMenuOpen(false);
@@ -155,24 +161,33 @@ const Navbar = () => {
                                     </span>
                                     <div className="mega-dropdown">
                                         <div className="mega-grid">
-                                            <div className="mega-column">
-                                                <h4>Collections</h4>
-                                                <ul>
-                                                    {categories.map(cat => (
-                                                        <li key={cat.id}>
-                                                            <Link to={`/category/${cat.slug}`}>{cat.name}</Link>
-                                                        </li>
-                                                    ))}
-                                                </ul>
-                                            </div>
-                                            <div className="mega-column">
-                                                <h4>Highlights</h4>
-                                                <ul>
-                                                    <li><Link to="/shop" style={{ color: 'var(--primary)' }}>Clearance Sale</Link></li>
-                                                    <li><Link to="/shop">New Arrivals</Link></li>
-                                                    <li><Link to="/shop">Best Sellers</Link></li>
-                                                </ul>
-                                            </div>
+                                            {categories.map(cat => {
+                                                const catSubs = subcategories.filter(s => s.categoryId === cat.id);
+                                                return (
+                                                    <div key={cat.id} className="mega-column">
+                                                        <Link to={`/shop/${cat.slug}`} className="mega-category-title">
+                                                            {cat.image && <img src={cat.image} alt={cat.name} className="mega-cat-thumb" />}
+                                                            <span>{cat.name}</span>
+                                                            {cat.featured && <span className="mega-tag-hot">HOT</span>}
+                                                        </Link>
+                                                        <ul>
+                                                            {catSubs.map(sub => (
+                                                                <li key={sub.id}>
+                                                                    <Link to={`/shop/${cat.slug}/${sub.slug}`}>
+                                                                        {sub.name}
+                                                                        {sub.featured && <span className="sub-dot-star">•</span>}
+                                                                    </Link>
+                                                                </li>
+                                                            ))}
+                                                            {catSubs.length === 0 && (
+                                                                <li>
+                                                                    <Link to={`/shop/${cat.slug}`} className="mega-view-all">Browse Collection</Link>
+                                                                </li>
+                                                            )}
+                                                        </ul>
+                                                    </div>
+                                                );
+                                            })}
                                         </div>
                                     </div>
                                 </li>
@@ -268,12 +283,44 @@ const Navbar = () => {
                                     {navLinks.map(link => (
                                         <li key={link.name}><Link to={link.path}>{link.name}</Link></li>
                                     ))}
-                                    <li className="mobile-cat-header">Product Categories</li>
-                                    {categories.map(cat => (
-                                        <li key={cat.id} className="mobile-cat-item">
-                                            <Link to={`/category/${cat.slug}`}>{cat.name}</Link>
-                                        </li>
-                                    ))}
+                                    <li className="mobile-cat-header">Browse Collections</li>
+                                    {categories.map(cat => {
+                                        const catSubs = subcategories.filter(s => s.categoryId === cat.id);
+                                        const isExpanded = expandedMobileCat === cat.id;
+
+                                        return (
+                                            <li key={cat.id} className="mobile-accordion-group">
+                                                <div
+                                                    className="mobile-accordion-header"
+                                                    onClick={() => setExpandedMobileCat(isExpanded ? null : cat.id)}
+                                                >
+                                                    <Link to={`/shop/${cat.slug}`} onClick={(e) => e.stopPropagation()} className="mobile-cat-link">
+                                                        {cat.name}
+                                                    </Link>
+                                                    <button type="button" className="accordion-arrow-btn">
+                                                        <ChevronDown size={16} className={`arrow-icon ${isExpanded ? 'rotated' : ''}`} />
+                                                    </button>
+                                                </div>
+
+                                                {isExpanded && (
+                                                    <ul className="mobile-accordion-subs">
+                                                        {catSubs.map(sub => (
+                                                            <li key={sub.id}>
+                                                                <Link to={`/shop/${cat.slug}/${sub.slug}`} onClick={() => setIsMenuOpen(false)}>
+                                                                    {sub.name}
+                                                                </Link>
+                                                            </li>
+                                                        ))}
+                                                        <li>
+                                                            <Link to={`/shop/${cat.slug}`} onClick={() => setIsMenuOpen(false)} className="mobile-view-all">
+                                                                View All {cat.name} →
+                                                            </Link>
+                                                        </li>
+                                                    </ul>
+                                                )}
+                                            </li>
+                                        );
+                                    })}
                                     <li><Link to="/contact">Support</Link></li>
                                 </ul>
                             </nav>

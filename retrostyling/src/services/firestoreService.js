@@ -49,7 +49,7 @@ const uid = () => {
 // ─── PRODUCTS ────────────────────────────────────────────────────────────────
 export const productService = {
   /** Get all products; applies optional filters */
-  async getAll({ category, search, isNew, sort, status } = {}) {
+  async getAll({ categoryId, subcategoryId, categorySlug, subcategorySlug, category, search, isNew, onSale, sort, status, minPrice, maxPrice, brand, size, color, inStock } = {}) {
     let q = col('products');
     const filters = [];
 
@@ -59,35 +59,67 @@ export const productService = {
       filters.push(where('status', '==', 'active'));
     }
 
-    if (category) filters.push(where('categorySlug', '==', category));
-    if (isNew)     filters.push(where('is_new', '==', true));
+    if (categoryId && subcategoryId) {
+      filters.push(where('categoryId', '==', categoryId));
+      filters.push(where('subcategoryId', '==', subcategoryId));
+    } else if (categoryId) {
+      filters.push(where('categoryId', '==', categoryId));
+    } else if (subcategoryId) {
+      filters.push(where('subcategoryId', '==', subcategoryId));
+    } else if (categorySlug && subcategorySlug) {
+      filters.push(where('categorySlug', '==', categorySlug));
+      filters.push(where('subcategorySlug', '==', subcategorySlug));
+    } else if (categorySlug || category) {
+      filters.push(where('categorySlug', '==', categorySlug || category));
+    }
+
+    if (isNew) filters.push(where('is_new', '==', true));
+    if (onSale) filters.push(where('on_sale', '==', true));
 
     if (filters.length) q = query(q, ...filters);
 
     const snap = await getDocs(q);
     let products = snap2arr(snap);
 
-    // Client-side search (Firestore doesn't do LIKE)
+    // Client-side search and facet filtering
     if (search) {
       const s = search.toLowerCase();
       products = products.filter(
         (p) =>
           p.name?.toLowerCase().includes(s) ||
-          p.description?.toLowerCase().includes(s)
+          p.description?.toLowerCase().includes(s) ||
+          p.categoryName?.toLowerCase().includes(s) ||
+          p.subcategoryName?.toLowerCase().includes(s)
       );
+    }
+    if (minPrice !== undefined && minPrice !== '') {
+      products = products.filter((p) => Number(p.price) >= Number(minPrice));
+    }
+    if (maxPrice !== undefined && maxPrice !== '') {
+      products = products.filter((p) => Number(p.price) <= Number(maxPrice));
+    }
+    if (brand) {
+      products = products.filter((p) => p.brand?.toLowerCase() === brand.toLowerCase());
+    }
+    if (size) {
+      products = products.filter((p) => p.variants?.some((v) => v.size?.toLowerCase() === size.toLowerCase()));
+    }
+    if (color) {
+      products = products.filter((p) => p.variants?.some((v) => v.color?.toLowerCase() === color.toLowerCase()));
+    }
+    if (inStock) {
+      products = products.filter((p) => p.stock > 0);
     }
 
     // Sort
-    if (sort === 'newest') {
-      products.sort((a, b) =>
-        (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)
-      );
+    if (sort === 'price_low') {
+      products.sort((a, b) => Number(a.price) - Number(b.price));
+    } else if (sort === 'price_high') {
+      products.sort((a, b) => Number(b.price) - Number(a.price));
     } else if (sort === 'popular') {
-      products.sort((a, b) => (a.stock || 0) - (b.stock || 0));
+      products.sort((a, b) => (b.sales || b.stock || 0) - (a.sales || a.stock || 0));
     } else {
-      products.sort((a, b) =>
-        (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)
-      );
+      products.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
     }
 
     return products;
@@ -107,7 +139,10 @@ export const productService = {
     const snap = await getDocs(q);
     if (snap.empty) return null;
     const d = snap.docs[0];
-    return { id: d.id, ...d.data() };
+    const prod = { id: d.id, ...d.data() };
+    const variants = await variantService.getByProductId(d.id);
+    if (variants && variants.length > 0) prod.variants = variants;
+    return prod;
   },
 
   /** Get single product by Firestore doc ID */
@@ -115,7 +150,10 @@ export const productService = {
     const ref = doc(db, 'products', id);
     const snap = await getDoc(ref);
     if (!snap.exists()) return null;
-    return { id: snap.id, ...snap.data() };
+    const prod = { id: snap.id, ...snap.data() };
+    const variants = await variantService.getByProductId(id);
+    if (variants && variants.length > 0) prod.variants = variants;
+    return prod;
   },
 
   /** Get multiple products by IDs */
@@ -141,12 +179,19 @@ export const productService = {
       updatedAt: serverTimestamp(),
     };
     const ref = await addDoc(col('products'), payload);
+    if (data.variants && data.variants.length > 0) {
+      await variantService.syncVariants(ref.id, data.variants);
+    }
     return ref.id;
   },
 
   /** Update an existing product */
   async update(id, data) {
     const ref = doc(db, 'products', id);
+    if (data.variants) {
+      const syncedVariants = await variantService.syncVariants(id, data.variants);
+      data.variants = syncedVariants;
+    }
     await updateDoc(ref, { ...data, updatedAt: serverTimestamp() });
   },
 
@@ -156,34 +201,406 @@ export const productService = {
   },
 };
 
-// ─── CATEGORIES ──────────────────────────────────────────────────────────────
-export const categoryService = {
-  async getAll() {
-    const snap = await getDocs(query(col('categories'), orderBy('name', 'asc')));
-    return snap2arr(snap);
+// ─── PRODUCT VARIANTS ────────────────────────────────────────────────────────
+export const variantService = {
+  /** Get all variants for a product from products/{productId}/variants subcollection */
+  async getByProductId(productId) {
+    if (!productId) return [];
+
+    // 1. Try fetching from subcollection products/{productId}/variants
+    try {
+      const subColRef = collection(db, 'products', productId, 'variants');
+      const snap = await getDocs(subColRef);
+      if (!snap.empty) {
+        return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      }
+    } catch (err) {
+      if (err?.code !== 'permission-denied') {
+        console.warn('Subcollection query warning, falling back to embedded variants:', err.message);
+      }
+    }
+
+    // 2. Fallback to parent product doc embedded variants array
+    try {
+      const parentProd = await getDoc(doc(db, 'products', productId));
+      if (parentProd.exists()) {
+        return parentProd.data().variants || [];
+      }
+    } catch (_) {}
+    return [];
   },
 
+  /** Save variants in products/{productId}/variants/{variantId} subcollection and sync parent doc */
+  async syncVariants(productId, variantsList = []) {
+    if (!productId) return [];
+
+    const formattedVariants = variantsList.map((v, index) => {
+      const varId = v.id || `${v.color || 'c'}_${v.size || 's'}_${index}_${Math.random().toString(36).substring(2, 7)}`;
+      const priceVal = v.price !== undefined && v.price !== '' ? Number(v.price) : (v.price_override !== undefined && v.price_override !== '' ? Number(v.price_override) : 0);
+
+      const item = {
+        id: varId,
+        color: v.color || '',
+        size: v.size || '',
+        price: priceVal,
+        stock: Number(v.stock) || 0,
+        sku: v.sku || '',
+        image: v.image || '',
+        imageAlt: v.imageAlt || (v.color || v.size ? `${v.color || ''} ${v.size || ''}`.trim() : '')
+      };
+
+      if (v.price_override !== undefined && v.price_override !== '') {
+        item.price_override = Number(v.price_override);
+      }
+
+      return item;
+    });
+
+    // Try syncing subcollection products/{productId}/variants/{variantId}
+    try {
+      const subColRef = collection(db, 'products', productId, 'variants');
+      const existingSnap = await getDocs(subColRef);
+      const updatedIds = new Set(formattedVariants.map(v => v.id));
+
+      for (const payload of formattedVariants) {
+        const docRef = doc(db, 'products', productId, 'variants', payload.id);
+        const docSnap = await getDoc(docRef);
+        if (!docSnap.exists()) {
+          await setDoc(docRef, { ...payload, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+        } else {
+          await updateDoc(docRef, { ...payload, updatedAt: serverTimestamp() });
+        }
+      }
+
+      for (const d of existingSnap.docs) {
+        if (!updatedIds.has(d.id)) {
+          await deleteDoc(d.ref);
+        }
+      }
+    } catch (subColErr) {
+      console.warn('Subcollection sync warning (parent doc variants will be updated):', subColErr.message);
+    }
+
+    // Always sync parent product document variants array for fast access
+    const parentRef = doc(db, 'products', productId);
+    await updateDoc(parentRef, {
+      variants: formattedVariants,
+      updatedAt: serverTimestamp()
+    });
+
+    return formattedVariants;
+  }
+};
+
+// ─── CATEGORIES & SUBCATEGORIES ──────────────────────────────────────────────
+const DEFAULT_SEED_DATA = [
+  {
+    name: "Women's Clothing",
+    slug: "womens-clothing",
+    image: "https://images.unsplash.com/photo-1483985988355-763728e1935b?q=80&w=1974&auto=format&fit=crop",
+    description: "Elegant dresses, tops, jackets, and fashion apparel for women.",
+    status: "active",
+    featured: true,
+    displayOrder: 1,
+    seoTitle: "Women's Clothing & Apparel | RetroStylings",
+    seoDescription: "Shop women's dresses, tops, jackets, jeans, and fashion apparel.",
+    subs: [
+      { name: "Dresses", slug: "dresses", image: "https://images.unsplash.com/photo-1595777457583-95e059d581b8?q=80&w=1974&auto=format&fit=crop", description: "Sundresses, party dresses, and midi dresses.", status: "active", featured: true, displayOrder: 1, seoTitle: "Women's Dresses", seoDescription: "Shop sundresses, party dresses, and midi dresses." },
+      { name: "Tops", slug: "tops", image: "https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?q=80&w=1974&auto=format&fit=crop", description: "Casual and dressy tops.", status: "active", featured: true, displayOrder: 2, seoTitle: "Women's Tops", seoDescription: "Fashion tops and blouses." },
+      { name: "T-Shirts", slug: "t-shirts", image: "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?q=80&w=1974&auto=format&fit=crop", description: "Casual cotton tees and tops.", status: "active", featured: false, displayOrder: 3, seoTitle: "Women's T-Shirts", seoDescription: "Casual women's t-shirts." },
+      { name: "Shirts", slug: "shirts", image: "https://images.unsplash.com/photo-1598033129183-c4f50c7176c8?q=80&w=1974&auto=format&fit=crop", description: "Button-downs and casual shirts.", status: "active", featured: false, displayOrder: 4, seoTitle: "Women's Shirts", seoDescription: "Button down shirts for women." },
+      { name: "Jeans", slug: "jeans", image: "https://images.unsplash.com/photo-1541099649105-f69ad21f3246?q=80&w=1974&auto=format&fit=crop", description: "High-waist and skinny fit jeans.", status: "active", featured: true, displayOrder: 5, seoTitle: "Women's Denim Jeans", seoDescription: "Trendy denim jeans." },
+      { name: "Jackets", slug: "jackets", image: "https://images.unsplash.com/photo-1551028719-00167b16eac5?q=80&w=1974&auto=format&fit=crop", description: "Coats, blazers, and denim jackets.", status: "active", featured: false, displayOrder: 6, seoTitle: "Women's Jackets", seoDescription: "Jackets and outerwear." }
+    ]
+  },
+  {
+    name: "Men's Clothing",
+    slug: "mens-clothing",
+    image: "https://images.unsplash.com/photo-1490578474895-699bc4e2cf59?q=80&w=1974&auto=format&fit=crop",
+    description: "Smart shirts, casual tees, hoodies, and denim for men.",
+    status: "active",
+    featured: true,
+    displayOrder: 2,
+    seoTitle: "Men's Clothing Collection | RetroStylings",
+    seoDescription: "Explore men's t-shirts, shirts, hoodies, and jeans.",
+    subs: [
+      { name: "T-Shirts", slug: "t-shirts", image: "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?q=80&w=1974&auto=format&fit=crop", description: "Graphic tees and classic cotton tees.", status: "active", featured: true, displayOrder: 1, seoTitle: "Men's T-Shirts", seoDescription: "Cotton tees for men." },
+      { name: "Shirts", slug: "shirts", image: "https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?q=80&w=1974&auto=format&fit=crop", description: "Casual and formal button down shirts.", status: "active", featured: true, displayOrder: 2, seoTitle: "Men's Shirts", seoDescription: "Button down shirts for men." },
+      { name: "Hoodies", slug: "hoodies", image: "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?q=80&w=1974&auto=format&fit=crop", description: "Cozy hoodies and sweatshirts.", status: "active", featured: false, displayOrder: 3, seoTitle: "Men's Hoodies", seoDescription: "Hoodies and sweatshirts." },
+      { name: "Jeans", slug: "jeans", image: "https://images.unsplash.com/photo-1542272604-780c96856592?q=80&w=1974&auto=format&fit=crop", description: "Slim fit and relaxed denim jeans.", status: "active", featured: false, displayOrder: 4, seoTitle: "Men's Jeans", seoDescription: "Denim jeans for men." }
+    ]
+  },
+  {
+    name: "Handbags & Wallets",
+    slug: "handbags-wallets",
+    image: "https://images.unsplash.com/photo-1584917865442-de89df76afd3?q=80&w=1974&auto=format&fit=crop",
+    description: "Luxury handbags, shoulder bags, clutches, and leather wallets.",
+    status: "active",
+    featured: true,
+    displayOrder: 3,
+    seoTitle: "Handbags & Wallets Collection | RetroStylings",
+    seoDescription: "Shop handbags, crossbody bags, clutches, and genuine leather wallets.",
+    subs: [
+      { name: "Handbags", slug: "handbags", image: "https://images.unsplash.com/photo-1584917865442-de89df76afd3?q=80&w=1974&auto=format&fit=crop", description: "Leather handbags and totes.", status: "active", featured: true, displayOrder: 1, seoTitle: "Handbags & Totes", seoDescription: "Leather handbags." },
+      { name: "Shoulder Bags", slug: "shoulder-bags", image: "https://images.unsplash.com/photo-1590874103328-eac38a683ce7?q=80&w=1974&auto=format&fit=crop", description: "Stylish shoulder bags.", status: "active", featured: false, displayOrder: 2, seoTitle: "Shoulder Bags", seoDescription: "Shoulder bags for women." },
+      { name: "Crossbody Bags", slug: "crossbody-bags", image: "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?q=80&w=1974&auto=format&fit=crop", description: "Hands-free compact crossbody bags.", status: "active", featured: true, displayOrder: 3, seoTitle: "Crossbody Bags", seoDescription: "Crossbody bags." },
+      { name: "Clutches", slug: "clutches", image: "https://images.unsplash.com/photo-1566150905458-1bf1fc113f0d?q=80&w=1974&auto=format&fit=crop", description: "Party clutches and evening purses.", status: "active", featured: false, displayOrder: 4, seoTitle: "Clutches", seoDescription: "Evening clutches." },
+      { name: "Wallets", slug: "wallets", image: "https://images.unsplash.com/photo-1627123424574-724758594e93?q=80&w=1974&auto=format&fit=crop", description: "Leather wallets and cardholders.", status: "active", featured: false, displayOrder: 5, seoTitle: "Wallets", seoDescription: "Leather wallets." },
+      { name: "Pouches", slug: "pouches", image: "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?q=80&w=1974&auto=format&fit=crop", description: "Travel and makeup pouches.", status: "active", featured: false, displayOrder: 6, seoTitle: "Pouches", seoDescription: "Utility pouches." }
+    ]
+  }
+];
+
+async function seedCategoriesIfEmpty() {
+  try {
+    const catSnap = await getDocs(col('categories'));
+    if (!catSnap.empty) return;
+
+    for (const cData of DEFAULT_SEED_DATA) {
+      const { subs, ...catPayload } = cData;
+      const catRef = await addDoc(col('categories'), {
+        ...catPayload,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+
+      for (const sData of subs) {
+        await addDoc(col('subcategories'), {
+          ...sData,
+          categoryId: catRef.id,
+          categoryName: cData.name,
+          categorySlug: cData.slug,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        });
+      }
+    }
+  } catch (err) {
+    console.error('Error seeding initial categories:', err);
+  }
+}
+
+export const categoryService = {
+  /** Customer: Get all active categories sorted by displayOrder */
+  async getAll() {
+    await seedCategoriesIfEmpty();
+    try {
+      const q = query(col('categories'), where('status', '==', 'active'));
+      const snap = await getDocs(q);
+      const list = snap2arr(snap);
+      return list.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
+    } catch (_) {
+      const snap = await getDocs(col('categories'));
+      const list = snap2arr(snap).filter(c => c.status === 'active');
+      return list.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
+    }
+  },
+
+  /** Admin: Get ALL categories (active & inactive) sorted by displayOrder */
+  async getAllAdmin() {
+    await seedCategoriesIfEmpty();
+    const snap = await getDocs(col('categories'));
+    return snap2arr(snap).sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
+  },
+
+  /** Get category by slug */
+  async getBySlug(slug) {
+    if (!slug) return null;
+    const q = query(col('categories'), where('slug', '==', slug));
+    const snap = await getDocs(q);
+    if (snap.empty) return null;
+    const d = snap.docs[0];
+    return { id: d.id, ...d.data() };
+  },
+
+  /** Get category by ID */
   async getById(id) {
+    if (!id) return null;
     const snap = await getDoc(doc(db, 'categories', id));
     if (!snap.exists()) return null;
     return { id: snap.id, ...snap.data() };
   },
 
+  /** Create category */
   async create(data) {
-    const ref = await addDoc(col('categories'), {
-      ...data,
+    const payload = {
+      name: data.name || '',
+      slug: data.slug || data.name.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, ''),
+      image: data.image || '',
+      description: data.description || '',
+      status: data.status || 'active',
+      featured: Boolean(data.featured),
+      displayOrder: Number(data.displayOrder) || 1,
+      seoTitle: data.seoTitle || `${data.name} | RetroStylings`,
+      seoDescription: data.seoDescription || data.description || '',
       createdAt: serverTimestamp(),
-    });
+      updatedAt: serverTimestamp(),
+    };
+    const ref = await addDoc(col('categories'), payload);
     return ref.id;
   },
 
+  /** Update category */
   async update(id, data) {
-    await updateDoc(doc(db, 'categories', id), data);
+    const ref = doc(db, 'categories', id);
+    const payload = {
+      ...data,
+      displayOrder: data.displayOrder !== undefined ? Number(data.displayOrder) : 1,
+      featured: Boolean(data.featured),
+      updatedAt: serverTimestamp(),
+    };
+    await updateDoc(ref, payload);
+
+    // If category name or slug changed, sync existing subcategories & products
+    if (data.name || data.slug) {
+      try {
+        const subSnap = await getDocs(query(col('subcategories'), where('categoryId', '==', id)));
+        for (const d of subSnap.docs) {
+          const updates = {};
+          if (data.name) updates.categoryName = data.name;
+          if (data.slug) updates.categorySlug = data.slug;
+          await updateDoc(d.ref, updates);
+        }
+      } catch (_) {}
+    }
   },
 
+  /** Delete category and its subcategories */
   async delete(id) {
     await deleteDoc(doc(db, 'categories', id));
+    try {
+      const subSnap = await getDocs(query(col('subcategories'), where('categoryId', '==', id)));
+      for (const d of subSnap.docs) {
+        await deleteDoc(d.ref);
+      }
+    } catch (_) {}
   },
+
+  /** Reorder categories */
+  async reorder(orderedList = []) {
+    for (let i = 0; i < orderedList.length; i++) {
+      const item = orderedList[i];
+      if (item.id) {
+        await updateDoc(doc(db, 'categories', item.id), { displayOrder: i + 1, updatedAt: serverTimestamp() });
+      }
+    }
+  }
+};
+
+export const subcategoryService = {
+  /** Customer: Get all active subcategories */
+  async getAll() {
+    await seedCategoriesIfEmpty();
+    try {
+      const q = query(col('subcategories'), where('status', '==', 'active'));
+      const snap = await getDocs(q);
+      const list = snap2arr(snap);
+      return list.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
+    } catch (_) {
+      const snap = await getDocs(col('subcategories'));
+      const list = snap2arr(snap).filter(s => s.status === 'active');
+      return list.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
+    }
+  },
+
+  /** Admin: Get ALL subcategories */
+  async getAllAdmin() {
+    await seedCategoriesIfEmpty();
+    const snap = await getDocs(col('subcategories'));
+    return snap2arr(snap).sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
+  },
+
+  /** Get subcategories by categoryId */
+  async getByCategoryId(categoryId, activeOnly = true) {
+    if (!categoryId) return [];
+    try {
+      let q = query(col('subcategories'), where('categoryId', '==', categoryId));
+      if (activeOnly) {
+        q = query(col('subcategories'), where('categoryId', '==', categoryId), where('status', '==', 'active'));
+      }
+      const snap = await getDocs(q);
+      const list = snap2arr(snap);
+      return list.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
+    } catch (_) {
+      const snap = await getDocs(query(col('subcategories'), where('categoryId', '==', categoryId)));
+      let list = snap2arr(snap);
+      if (activeOnly) list = list.filter(s => s.status === 'active');
+      return list.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
+    }
+  },
+
+  /** Get subcategory by Category Slug and Subcategory Slug */
+  async getByCategorySlugAndSubSlug(catSlug, subSlug) {
+    if (!catSlug || !subSlug) return null;
+    const q = query(col('subcategories'), where('categorySlug', '==', catSlug), where('slug', '==', subSlug));
+    const snap = await getDocs(q);
+    if (snap.empty) return null;
+    const d = snap.docs[0];
+    return { id: d.id, ...d.data() };
+  },
+
+  /** Create subcategory */
+  async create(data) {
+    const parentCat = await categoryService.getById(data.categoryId);
+    const payload = {
+      categoryId: data.categoryId,
+      categoryName: parentCat?.name || data.categoryName || '',
+      categorySlug: parentCat?.slug || data.categorySlug || '',
+      name: data.name || '',
+      slug: data.slug || data.name.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, ''),
+      image: data.image || '',
+      description: data.description || '',
+      status: data.status || 'active',
+      featured: Boolean(data.featured),
+      displayOrder: Number(data.displayOrder) || 1,
+      seoTitle: data.seoTitle || `${data.name} | RetroStylings`,
+      seoDescription: data.seoDescription || data.description || '',
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    };
+    const ref = await addDoc(col('subcategories'), payload);
+    return ref.id;
+  },
+
+  /** Update subcategory */
+  async update(id, data) {
+    let categoryName = data.categoryName;
+    let categorySlug = data.categorySlug;
+
+    if (data.categoryId) {
+      const parentCat = await categoryService.getById(data.categoryId);
+      if (parentCat) {
+        categoryName = parentCat.name;
+        categorySlug = parentCat.slug;
+      }
+    }
+
+    const payload = {
+      ...data,
+      categoryName,
+      categorySlug,
+      displayOrder: data.displayOrder !== undefined ? Number(data.displayOrder) : 1,
+      featured: Boolean(data.featured),
+      updatedAt: serverTimestamp(),
+    };
+
+    await updateDoc(doc(db, 'subcategories', id), payload);
+  },
+
+  /** Delete subcategory */
+  async delete(id) {
+    await deleteDoc(doc(db, 'subcategories', id));
+  },
+
+  /** Reorder subcategories */
+  async reorder(orderedList = []) {
+    for (let i = 0; i < orderedList.length; i++) {
+      const item = orderedList[i];
+      if (item.id) {
+        await updateDoc(doc(db, 'subcategories', item.id), { displayOrder: i + 1, updatedAt: serverTimestamp() });
+      }
+    }
+  }
 };
 
 // ─── CART ─────────────────────────────────────────────────────────────────────

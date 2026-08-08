@@ -71,8 +71,14 @@ const ProductDetails = () => {
   if (!product) return <div className="container section">Product not found.</div>;
 
   const activeVariant = product.variants?.find(
-    (v) => v.size === selectedSize && v.color === selectedColor
+    (v) => (v.size === selectedSize || !selectedSize) && (v.color === selectedColor || !selectedColor)
   );
+
+  // Resolve variant image (or fallback to color-level image, or main product image)
+  const variantImage = activeVariant?.image ||
+    product.variants?.find((v) => v.color === selectedColor && v.image)?.image ||
+    product.image;
+
   const displayPrice = activeVariant?.price_override
     ? Number(activeVariant.price_override)
     : product.on_sale
@@ -85,7 +91,7 @@ const ProductDetails = () => {
         {/* Gallery */}
         <div className="product-gallery">
           <div className="main-image">
-            <img src={product.image} alt={product.name} className="w-100" />
+            <img src={variantImage} alt={activeVariant?.imageAlt || product.name} className="w-100" />
           </div>
         </div>
 

@@ -58,8 +58,8 @@ const AdminProducts = () => {
 
   const handleSave = async (formData) => {
     const slug = formData.slug || formData.name.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, '');
-    // Find selected category to embed slug
-    const cat = categories.find((c) => c.id === formData.category_id || c.id === String(formData.category_id));
+    const catId = formData.categoryId || formData.category_id || null;
+    const cat = categories.find((c) => c.id === catId);
 
     const payload = {
       name: formData.name,
@@ -69,9 +69,13 @@ const AdminProducts = () => {
       discount_price: Number(formData.discount_price) || 0,
       stock: Number(formData.stock),
       image: formData.image || '',
-      category_id: formData.category_id || null,
-      categoryName: cat?.name || '',
-      categorySlug: cat?.slug || '',
+      category_id: catId,
+      categoryId: catId,
+      categoryName: formData.categoryName || cat?.name || '',
+      categorySlug: formData.categorySlug || cat?.slug || '',
+      subcategoryId: formData.subcategoryId || null,
+      subcategoryName: formData.subcategoryName || '',
+      subcategorySlug: formData.subcategorySlug || '',
       on_sale: Boolean(formData.on_sale),
       is_new: Boolean(formData.is_new),
       sku: formData.sku || '',

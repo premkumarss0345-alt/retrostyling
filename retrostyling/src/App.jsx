@@ -81,10 +81,11 @@ function AppContent() {
     <div className="app">
       {showNav && <Navbar />}
       <Routes>
-        {/* ─── Customer Routes ─── */}
         <Route path="/" element={<Home />} />
         <Route path="/shop" element={<Shop />} />
-        <Route path="/category/:slug" element={<Category />} />
+        <Route path="/shop/:categorySlug" element={<Shop />} />
+        <Route path="/shop/:categorySlug/:subcategorySlug" element={<Shop />} />
+        <Route path="/category/:slug" element={<Shop />} />
         <Route path="/product/:slug" element={<ProductDetails />} />
         <Route path="/cart" element={<Cart />} />
         <Route path="/wishlist" element={<Wishlist />} />

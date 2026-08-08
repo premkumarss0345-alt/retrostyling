@@ -11,11 +11,15 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Initialize Razorpay SDK instance
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID || '',
-  key_secret: process.env.RAZORPAY_KEY_SECRET || '',
-});
+// Razorpay helper
+function getRazorpayInstance() {
+  const key_id = process.env.RAZORPAY_KEY_ID;
+  const key_secret = process.env.RAZORPAY_KEY_SECRET;
+  if (!key_id || !key_secret) {
+    throw new Error('Razorpay API keys (RAZORPAY_KEY_ID & RAZORPAY_KEY_SECRET) are missing from environment variables.');
+  }
+  return new Razorpay({ key_id, key_secret });
+}
 
 // Request logging middleware
 app.use((req, res, next) => {
@@ -268,6 +272,8 @@ app.post('/api/create-order', async (req, res) => {
     if (amountInPaise < 100) {
       return res.status(400).json({ error: 'Minimum order amount must be at least 100 paise' });
     }
+
+    const razorpay = getRazorpayInstance();
 
     const options = {
       amount: amountInPaise,
