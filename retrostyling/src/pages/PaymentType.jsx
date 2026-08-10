@@ -5,6 +5,7 @@ import {
   CreditCard, ShieldCheck, Lock, Smartphone, Building2, HelpCircle,
   ChevronDown, ArrowRight, ShieldAlert, BadgePercent, Coins
 } from 'lucide-react';
+import SEO from '../components/SEO';
 import './PaymentType.css';
 
 const PAYMENT_METHODS = [
@@ -113,6 +114,11 @@ const FAQItem = ({ q, a }) => {
 const PaymentType = () => {
   return (
     <div className="pt-page">
+      <SEO
+        title="Payment Methods & Security"
+        description="Learn about accepted payment methods at Retrostylings: UPI, Credit/Debit cards, Net Banking, and Cash on Delivery with 256-bit SSL encryption security."
+        canonical="/payment-type"
+      />
       {/* Hero */}
       <div className="pt-hero">
         <div className="pt-hero-glow" />

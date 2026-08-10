@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import AdminLayout from './AdminLayout';
 import {
   Zap, Star, Lightbulb, Gift, Award, Users, Mail,
-  Plus, Edit2, Trash2, ToggleLeft, ToggleRight, Clock
+  Plus, Edit2, Trash2, ToggleLeft, ToggleRight, Clock, Globe, Search, FileText, Check
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { rewardsService, flashSaleService, productService } from '../../services/firestoreService';
@@ -40,6 +40,14 @@ const Marketing = () => {
   const [loyaltyRules, setLoyaltyRules] = useState(mockLoyaltyRules);
   const [activeTab, setActiveTab] = useState('flash');
   const [newsletterForm, setNewsletterForm] = useState({ subject: '', body: '', segment: 'all' });
+  const [seoForm, setSeoForm] = useState({
+    siteTitle: "Retrostylings | Premium Men's Fashion & Apparel",
+    metaDescription: "Discover retro and modern men's fashion at Retrostylings. Shop premium shirts, t-shirts, jackets, and essentials with supreme comfort and style.",
+    metaKeywords: "men's fashion, vintage clothing, retro shirts, premium menswear, streetwear, casual wear, formal wear",
+    googleSiteVerification: "",
+    bingSiteVerification: "",
+    ogImageUrl: "/og-image.jpg"
+  });
 
   // Rewards catalog state
   const [rewards, setRewards] = useState([]);
@@ -224,6 +232,7 @@ const Marketing = () => {
     { id: 'loyalty', label: 'Loyalty & Rewards', icon: Award },
     { id: 'referral', label: 'Referral Program', icon: Users },
     { id: 'newsletter', label: 'Newsletter', icon: Mail },
+    { id: 'seo', label: 'SEO & Metadata', icon: Globe },
   ];
 
   return (
@@ -431,6 +440,99 @@ const Marketing = () => {
               </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                 <button className="btn btn-primary btn-sm">Send Campaign</button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* SEO & Metadata */}
+        {activeTab === 'seo' && (
+          <motion.div variants={containerVariants} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            <div className="marketing-info-card">
+              <Globe size={22} color="var(--primary)" />
+              <div>
+                <h4>Search Engine Optimization (SEO) & Social Sharing</h4>
+                <p>Manage default meta tags, structured data, canonical settings, and search console verification tags.</p>
+              </div>
+            </div>
+
+            <div className="newsletter-form">
+              <div className="form-group">
+                <label className="form-label">Default Website Title *</label>
+                <input
+                  className="form-input"
+                  value={seoForm.siteTitle}
+                  onChange={e => setSeoForm(s => ({ ...s, siteTitle: e.target.value }))}
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Default Meta Description *</label>
+                <textarea
+                  className="form-input"
+                  rows={3}
+                  value={seoForm.metaDescription}
+                  onChange={e => setSeoForm(s => ({ ...s, metaDescription: e.target.value }))}
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Default Meta Keywords</label>
+                <input
+                  className="form-input"
+                  value={seoForm.metaKeywords}
+                  onChange={e => setSeoForm(s => ({ ...s, metaKeywords: e.target.value }))}
+                />
+              </div>
+
+              <div className="form-row" style={{ display: 'flex', gap: '1rem' }}>
+                <div className="form-group" style={{ flex: 1 }}>
+                  <label className="form-label">Google Site Verification Meta Code</label>
+                  <input
+                    className="form-input"
+                    placeholder="e.g. google-site-verification-id"
+                    value={seoForm.googleSiteVerification}
+                    onChange={e => setSeoForm(s => ({ ...s, googleSiteVerification: e.target.value }))}
+                  />
+                </div>
+                <div className="form-group" style={{ flex: 1 }}>
+                  <label className="form-label">Bing Webmaster Verification Code</label>
+                  <input
+                    className="form-input"
+                    placeholder="e.g. bing-verification-id"
+                    value={seoForm.bingSiteVerification}
+                    onChange={e => setSeoForm(s => ({ ...s, bingSiteVerification: e.target.value }))}
+                  />
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Default Open Graph Image URL (OG Image)</label>
+                <input
+                  className="form-input"
+                  placeholder="/og-image.jpg"
+                  value={seoForm.ogImageUrl}
+                  onChange={e => setSeoForm(s => ({ ...s, ogImageUrl: e.target.value }))}
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+                <div style={{ display: 'flex', gap: '1rem' }}>
+                  <a href="/sitemap.xml" target="_blank" rel="noopener noreferrer" className="btn btn-secondary btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <FileText size={14} /> View XML Sitemap
+                  </a>
+                  <a href="/robots.txt" target="_blank" rel="noopener noreferrer" className="btn btn-secondary btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <Search size={14} /> View Robots.txt
+                  </a>
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  onClick={() => showMsg('SEO Settings updated successfully!')}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
+                >
+                  <Check size={14} /> Save SEO Settings
+                </button>
               </div>
             </div>
           </motion.div>

@@ -3,6 +3,7 @@ import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { Search, SlidersHorizontal, X, ChevronRight, Filter, Check, Star, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ProductCard from '../components/ProductCard';
+import SEO from '../components/SEO';
 import { productService, categoryService, subcategoryService, labelService } from '../services/firestoreService';
 import './Shop.css';
 
@@ -129,6 +130,26 @@ const Shop = () => {
 
   return (
     <div className="shop-page section">
+      <SEO
+        title={pageHeading !== 'Shop Collection' ? `${pageHeading} | Men's Fashion` : "Shop All Men's Clothing & Essentials"}
+        description={pageDescription}
+        canonical={activeCatSlug ? `/category/${activeCatSlug}` : '/shop'}
+        schema={{
+          "@context": "https://schema.org",
+          "@type": "CollectionPage",
+          "name": pageHeading,
+          "description": pageDescription,
+          "url": typeof window !== 'undefined' ? window.location.href : '',
+          "mainEntity": {
+            "@type": "ItemList",
+            "itemListElement": products.slice(0, 10).map((prod, idx) => ({
+              "@type": "ListItem",
+              "position": idx + 1,
+              "url": typeof window !== 'undefined' ? `${window.location.origin}/product/${prod.slug || prod.id}` : ''
+            }))
+          }
+        }}
+      />
       <div className="container">
         
         {/* Breadcrumb Navigation */}

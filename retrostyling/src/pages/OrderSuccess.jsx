@@ -2,11 +2,13 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { CheckCircle, Package, ArrowRight, ShoppingBag, Truck } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import SEO from '../components/SEO';
 import './OrderSuccess.css';
 
 const OrderSuccess = () => {
     return (
         <div className="order-success-page">
+            <SEO title="Order Placed Successfully" noindex={true} />
             <div className="container success-container">
                 <motion.div
                     initial={{ scale: 0, opacity: 0 }}

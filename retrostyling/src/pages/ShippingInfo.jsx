@@ -6,6 +6,7 @@ import {
   ArrowRight, ShieldCheck, Phone, Globe
 } from 'lucide-react';
 import { shippingSettingsService } from '../services/firestoreService';
+import SEO from '../components/SEO';
 import './ShippingInfo.css';
 
 const ShippingInfo = () => {
@@ -75,6 +76,11 @@ const ShippingInfo = () => {
 
   return (
     <div className="si-page">
+      <SEO
+        title="Shipping & Delivery Information"
+        description={`Fast & reliable Pan-India shipping at Retrostylings. Free shipping on orders over ₹${freeShippingLimit.toLocaleString()}, standard and express delivery options.`}
+        canonical="/shipping-info"
+      />
       {/* Hero */}
       <div className="si-hero">
         <div className="si-hero-glow" />

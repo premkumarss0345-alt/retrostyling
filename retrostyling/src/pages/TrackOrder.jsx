@@ -6,6 +6,7 @@ import {
   Download, ChevronRight, AlertCircle, RotateCcw, Circle
 } from 'lucide-react';
 import { orderService } from '../services/firestoreService';
+import SEO from '../components/SEO';
 import './TrackOrder.css';
 
 const ORDER_STEPS = [
@@ -115,6 +116,11 @@ Thank you for shopping with Retrostylings!
 
   return (
     <div className="to-page">
+      <SEO
+        title="Track Your Order"
+        description="Track your Retrostylings order status in real time. Enter your Order ID and phone number or email to see live shipment tracking."
+        canonical="/track-order"
+      />
       <div className="to-hero">
         <div className="to-hero-glow" />
         <motion.div

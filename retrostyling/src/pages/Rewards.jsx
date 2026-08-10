@@ -6,6 +6,7 @@ import {
   Share2, Copy, Check, MessageSquare, ArrowRight, ArrowLeft, RefreshCw, Info, Lock
 } from 'lucide-react';
 import Toast from '../components/Toast';
+import SEO from '../components/SEO';
 import { rewardsService, shippingSettingsService } from '../services/firestoreService';
 import './Rewards.css';
 
@@ -207,6 +208,11 @@ const Rewards = () => {
 
   return (
     <div className="rewards-page">
+      <SEO
+        title="VIP Rewards & Loyalty Program"
+        description="Earn points on every order, write reviews, refer friends, and unlock exclusive discounts with Retrostylings VIP Rewards."
+        canonical="/rewards"
+      />
       {toast && <Toast text={toast.text} type={toast.type} onClose={() => setToast(null)} />}
 
       <div className="rewards-container container">

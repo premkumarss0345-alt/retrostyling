@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Heart, ShoppingBag } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import ProductCard from '../components/ProductCard';
+import SEO from '../components/SEO';
 import { wishlistService, productService } from '../services/firestoreService';
 import { useAuth } from '../services/AuthContext';
 import './Wishlist.css';
@@ -56,6 +57,7 @@ const Wishlist = () => {
 
   return (
     <div className="wishlist-page container section">
+      <SEO title="My Wishlist" noindex={true} canonical="/wishlist" />
       <h1 className="h2 title-centered">My Wishlist</h1>
       <div className="product-grid">
         {products.map((item) => (

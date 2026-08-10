@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { User, Mail, Lock, Eye, EyeOff, UserPlus, Chrome } from 'lucide-react';
 import { useAuth } from '../services/AuthContext';
 import Toast from '../components/Toast';
+import SEO from '../components/SEO';
 import './Login.css';
 
 const Signup = () => {
@@ -67,6 +68,7 @@ const Signup = () => {
 
   return (
     <div className="login-page">
+      <SEO title="Create Account" noindex={true} canonical="/signup" />
       <section className="login-image-section" style={{ backgroundImage: 'url("https://images.unsplash.com/photo-1558769132-cb1aea458c5e?auto=format&fit=crop&q=80&w=2000")' }}>
         <div className="login-image-content">
           <motion.h2

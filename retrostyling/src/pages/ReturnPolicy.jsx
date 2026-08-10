@@ -5,6 +5,7 @@ import {
   RotateCcw, CheckCircle, XCircle, Clock, CreditCard, RefreshCw,
   ChevronDown, Package, AlertTriangle, Banknote, ShieldCheck, ArrowRight
 } from 'lucide-react';
+import SEO from '../components/SEO';
 import './ReturnPolicy.css';
 
 const RETURN_CONDITIONS = [
@@ -94,6 +95,11 @@ const FAQItem = ({ q, a }) => {
 const ReturnPolicy = () => {
   return (
     <div className="rp-page">
+      <SEO
+        title="Return & Refund Policy"
+        description="Hassle-free 7-day returns & exchange policy at Retrostylings. Learn about eligibility, refund timelines, and exchange guidelines."
+        canonical="/return-policy"
+      />
       {/* Hero */}
       <div className="rp-hero">
         <div className="rp-hero-glow" />

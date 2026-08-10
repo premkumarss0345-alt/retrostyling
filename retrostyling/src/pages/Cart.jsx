@@ -3,6 +3,7 @@ import { Trash2, Plus, Minus, ShoppingBag, ArrowRight, ChevronLeft } from 'lucid
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import Toast from '../components/Toast';
+import SEO from '../components/SEO';
 import { cartService, shippingSettingsService } from '../services/firestoreService';
 import { useAuth } from '../services/AuthContext';
 import './Cart.css';
@@ -103,6 +104,7 @@ const Cart = () => {
 
   return (
     <motion.div className="cart-page section" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+      <SEO title="Shopping Cart" noindex={true} canonical="/cart" />
       <div className="container">
         <div className="flex-between" style={{ marginBottom: '2rem', alignItems: 'flex-end' }}>
           <div>

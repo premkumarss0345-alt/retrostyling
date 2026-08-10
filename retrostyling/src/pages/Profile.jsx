@@ -10,6 +10,7 @@ import {
 import { useAuth } from '../services/AuthContext';
 import { addressService, orderService, wishlistService, cartService, productService, returnService, shippingSettingsService, rewardsService, invoiceTemplateService, reviewService } from '../services/firestoreService';
 import Toast from '../components/Toast';
+import SEO from '../components/SEO';
 import './Profile.css';
 
 // Formatting helpers
@@ -811,6 +812,7 @@ const Profile = () => {
 
   return (
     <div className="my-account-page">
+      <SEO title="My Account" noindex={true} canonical="/profile" />
       {toast && <Toast text={toast.text} type={toast.type} onClose={() => setToast(null)} />}
 
       <div className="account-container container">

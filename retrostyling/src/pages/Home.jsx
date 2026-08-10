@@ -9,7 +9,7 @@ import Newsletter from '../components/Newsletter';
 import ProductCarousel from '../components/ProductCarousel';
 import { useAuth } from '../services/AuthContext';
 import { cartService, wishlistService, flashSaleService, productService, reviewService, brandService } from '../services/firestoreService';
-import Toast from '../components/Toast';
+import SEO from '../components/SEO';
 import './Home.css';
 
 /* ─── Flash Sale Countdown ────────────────────────────────── */
@@ -205,6 +205,23 @@ const Home = () => {
 
   return (
     <div className="home-page">
+      <SEO
+        title="Retrostylings | Premium Men's Fashion & Apparel"
+        description="Discover top trend men's clothing at Retrostylings. Premium shirts, casual wear, vintage styles, and formal essentials designed for supreme comfort and style."
+        keywords="men fashion, retro shirts, casual menswear, formal shirts, Retrostylings, online clothing store"
+        canonical="/"
+        schema={{
+          "@context": "https://schema.org",
+          "@type": "WebSite",
+          "name": "Retrostylings",
+          "url": typeof window !== 'undefined' ? window.location.origin : 'https://retrostylings.com',
+          "potentialAction": {
+            "@type": "SearchAction",
+            "target": `${typeof window !== 'undefined' ? window.location.origin : 'https://retrostylings.com'}/shop?search={search_term_string}`,
+            "query-input": "required name=search_term_string"
+          }
+        }}
+      />
       {/* Hero */}
       <Hero />
 

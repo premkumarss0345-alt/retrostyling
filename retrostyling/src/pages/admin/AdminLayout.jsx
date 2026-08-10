@@ -11,6 +11,7 @@ import {
 // eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../services/AuthContext';
+import SEO from '../../components/SEO';
 import './AdminLayout.css';
 
 const NAV_SECTIONS = [
@@ -120,6 +121,7 @@ const AdminLayout = ({ children }) => {
 
   return (
     <div className={`admin-layout ${isCollapsed ? 'sidebar-collapsed' : ''}`}>
+      <SEO title="Admin Control Panel" noindex={true} />
       {/* Mobile Overlay */}
       <AnimatePresence>
         {isMobileOpen && (

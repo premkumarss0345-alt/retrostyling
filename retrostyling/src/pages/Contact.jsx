@@ -3,6 +3,7 @@ import { Mail, Phone, MapPin, Send, Clock, MessageSquare, ChevronDown } from 'lu
 import { motion, AnimatePresence } from 'framer-motion';
 import { contactService } from '../services/firestoreService';
 import Toast from '../components/Toast';
+import SEO from '../components/SEO';
 import { API_BASE_URL } from '../config';
 import './Contact.css';
 
@@ -79,6 +80,17 @@ const Contact = () => {
 
     return (
         <div className="contact-page">
+            <SEO
+                title="Contact Us & Support"
+                description="Get in touch with Retrostylings customer support team. Have questions about orders, shipping, sizing, or returns? We are here to help."
+                canonical="/contact"
+                schema={{
+                    "@context": "https://schema.org",
+                    "@type": "ContactPage",
+                    "name": "Contact Retrostylings",
+                    "description": "Customer support and contact options for Retrostylings."
+                }}
+            />
 
             {/* ── Hero ──────────────────────────────────────────────────── */}
             <section className="contact-hero">

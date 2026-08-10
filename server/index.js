@@ -922,6 +922,47 @@ app.put('/api/admin/returns/:id/status', authenticateToken, adminOnly, async (re
   }
 });
 
+// Dynamic XML Sitemap Generator
+app.get('/api/sitemap.xml', async (req, res) => {
+  try {
+    const baseUrl = process.env.CLIENT_URL || 'https://retrostylings.com';
+    let products = [];
+    let categories = [];
+
+    try {
+      const [pRows] = await pool.promise().query('SELECT slug, id, updated_at FROM products WHERE is_active = 1 OR is_active IS NULL');
+      products = pRows;
+    } catch (e) {}
+
+    try {
+      const [cRows] = await pool.promise().query('SELECT slug, id FROM categories');
+      categories = cRows;
+    } catch (e) {}
+
+    let xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`;
+    const staticUrls = ['/', '/shop', '/about', '/contact', '/return-policy', '/shipping-info', '/track-order', '/rewards', '/payment-type'];
+
+    staticUrls.forEach(url => {
+      xml += `  <url>\n    <loc>${baseUrl}${url}</loc>\n    <changefreq>daily</changefreq>\n    <priority>${url === '/' ? '1.0' : '0.8'}</priority>\n  </url>\n`;
+    });
+
+    categories.forEach(c => {
+      xml += `  <url>\n    <loc>${baseUrl}/category/${c.slug || c.id}</loc>\n    <changefreq>weekly</changefreq>\n    <priority>0.8</priority>\n  </url>\n`;
+    });
+
+    products.forEach(p => {
+      xml += `  <url>\n    <loc>${baseUrl}/product/${p.slug || p.id}</loc>\n    <changefreq>weekly</changefreq>\n    <priority>0.9</priority>\n  </url>\n`;
+    });
+
+    xml += `</urlset>`;
+    res.header('Content-Type', 'application/xml');
+    res.send(xml);
+  } catch (err) {
+    console.error('Sitemap generation error:', err);
+    res.status(500).send('Error generating sitemap');
+  }
+});
+
 const PORT = process.env.PORT || 5000;
 
 // Global Error Handler

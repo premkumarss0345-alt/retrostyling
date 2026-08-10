@@ -4,6 +4,7 @@ import { ShoppingBag, Heart, Truck, RotateCcw, ShieldCheck } from 'lucide-react'
 import { productService, cartService, wishlistService, labelService } from '../services/firestoreService';
 import { useAuth } from '../services/AuthContext';
 import Toast from '../components/Toast';
+import SEO from '../components/SEO';
 import './ProductDetails.css';
 
 const ProductDetails = () => {
@@ -92,6 +93,60 @@ const ProductDetails = () => {
 
   return (
     <div className="product-details-page container section">
+      <SEO
+        title={`${product.name} - Buy Online`}
+        description={product.description ? product.description.substring(0, 160) : `Buy ${product.name} at Retrostylings. High quality men's apparel with fast delivery and easy returns.`}
+        keywords={`${product.name}, ${product.category || 'menswear'}, buy ${product.name} online, Retrostylings`}
+        canonical={`/product/${product.slug || product.id}`}
+        ogImage={variantImage || product.image}
+        ogType="product"
+        schema={[
+          {
+            "@context": "https://schema.org/",
+            "@type": "Product",
+            "name": product.name,
+            "image": (variantImage || product.image) ? [variantImage || product.image] : [],
+            "description": product.description || product.name,
+            "sku": product.id,
+            "brand": {
+              "@type": "Brand",
+              "name": product.brand || "Retrostylings"
+            },
+            "offers": {
+              "@type": "Offer",
+              "url": typeof window !== 'undefined' ? window.location.href : '',
+              "priceCurrency": "INR",
+              "price": displayPrice,
+              "itemCondition": "https://schema.org/NewCondition",
+              "availability": (product.stock > 0 || activeVariant?.stock > 0) ? "https://schema.org/InStock" : "https://schema.org/OutOfStock"
+            }
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Home",
+                "item": typeof window !== 'undefined' ? window.location.origin : ''
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "Shop",
+                "item": typeof window !== 'undefined' ? `${window.location.origin}/shop` : ''
+              },
+              {
+                "@type": "ListItem",
+                "position": 3,
+                "name": product.name,
+                "item": typeof window !== 'undefined' ? window.location.href : ''
+              }
+            ]
+          }
+        ]}
+      />
       <div className="product-details-grid">
         {/* Gallery */}
         <div className="product-gallery">

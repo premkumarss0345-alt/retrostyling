@@ -1,6 +1,7 @@
 import React from 'react';
 import { Facebook, Linkedin, Instagram, Users } from 'lucide-react';
 import { motion } from 'framer-motion';
+import SEO from '../components/SEO';
 import './About.css';
 
 // Import local images (placeholder paths - ensure files exist in src/assets/team/)
@@ -41,6 +42,11 @@ const teamMembers = [
 const About = () => {
     return (
         <div className="about-page">
+            <SEO
+                title="About Us | Redefining Men's Fashion"
+                description="Learn about Retrostylings' journey, mission, and commitment to delivering high-quality, comfortable, and iconic men's clothing at affordable prices."
+                canonical="/about"
+            />
             <section className="about-hero section">
                 <div className="container">
                     <motion.div

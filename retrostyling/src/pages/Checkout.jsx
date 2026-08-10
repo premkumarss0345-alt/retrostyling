@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { MapPin, Phone, CreditCard, ShieldCheck, ChevronLeft, Truck, Calendar } from 'lucide-react';
 import Toast from '../components/Toast';
+import SEO from '../components/SEO';
 import { cartService, orderService, shippingSettingsService, globalSettingsService } from '../services/firestoreService';
 import { useAuth } from '../services/AuthContext';
 import { API_BASE_URL } from '../config';
@@ -331,6 +332,7 @@ const Checkout = () => {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
     >
+      <SEO title="Secure Checkout" noindex={true} canonical="/checkout" />
       <div className="container">
         <Link to="/cart" className="back-link"><ChevronLeft size={18} /> Back to Cart</Link>
         <h1 className="h2 title-centered">Checkout</h1>
