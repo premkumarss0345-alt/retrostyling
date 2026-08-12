@@ -136,7 +136,8 @@ const Navbar = () => {
                         </button>
 
                         <Link to="/" className="logo">
-                            RETRO <span>STYLINGS</span>
+                            <img src="/logo.png" alt="RETRO STYLINGS" className="nav-logo-img" />
+                            <span className="logo-text">RETRO <span>STYLINGS</span></span>
                         </Link>
 
                         <nav className="desktop-nav desktop-only">
@@ -262,7 +263,10 @@ const Navbar = () => {
                             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
                         >
                             <div className="drawer-header">
-                                <Link to="/" className="logo">RETRO <span>STYLINGS</span></Link>
+                                <Link to="/" className="logo" onClick={() => setIsMenuOpen(false)}>
+                                    <img src="/logo.png" alt="RETRO STYLINGS" className="nav-logo-img" />
+                                    <span className="logo-text">RETRO <span>STYLINGS</span></span>
+                                </Link>
                                 <button onClick={() => setIsMenuOpen(false)}><X size={28} /></button>
                             </div>
 

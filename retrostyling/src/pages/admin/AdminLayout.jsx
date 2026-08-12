@@ -139,7 +139,7 @@ const AdminLayout = ({ children }) => {
       <aside className={`admin-sidebar ${isMobileOpen ? 'mobile-open' : ''}`}>
         {/* Brand */}
         <div className="sidebar-brand">
-          <img src="/favicon.png" alt="R" className="brand-icon" style={{ objectFit: 'contain', width: '32px', height: '32px', background: 'transparent', padding: '2px', border: 'none', borderRadius: '0' }} />
+          <img src="/logo.png" alt="Retrostylings" className="brand-icon" style={{ objectFit: 'contain', width: '36px', height: '36px', borderRadius: '6px', boxShadow: '0 2px 8px rgba(0,0,0,0.5)' }} />
           {!isCollapsed && (
             <div className="brand-info">
               <h2 className="brand-name">Retrostylings</h2>

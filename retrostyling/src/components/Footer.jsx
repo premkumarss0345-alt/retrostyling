@@ -8,6 +8,10 @@ const Footer = () => {
         <footer className="footer">
             <div className="container footer-grid">
                 <div className="footer-brand">
+                    <Link to="/" className="footer-logo">
+                        <img src="/logo.png" alt="RETRO STYLINGS" className="footer-logo-img" />
+                        <span className="logo-text">RETRO <span>STYLINGS</span></span>
+                    </Link>
                     <p className="footer-desc">
                         Elevating everyday essentials with a focus on quality, comfort, and timeless style. Discover the perfect blend of tradition and modernity.
                     </p>
