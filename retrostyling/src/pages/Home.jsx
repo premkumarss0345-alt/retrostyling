@@ -10,6 +10,7 @@ import ProductCarousel from '../components/ProductCarousel';
 import { useAuth } from '../services/AuthContext';
 import { cartService, wishlistService, flashSaleService, productService, reviewService, brandService } from '../services/firestoreService';
 import SEO from '../components/SEO';
+import Toast from '../components/Toast';
 import './Home.css';
 
 /* ─── Flash Sale Countdown ────────────────────────────────── */
