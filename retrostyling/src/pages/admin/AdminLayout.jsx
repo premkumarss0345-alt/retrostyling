@@ -54,12 +54,14 @@ const NAV_SECTIONS = [
     ],
   },
   {
-    label: 'Marketing',
-    items: [
-      { path: '/admin/marketing', label: 'Marketing', icon: Megaphone },
-      { path: '/admin/notifications', label: 'Notifications', icon: Bell },
-    ],
-  },
+      label: 'Marketing',
+      items: [
+        { path: '/admin/marketing', label: 'Marketing', icon: Megaphone },
+        { path: '/admin/notifications', label: 'Notifications', icon: Bell },
+        { path: '/admin/marketing/popup-ads', label: 'Pop-up Ads', icon: Image },
+        { path: '/admin/marketing/whatsapp-catalog', label: 'WhatsApp Catalog', icon: MessageSquare },
+      ],
+    },
   {
     label: 'Reports',
     items: [

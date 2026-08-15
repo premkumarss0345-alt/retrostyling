@@ -684,7 +684,88 @@ export const labelService = {
   }
 };
 
-// ─── CART ─────────────────────────────────────────────────────────────────────
+// ─── POPUP ADS ────────────────────────────────────────────────────────────────
+export const popupAdService = {
+  /** Create a new popup ad */
+  async create(data) {
+    const payload = {
+      name: data.name || '',
+      image: data.image || '',
+      title: data.title || '',
+      description: data.description || '',
+      buttonText: data.buttonText || '',
+      buttonUrl: data.buttonUrl || '',
+      startDate: data.startDate ? new Date(data.startDate) : null,
+      endDate: data.endDate ? new Date(data.endDate) : null,
+      status: data.status || 'inactive', // active/inactive
+      displayDelay: Number(data.displayDelay) || 0, // seconds
+      displayFrequency: data.displayFrequency || 'once_per_session', // options: immediate, once_per_session, once_per_day
+      targetPages: data.targetPages || [], // array of route strings
+      enabledDesktop: data.enabledDesktop !== undefined ? Boolean(data.enabledDesktop) : true,
+      enabledMobile: data.enabledMobile !== undefined ? Boolean(data.enabledMobile) : true,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    };
+    const ref = await addDoc(col('popupAds'), payload);
+    return ref.id;
+  },
+
+  /** Get all popup ads (admin view) */
+  async getAll() {
+    const snap = await getDocs(col('popupAds'));
+    return snap2arr(snap).sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
+  },
+
+  /** Get active popup ads for front‑end consumption */
+  async getActive() {
+    const now = new Date();
+    const q = query(
+      col('popupAds'),
+      where('status', '==', 'active'),
+      where('startDate', '<=', now),
+      where('endDate', '>=', now)
+    );
+    const snap = await getDocs(q);
+    return snap2arr(snap);
+  },
+
+  /** Update an existing popup ad */
+  async update(id, data) {
+    const ref = doc(db, 'popupAds', id);
+    const payload = {
+      ...data,
+      updatedAt: serverTimestamp(),
+    };
+    await updateDoc(ref, payload);
+  },
+
+  /** Delete a popup ad */
+  async delete(id) {
+    await deleteDoc(doc(db, 'popupAds', id));
+  },
+};
+
+// ─── MARKETING SETTINGS (WhatsApp Catalog) ────────────────────────────────────────
+export const marketingSettingsService = {
+  /** Get current settings */
+  async get() {
+    const docSnap = await getDoc(doc(db, 'marketingSettings', 'whatsapp'));
+    if (!docSnap.exists()) return {};
+    return docSnap.data();
+  },
+
+  /** Update WhatsApp catalog settings */
+  async update(data) {
+    const ref = doc(db, 'marketingSettings', 'whatsapp');
+    const payload = {
+      ...data,
+      updatedAt: serverTimestamp(),
+    };
+    await setDoc(ref, payload, { merge: true });
+  },
+};
+
+// ─── CART ───────────────────────────────────────────────────────────────────── ─────────────────────────────────────────────────────────────────────
 /**
  * Cart is stored as a single document per user in 'carts' collection.
  * Document ID = user's UID. Contains items[] array.

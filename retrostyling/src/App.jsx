@@ -3,6 +3,8 @@ import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-route
 import Navbar from './components/Navbar';
 import BottomNav from './components/BottomNav';
 import Footer from './components/Footer';
+import WhatsAppFloatingButton from './components/WhatsAppFloatingButton';
+import PopupAdModal from './components/PopupAdModal';
 import ProtectedRoute from './components/ProtectedRoute';
 import './App.css';
 
@@ -42,6 +44,8 @@ import AdminBanners from './pages/admin/Banners';
 import AdminReviews from './pages/admin/Reviews';
 import AdminReports from './pages/admin/Reports';
 import AdminMarketing from './pages/admin/Marketing';
+import AdminPopupAds from './pages/admin/marketing/PopupAds';
+import AdminWhatsAppCatalog from './pages/admin/marketing/WhatsAppCatalog';
 import AdminMediaLibrary from './pages/admin/MediaLibrary';
 import AdminAnalytics from './pages/admin/Analytics';
 import AdminSuperAdmin from './pages/admin/SuperAdmin';
@@ -126,6 +130,8 @@ function AppContent() {
         {adminRoute('/admin/reviews', AdminReviews)}
         {adminRoute('/admin/media', AdminMediaLibrary)}
         {adminRoute('/admin/marketing', AdminMarketing)}
+{adminRoute('/admin/marketing/popup-ads', AdminPopupAds)}
+{adminRoute('/admin/marketing/whatsapp-catalog', AdminWhatsAppCatalog)}
         {adminRoute('/admin/notifications', AdminNotifications)}
         {adminRoute('/admin/reports', AdminReports)}
         {adminRoute('/admin/analytics', AdminAnalytics)}
@@ -137,6 +143,8 @@ function AppContent() {
         {adminRoute('/admin/amazon-sync', AmazonSync)}
       </Routes>
       {showNav && <BottomNav />}
+      {showNav && <WhatsAppFloatingButton />}
+      {showNav && <PopupAdModal />}
       {showNav && <Footer />}
     </div>
   );

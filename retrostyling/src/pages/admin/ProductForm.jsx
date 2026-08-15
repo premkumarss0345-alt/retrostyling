@@ -30,6 +30,14 @@ const ProductForm = ({ product, onSave, onCancel, categories }) => {
         status: 'active',
         on_sale: false,
         is_new: false,
+        enableOnlinePurchase: true,
+        amazonUrl: '',
+        flipkartUrl: '',
+        myntraUrl: '',
+        meeshoUrl: '',
+        whatsappUrl: '',
+        seeMoreUrl: '',
+        seeMoreText: '',
         variants: []
     });
 
@@ -69,6 +77,14 @@ const ProductForm = ({ product, onSave, onCancel, categories }) => {
                 status: (product.stock > 0 || product.stock === '') ? (product.status || 'active') : 'out_of_stock',
                 on_sale: Boolean(product.on_sale),
                 is_new: Boolean(product.is_new),
+                enableOnlinePurchase: product.enableOnlinePurchase !== undefined ? Boolean(product.enableOnlinePurchase) : true,
+                amazonUrl: product.amazonUrl || '',
+                flipkartUrl: product.flipkartUrl || '',
+                myntraUrl: product.myntraUrl || '',
+                meeshoUrl: product.meeshoUrl || '',
+                whatsappUrl: product.whatsappUrl || '',
+                seeMoreUrl: product.seeMoreUrl || '',
+                seeMoreText: product.seeMoreText || '',
                 variants: (product.variants || []).map(v => ({
                     id: v.id || '',
                     color: v.color || '',
@@ -430,6 +446,18 @@ const ProductForm = ({ product, onSave, onCancel, categories }) => {
                             />
                             <label htmlFor="is_new">New Arrival</label>
                         </div>
+                        <div className="form-check" style={{ marginTop: '0.5rem', background: 'var(--bg-soft)', padding: '0.6rem 0.8rem', borderRadius: '6px', border: '1px solid var(--border)' }}>
+                            <input
+                                type="checkbox"
+                                name="enableOnlinePurchase"
+                                checked={formData.enableOnlinePurchase}
+                                onChange={handleChange}
+                                id="enableOnlinePurchase"
+                            />
+                            <label htmlFor="enableOnlinePurchase" style={{ fontWeight: 700, color: 'var(--text-main)' }}>
+                                Enable Direct Add to Cart / Online Purchase on Website
+                            </label>
+                        </div>
                     </div>
 
                     {/* 🔹 Inventory */}
@@ -465,6 +493,89 @@ const ProductForm = ({ product, onSave, onCancel, categories }) => {
                             />
                             <label htmlFor="trackInventory">Track Inventory</label>
                         </div>  
+                    </div>
+
+                    {/* 🔹 External Marketplaces & Provider Links (See More Options) */}
+                    <div className="form-section full-width">
+                        <h3>External Marketplaces & Provider Links (See More Buttons)</h3>
+                        <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', marginBottom: '1rem' }}>
+                            Add partner store URLs so customers can view or buy this product on Amazon, Flipkart, Myntra, Meesho, or WhatsApp.
+                        </p>
+                        <div className="form-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
+                            <div className="form-group">
+                                <label>Amazon Product URL</label>
+                                <input
+                                    type="text"
+                                    name="amazonUrl"
+                                    value={formData.amazonUrl}
+                                    onChange={handleChange}
+                                    placeholder="https://amazon.in/dp/..."
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label>Flipkart Product URL</label>
+                                <input
+                                    type="text"
+                                    name="flipkartUrl"
+                                    value={formData.flipkartUrl}
+                                    onChange={handleChange}
+                                    placeholder="https://flipkart.com/p/..."
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label>Myntra Product URL</label>
+                                <input
+                                    type="text"
+                                    name="myntraUrl"
+                                    value={formData.myntraUrl}
+                                    onChange={handleChange}
+                                    placeholder="https://myntra.com/..."
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label>Meesho Product URL</label>
+                                <input
+                                    type="text"
+                                    name="meeshoUrl"
+                                    value={formData.meeshoUrl}
+                                    onChange={handleChange}
+                                    placeholder="https://meesho.com/..."
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label>WhatsApp Direct Link</label>
+                                <input
+                                    type="text"
+                                    name="whatsappUrl"
+                                    value={formData.whatsappUrl}
+                                    onChange={handleChange}
+                                    placeholder="https://wa.me/c/919751514541"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
+                            <div className="form-group">
+                                <label>Custom "See More" Button URL</label>
+                                <input
+                                    type="text"
+                                    name="seeMoreUrl"
+                                    value={formData.seeMoreUrl}
+                                    onChange={handleChange}
+                                    placeholder="https://..."
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label>Custom "See More" Button Label</label>
+                                <input
+                                    type="text"
+                                    name="seeMoreText"
+                                    value={formData.seeMoreText}
+                                    onChange={handleChange}
+                                    placeholder="e.g. See More Colors / Buy on Partner Store"
+                                />
+                            </div>
+                        </div>
                     </div>
 
                     {/* 🔹 Variants Section */}

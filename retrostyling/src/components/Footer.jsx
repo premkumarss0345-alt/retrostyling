@@ -16,9 +16,9 @@ const Footer = () => {
                         Elevating everyday essentials with a focus on quality, comfort, and timeless style. Discover the perfect blend of tradition and modernity.
                     </p>
                     <div className="social-links">
-                        <a href="#"><Facebook size={20} /></a>
+                        <a href="https://www.facebook.com/share/1BWH68GNgH/" target="_blank" rel="noopener noreferrer"><Facebook size={20} /></a>
                         <a href="#"><Twitter size={20} /></a>
-                        <a href="#"><Instagram size={20} /></a>
+                        <a href="https://www.instagram.com/retro_stylings?igsh=MWZiY2NmMTFlMGhmYw==" target="_blank" rel="noopener noreferrer"><Instagram size={20} /></a>
                         <a href="#"><Linkedin size={20} /></a>
                     </div>
                 </div>

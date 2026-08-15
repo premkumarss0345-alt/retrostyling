@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ShoppingBag, Heart, Truck, RotateCcw, ShieldCheck } from 'lucide-react';
+import { ShoppingBag, Heart, Truck, RotateCcw, ShieldCheck, ExternalLink, MessageSquare, ShoppingCart } from 'lucide-react';
 import { productService, cartService, wishlistService, labelService } from '../services/firestoreService';
 import { useAuth } from '../services/AuthContext';
 import Toast from '../components/Toast';
@@ -11,6 +11,7 @@ const ProductDetails = () => {
   const { slug }           = useParams();
   const navigate           = useNavigate();
   const { currentUser }    = useAuth();
+  const galleryRef         = useRef(null);
 
   const [product, setProduct]         = useState(null);
   const [activeLabels, setActiveLabels] = useState([]);
@@ -20,6 +21,20 @@ const ProductDetails = () => {
   const [quantity, setQuantity]       = useState(1);
   const [adding, setAdding]           = useState(false);
   const [toast, setToast]             = useState({ show: false, message: '', type: 'success' });
+
+  const handleColorSelect = (color) => {
+    setSelectedColor(color);
+    if (window.innerWidth <= 768 && galleryRef.current) {
+      galleryRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  };
+
+  const handleSizeSelect = (size) => {
+    setSelectedSize(size);
+    if (window.innerWidth <= 768 && galleryRef.current) {
+      galleryRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  };
 
   useEffect(() => {
     labelService.getActive().then(setActiveLabels).catch(() => setActiveLabels([]));
@@ -149,7 +164,7 @@ const ProductDetails = () => {
       />
       <div className="product-details-grid">
         {/* Gallery */}
-        <div className="product-gallery">
+        <div className="product-gallery" ref={galleryRef}>
           <div className="main-image">
             <img src={variantImage} alt={activeVariant?.imageAlt || product.name} className="w-100" />
           </div>
@@ -224,7 +239,7 @@ const ProductDetails = () => {
                     <button
                       key={size}
                       className={`variant-btn ${selectedSize === size ? 'active' : ''}`}
-                      onClick={() => setSelectedSize(size)}
+                      onClick={() => handleSizeSelect(size)}
                     >
                       {size}
                     </button>
@@ -238,7 +253,7 @@ const ProductDetails = () => {
                     <button
                       key={color}
                       className={`variant-btn ${selectedColor === color ? 'active' : ''}`}
-                      onClick={() => setSelectedColor(color)}
+                      onClick={() => handleColorSelect(color)}
                     >
                       {color}
                     </button>
@@ -248,25 +263,78 @@ const ProductDetails = () => {
             </div>
           )}
 
-          {/* Purchase */}
-          <div className="purchase-section">
-            <div className="quantity-selector">
-              <button onClick={() => setQuantity(Math.max(1, quantity - 1))}>-</button>
-              <span>{quantity}</span>
-              <button onClick={() => setQuantity(quantity + 1)}>+</button>
+          {/* Purchase / External Only Mode */}
+          {product.enableOnlinePurchase !== false ? (
+            <div className="purchase-section">
+              <div className="quantity-selector">
+                <button onClick={() => setQuantity(Math.max(1, quantity - 1))}>-</button>
+                <span>{quantity}</span>
+                <button onClick={() => setQuantity(quantity + 1)}>+</button>
+              </div>
+              <button
+                className="btn btn-primary add-to-cart-big"
+                onClick={handleAddToCart}
+                disabled={adding || product.stock === 0}
+              >
+                <ShoppingBag size={20} />
+                {adding ? 'ADDING...' : product.stock === 0 ? 'OUT OF STOCK' : 'ADD TO CART'}
+              </button>
+              <button className="wishlist-btn-round" onClick={handleWishlist}>
+                <Heart size={20} />
+              </button>
             </div>
-            <button
-              className="btn btn-primary add-to-cart-big"
-              onClick={handleAddToCart}
-              disabled={adding || product.stock === 0}
-            >
-              <ShoppingBag size={20} />
-              {adding ? 'ADDING...' : product.stock === 0 ? 'OUT OF STOCK' : 'ADD TO CART'}
-            </button>
-            <button className="wishlist-btn-round" onClick={handleWishlist}>
-              <Heart size={20} />
-            </button>
-          </div>
+          ) : (
+            <div className="external-purchase-notice" style={{ margin: '1.25rem 0', padding: '1rem 1.25rem', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
+              <div>
+                <span style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--primary)', display: 'block' }}>Available via Partner Links / WhatsApp</span>
+                <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Direct website cart is disabled for this item. Click a partner link below to order.</span>
+              </div>
+              <button className="wishlist-btn-round" onClick={handleWishlist} title="Add to Wishlist">
+                <Heart size={20} />
+              </button>
+            </div>
+          )}
+
+          {/* 🔹 Partner Marketplaces & See More Options */}
+          {(product.amazonUrl || product.flipkartUrl || product.myntraUrl || product.meeshoUrl || product.whatsappUrl || product.seeMoreUrl) && (
+            <div className="provider-links-container" style={{ marginTop: '1.5rem', padding: '1rem', background: 'var(--bg-soft)', borderRadius: '12px', border: '1px solid var(--border)' }}>
+              <h4 style={{ fontSize: '0.85rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <ShoppingCart size={15} color="var(--primary)" /> Also Available On / Partner Stores
+              </h4>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.6rem' }}>
+                {product.amazonUrl && (
+                  <a href={product.amazonUrl} target="_blank" rel="noopener noreferrer" className="btn btn-secondary btn-sm" style={{ background: '#FF9900', color: '#000', fontWeight: 700, border: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+                    Buy on Amazon <ExternalLink size={13} />
+                  </a>
+                )}
+                {product.flipkartUrl && (
+                  <a href={product.flipkartUrl} target="_blank" rel="noopener noreferrer" className="btn btn-secondary btn-sm" style={{ background: '#2874F0', color: '#FFF', fontWeight: 700, border: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+                    Buy on Flipkart <ExternalLink size={13} />
+                  </a>
+                )}
+                {product.myntraUrl && (
+                  <a href={product.myntraUrl} target="_blank" rel="noopener noreferrer" className="btn btn-secondary btn-sm" style={{ background: '#FF3F6C', color: '#FFF', fontWeight: 700, border: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+                    Buy on Myntra <ExternalLink size={13} />
+                  </a>
+                )}
+                {product.meeshoUrl && (
+                  <a href={product.meeshoUrl} target="_blank" rel="noopener noreferrer" className="btn btn-secondary btn-sm" style={{ background: '#9C27B0', color: '#FFF', fontWeight: 700, border: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+                    Buy on Meesho <ExternalLink size={13} />
+                  </a>
+                )}
+                {product.whatsappUrl && (
+                  <a href={product.whatsappUrl} target="_blank" rel="noopener noreferrer" className="btn btn-secondary btn-sm" style={{ background: '#25D366', color: '#000', fontWeight: 700, border: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <MessageSquare size={13} fill="#000" /> Order on WhatsApp <ExternalLink size={13} />
+                  </a>
+                )}
+                {product.seeMoreUrl && (
+                  <a href={product.seeMoreUrl} target="_blank" rel="noopener noreferrer" className="btn btn-primary btn-sm" style={{ fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+                    {product.seeMoreText || 'See More Offers'} <ExternalLink size={13} />
+                  </a>
+                )}
+              </div>
+            </div>
+          )}
 
           <div className="product-features-small">
             <div className="feature-small">
