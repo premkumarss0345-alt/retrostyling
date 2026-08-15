@@ -718,15 +718,24 @@ export const popupAdService = {
 
   /** Get active popup ads for front‑end consumption */
   async getActive() {
-    const now = new Date();
-    const q = query(
-      col('popupAds'),
-      where('status', '==', 'active'),
-      where('startDate', '<=', now),
-      where('endDate', '>=', now)
-    );
-    const snap = await getDocs(q);
-    return snap2arr(snap);
+    try {
+      const snap = await getDocs(col('popupAds'));
+      const list = snap2arr(snap);
+      const now = new Date();
+      return list.filter((ad) => {
+        if (ad.status !== 'active') return false;
+        const start = ad.startDate ? new Date(ad.startDate.seconds ? ad.startDate.seconds * 1000 : ad.startDate) : null;
+        const end = ad.endDate ? new Date(ad.endDate.seconds ? ad.endDate.seconds * 1000 : ad.endDate) : null;
+        if (start && now < start) return false;
+        if (end && now > end) return false;
+        return true;
+      });
+    } catch (err) {
+      if (err?.code !== 'permission-denied') {
+        console.warn('Popup ads query notice:', err.message);
+      }
+      return [];
+    }
   },
 
   /** Update an existing popup ad */
@@ -749,9 +758,16 @@ export const popupAdService = {
 export const marketingSettingsService = {
   /** Get current settings */
   async get() {
-    const docSnap = await getDoc(doc(db, 'marketingSettings', 'whatsapp'));
-    if (!docSnap.exists()) return {};
-    return docSnap.data();
+    try {
+      const docSnap = await getDoc(doc(db, 'marketingSettings', 'whatsapp'));
+      if (!docSnap.exists()) return {};
+      return docSnap.data();
+    } catch (err) {
+      if (err?.code !== 'permission-denied') {
+        console.warn('Marketing settings notice:', err.message);
+      }
+      return {};
+    }
   },
 
   /** Update WhatsApp catalog settings */
