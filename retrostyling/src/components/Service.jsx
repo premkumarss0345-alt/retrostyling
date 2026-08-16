@@ -12,12 +12,12 @@ const Service = () => {
         {
             icon: <RotateCcw size={32} />,
             title: 'Easy Returns',
-            text: '30 Day Returns Policy'
+            text: '7 Day Returns Policy'
         },
         {
             icon: <ShieldCheck size={32} />,
             title: 'Secure Payment',
-            text: '100% Secure Guarantee'
+            text: '100% Secure Guarantee' 
         },
         {
             icon: <Headphones size={32} />,

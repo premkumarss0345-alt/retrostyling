@@ -343,7 +343,7 @@ const ProductDetails = () => {
             </div>
             <div className="feature-small">
               <RotateCcw size={24} />
-              <div><h4>Easy Returns</h4><p>30-day hassle-free return</p></div>
+              <div><h4>Easy Returns</h4><p>7-day hassle-free return</p></div>
             </div>
             <div className="feature-small">
               <ShieldCheck size={24} />
