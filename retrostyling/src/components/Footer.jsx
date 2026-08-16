@@ -54,7 +54,7 @@ const Footer = () => {
                 <div className="container bottom-flex">
                     <p className="copyright">&copy; 2026 RETROSTYLINGS. All Rights Reserved.</p>
                     <div className="payment-support">
-                        <span>We Support</span>
+                        <a href="https://www.averqon.in/" target="_blank" rel="noopener noreferrer" className="averqon-credit">by Averqon</a>
                         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                             {/* Visa */}
                             <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '4px', padding: '4px 8px', display: 'flex', alignItems: 'center', height: '24px', boxSizing: 'border-box' }}>
