@@ -49,6 +49,7 @@ const NAV_SECTIONS = [
     items: [
       { path: '/admin/hero-slides', label: 'Hero Slides', icon: SlidersHorizontal },
       { path: '/admin/banners', label: 'Banners', icon: Image },
+      { path: '/admin/promotions', label: 'Promos & Notices', icon: Megaphone },
       { path: '/admin/reviews', label: 'Reviews', icon: Star },
       { path: '/admin/media', label: 'Media Library', icon: Camera },
     ],

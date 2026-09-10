@@ -8,7 +8,7 @@ import FashionFantasy from '../components/FashionFantasy';
 import Newsletter from '../components/Newsletter';
 import ProductCarousel from '../components/ProductCarousel';
 import { useAuth } from '../services/AuthContext';
-import { cartService, wishlistService, flashSaleService, productService, reviewService, brandService } from '../services/firestoreService';
+import { cartService, wishlistService, flashSaleService, productService, reviewService, brandService, promoBannerService } from '../services/firestoreService';
 import SEO from '../components/SEO';
 import Toast from '../components/Toast';
 import './Home.css';
@@ -81,6 +81,7 @@ const Home = () => {
   const [cartLoading, setCartLoading] = useState({});
   const [dynamicReviews, setDynamicReviews] = useState([]);
   const [dynamicBrands, setDynamicBrands] = useState([]);
+  const [promoBanner, setPromoBanner] = useState(null);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -88,7 +89,18 @@ const Home = () => {
     loadWishlist();
     loadReviews();
     loadBrands();
+    loadPromoBanner();
   }, [currentUser]);
+
+  const loadPromoBanner = async () => {
+    try {
+      const banner = await promoBannerService.getActive();
+      setPromoBanner(banner || null);
+    } catch (err) {
+      console.error("Error loading promo banner:", err);
+      setPromoBanner(null);
+    }
+  };
 
   const loadBrands = async () => {
     try {
@@ -341,33 +353,70 @@ const Home = () => {
       </motion.div>
 
       {/* Promo Banner */}
-      <motion.section
-        className="promo-banner"
-        initial={{ opacity: 0, scale: 0.98 }}
-        whileInView={{ opacity: 1, scale: 1 }}
-        viewport={{ once: true }}
-        transition={{ duration: 0.6 }}
-      >
-        <div className="container">
-          <div className="promo-content">
-            <motion.span className="promo-label-tag" initial={{ opacity: 0, x: -20 }} whileInView={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}>
-              LIMITED TIME OFFER
-            </motion.span>
-            <motion.h2 className="promo-title" initial={{ opacity: 0, scale: 0.9 }} whileInView={{ opacity: 1, scale: 1 }} transition={{ delay: 0.3 }}>
-              Summer Collection <br />
-              <span className="promo-highlight">Up to 40% OFF</span>
-            </motion.h2>
-            <motion.p className="promo-desc" initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} transition={{ delay: 0.4 }}>
-              Use code <strong>SUMMER40</strong> at checkout. Limited stock available.
-            </motion.p>
-            <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }}>
-              <Link to="/shop" className="btn btn-primary btn-lg">
-                Shop Now <ArrowRight size={20} />
-              </Link>
-            </motion.div>
+      {promoBanner && promoBanner.active !== false && (
+        <motion.section
+          className="promo-banner"
+          initial={{ opacity: 0, scale: 0.98 }}
+          whileInView={{ opacity: 1, scale: 1 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6 }}
+        >
+          <div className="container">
+            <div className="promo-content">
+              {promoBanner.badgeText && (
+                <motion.span
+                  className="promo-label-tag"
+                  initial={{ opacity: 0, x: -20 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.2 }}
+                >
+                  {promoBanner.badgeText}
+                </motion.span>
+              )}
+              <motion.h2
+                className="promo-title"
+                initial={{ opacity: 0, scale: 0.9 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.3 }}
+              >
+                {promoBanner.title} {promoBanner.highlightText && <br />}
+                {promoBanner.highlightText && (
+                  <span className="promo-highlight">{promoBanner.highlightText}</span>
+                )}
+              </motion.h2>
+              {promoBanner.description && (
+                <motion.p
+                  className="promo-desc"
+                  initial={{ opacity: 0 }}
+                  whileInView={{ opacity: 1 }}
+                  transition={{ delay: 0.4 }}
+                >
+                  {promoBanner.couponCode && promoBanner.description.includes(promoBanner.couponCode) ? (
+                    promoBanner.description.split(promoBanner.couponCode).map((part, i, arr) => (
+                      <React.Fragment key={i}>
+                        {part}
+                        {i < arr.length - 1 && <strong>{promoBanner.couponCode}</strong>}
+                      </React.Fragment>
+                    ))
+                  ) : (
+                    <>
+                      {promoBanner.description}
+                      {promoBanner.couponCode && (
+                        <> Use code <strong>{promoBanner.couponCode}</strong> at checkout.</>
+                      )}
+                    </>
+                  )}
+                </motion.p>
+              )}
+              <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }}>
+                <Link to={promoBanner.btnLink || '/shop'} className="btn btn-primary btn-lg">
+                  {promoBanner.btnText || 'Shop Now'} <ArrowRight size={20} />
+                </Link>
+              </motion.div>
+            </div>
           </div>
-        </div>
-      </motion.section>
+        </motion.section>
+      )}
 
       {/* Best Sellers */}
       <motion.div

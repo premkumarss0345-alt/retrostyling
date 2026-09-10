@@ -7,7 +7,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { seedService, userService, rolesService, activityLogService } from '../../services/firestoreService';
 
-const ALL_PERMISSIONS = ['products', 'categories', 'brands', 'inventory', 'orders', 'customers', 'coupons', 'banners', 'reviews', 'marketing', 'reports', 'analytics', 'media', 'settings'];
+const ALL_PERMISSIONS = ['products', 'categories', 'brands', 'inventory', 'orders', 'customers', 'coupons', 'banners', 'promotions', 'reviews', 'marketing', 'reports', 'analytics', 'media', 'settings'];
 
 const containerVariants = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.06 } } };
 const itemVariants = { hidden: { opacity: 0, y: 16 }, visible: { opacity: 1, y: 0 } };

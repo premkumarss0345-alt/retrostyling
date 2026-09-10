@@ -51,6 +51,16 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    match /announcements/{announcementId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /promoBanners/{bannerId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
     match /coupons/{couponId} {
       allow read: if true;
       allow write: if isAdmin();

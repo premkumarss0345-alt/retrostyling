@@ -13,7 +13,7 @@ import {
 // eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../services/AuthContext';
-import { categoryService, subcategoryService, cartService } from '../services/firestoreService';
+import { categoryService, subcategoryService, cartService, announcementService } from '../services/firestoreService';
 import './Navbar.css';
 
 const Navbar = () => {
@@ -27,26 +27,22 @@ const Navbar = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [currentNotice, setCurrentNotice] = useState(0);
     const [cartCount, setCartCount] = useState(0);
+    const [notices, setNotices] = useState([]);
 
     const navigate = useNavigate();
     const location = useLocation();
     const { currentUser, userProfile, logout, isAdmin } = useAuth();
 
-    const notices = [
-        "🎉 FREE SHIPPING ON ALL ORDERS ABOVE ₹999",
-        "🔥 SUMMER CLEARANCE: UP TO 50% OFF",
-        "🚀 NEW DROPS EVERY FRIDAY - STAY TUNED",
-        "✨ USE CODE 'RETRO10' FOR EXTRA 10% DISCOUNT"
-    ];
-
     async function loadNavigationData() {
         try {
-            const [cats, subs] = await Promise.all([
+            const [cats, subs, dynamicNotices] = await Promise.all([
                 categoryService.getAll(),
                 subcategoryService.getAll(),
+                announcementService.getActive().catch(() => [])
             ]);
             setCategories(cats.filter(c => c.status === 'active').sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0)));
             setSubcategories(subs.filter(s => s.status === 'active').sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0)));
+            setNotices(dynamicNotices || []);
         } catch (err) {
             console.error('Error fetching navigation data:', err);
         }
@@ -115,19 +111,37 @@ const Navbar = () => {
     return (
         <>
             <header className={`header-wrapper ${isScrolled ? 'sticky' : ''}`}>
-                <div className="notice-bar">
-                    <AnimatePresence mode="wait">
-                        <motion.p
-                            key={currentNotice}
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -10 }}
-                            transition={{ duration: 0.5 }}
-                        >
-                            {notices[currentNotice]}
-                        </motion.p>
-                    </AnimatePresence>
-                </div>
+                {notices && notices.length > 0 && (
+                    <div className="notice-bar">
+                        <AnimatePresence mode="wait">
+                            {(() => {
+                                const activeNotice = notices[currentNotice % notices.length];
+                                const noticeText = typeof activeNotice === 'string' ? activeNotice : activeNotice?.text;
+                                const noticeLink = typeof activeNotice === 'object' ? activeNotice?.link : null;
+                                return (
+                                    <motion.div
+                                        key={currentNotice}
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: -10 }}
+                                        transition={{ duration: 0.5 }}
+                                        style={{ width: '100%', display: 'flex', justifyContent: 'center' }}
+                                    >
+                                        {noticeLink ? (
+                                            <Link to={noticeLink} style={{ color: 'inherit', textDecoration: 'none' }}>
+                                                {noticeText}
+                                            </Link>
+                                        ) : (
+                                            <p style={{ margin: 0 }}>
+                                                {noticeText}
+                                            </p>
+                                        )}
+                                    </motion.div>
+                                );
+                            })()}
+                        </AnimatePresence>
+                    </div>
+                )}
 
                 <div className="main-nav-container">
                     <div className="container header-container">

@@ -2159,3 +2159,133 @@ export const amazonSyncService = {
   },
 };
 
+// ─── ANNOUNCEMENTS / NOTICE BAR ──────────────────────────────────────────────
+export const announcementService = {
+  async getAll() {
+    const snap = await getDocs(col('announcements'));
+    return snap2arr(snap).sort((a, b) => (a.order || 0) - (b.order || 0));
+  },
+
+  async getActive() {
+    try {
+      const q = query(col('announcements'), where('active', '==', true));
+      const snap = await getDocs(q);
+      return snap2arr(snap).sort((a, b) => (a.order || 0) - (b.order || 0));
+    } catch (err) {
+      console.warn('announcementService getActive query fallback:', err);
+      const all = await this.getAll();
+      return all.filter(a => a.active !== false);
+    }
+  },
+
+  async create(data) {
+    const ref = await addDoc(col('announcements'), {
+      text: data.text || '',
+      link: data.link || '',
+      active: data.active !== undefined ? data.active : true,
+      order: Number(data.order) || 0,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+    return ref.id;
+  },
+
+  async update(id, data) {
+    await updateDoc(doc(db, 'announcements', id), {
+      ...data,
+      order: data.order !== undefined ? Number(data.order) : 0,
+      updatedAt: serverTimestamp(),
+    });
+  },
+
+  async delete(id) {
+    await deleteDoc(doc(db, 'announcements', id));
+  },
+
+  async seedDefaults() {
+    const defaults = [
+      { text: "🎉 FREE SHIPPING ON ALL ORDERS ABOVE ₹999", link: "", active: true, order: 0 },
+      { text: "🔥 SUMMER CLEARANCE: UP TO 50% OFF", link: "/shop", active: true, order: 1 },
+      { text: "🚀 NEW DROPS EVERY FRIDAY - STAY TUNED", link: "/shop", active: true, order: 2 },
+      { text: "✨ USE CODE 'RETRO10' FOR EXTRA 10% DISCOUNT", link: "/shop", active: true, order: 3 },
+    ];
+    for (const item of defaults) {
+      await addDoc(col('announcements'), {
+        ...item,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+    }
+  }
+};
+
+// ─── PROMO BANNER SERVICE ────────────────────────────────────────────────────
+export const promoBannerService = {
+  async getAll() {
+    const snap = await getDocs(col('promoBanners'));
+    return snap2arr(snap).sort((a, b) => (a.order || 0) - (b.order || 0));
+  },
+
+  async getActive() {
+    try {
+      const q = query(col('promoBanners'), where('active', '==', true));
+      const snap = await getDocs(q);
+      const list = snap2arr(snap).sort((a, b) => (a.order || 0) - (b.order || 0));
+      return list.length > 0 ? list[0] : null;
+    } catch (err) {
+      console.warn('promoBannerService getActive fallback:', err);
+      const all = await this.getAll();
+      const activeList = all.filter(p => p.active !== false);
+      return activeList.length > 0 ? activeList[0] : null;
+    }
+  },
+
+  async create(data) {
+    const ref = await addDoc(col('promoBanners'), {
+      badgeText: data.badgeText || 'LIMITED TIME OFFER',
+      title: data.title || 'Summer Collection',
+      highlightText: data.highlightText || 'Up to 40% OFF',
+      description: data.description || 'Use code SUMMER40 at checkout. Limited stock available.',
+      couponCode: data.couponCode || 'SUMMER40',
+      btnText: data.btnText || 'Shop Now',
+      btnLink: data.btnLink || '/shop',
+      active: data.active !== undefined ? data.active : true,
+      order: Number(data.order) || 0,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+    return ref.id;
+  },
+
+  async update(id, data) {
+    await updateDoc(doc(db, 'promoBanners', id), {
+      ...data,
+      order: data.order !== undefined ? Number(data.order) : 0,
+      updatedAt: serverTimestamp(),
+    });
+  },
+
+  async delete(id) {
+    await deleteDoc(doc(db, 'promoBanners', id));
+  },
+
+  async seedDefaults() {
+    const defaultBanner = {
+      badgeText: 'LIMITED TIME OFFER',
+      title: 'Summer Collection',
+      highlightText: 'Up to 40% OFF',
+      description: 'Use code SUMMER40 at checkout. Limited stock available.',
+      couponCode: 'SUMMER40',
+      btnText: 'Shop Now',
+      btnLink: '/shop',
+      active: true,
+      order: 0,
+    };
+    await addDoc(col('promoBanners'), {
+      ...defaultBanner,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+  }
+};
+
