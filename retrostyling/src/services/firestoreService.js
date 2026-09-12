@@ -1154,6 +1154,20 @@ export const orderService = {
     });
   },
 
+  /** Admin: delete single order */
+  async delete(orderId) {
+    await deleteDoc(doc(db, 'orders', orderId));
+  },
+
+  /** Admin: delete all orders */
+  async deleteAll() {
+    const snap = await getDocs(col('orders'));
+    const batch = writeBatch(db);
+    snap.docs.forEach((d) => batch.delete(d.ref));
+    await batch.commit();
+    return snap.size;
+  },
+
   /** Public: get order by ID and email or phone for tracking */
   async getByIdAndContact(orderId, contact) {
     const c = contact.toLowerCase().trim();

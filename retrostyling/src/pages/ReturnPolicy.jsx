@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import {
   RotateCcw, CheckCircle, XCircle, Clock, CreditCard, RefreshCw,
   ChevronDown, Package, AlertTriangle, Banknote, ShieldCheck, ArrowRight
@@ -93,6 +93,20 @@ const FAQItem = ({ q, a }) => {
 };
 
 const ReturnPolicy = () => {
+  const location = useLocation();
+
+  useEffect(() => {
+    if (location.hash === '#faq' || location.hash === '#faqs') {
+      const timer = setTimeout(() => {
+        const el = document.getElementById('faq');
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth' });
+        }
+      }, 200);
+      return () => clearTimeout(timer);
+    }
+  }, [location.hash, location.pathname]);
+
   return (
     <div className="rp-page">
       <SEO
@@ -302,6 +316,7 @@ const ReturnPolicy = () => {
 
         {/* FAQs */}
         <motion.section
+          id="faq"
           className="rp-section"
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}

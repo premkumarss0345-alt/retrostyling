@@ -8,7 +8,7 @@ import {
   Image as ImageIcon, RotateCcw, Download
 } from 'lucide-react';
 import { useAuth } from '../services/AuthContext';
-import { addressService, orderService, wishlistService, cartService, productService, returnService, shippingSettingsService, rewardsService, invoiceTemplateService, reviewService } from '../services/firestoreService';
+import { addressService, orderService, wishlistService, cartService, productService, returnService, shippingSettingsService, rewardsService, invoiceTemplateService, reviewService, categoryService } from '../services/firestoreService';
 import Toast from '../components/Toast';
 import SEO from '../components/SEO';
 import './Profile.css';
@@ -57,6 +57,7 @@ const Profile = () => {
   const [toast, setToast] = useState(null);
   const [storeSettings, setStoreSettings] = useState(null);
   const [rewardData, setRewardData] = useState({ points: 0, tier: 'Bronze', vipId: 'N/A', memberSince: new Date().getFullYear() });
+  const [categories, setCategories] = useState([]);
 
   // Return state
   const [myReturns, setMyReturns] = useState([]);
@@ -259,6 +260,12 @@ const Profile = () => {
             setActiveTab('overview');
           }
         }
+      } catch (_) {}
+
+      // Load active categories
+      try {
+        const catList = await categoryService.getAll();
+        setCategories(catList || []);
       } catch (_) {}
     } catch (err) {
       console.error(err);
@@ -1501,16 +1508,20 @@ const Profile = () => {
             <p className="section-subtitle">Navigate through your favorite style categories</p>
           </div>
           <div className="categories-luxury-grid">
-            {[
+            {(categories.length > 0 ? categories.slice(0, 4) : [
               { name: 'Oversized T-Shirts', image: 'https://images.unsplash.com/photo-1576566588028-4147f3842f27?w=400', slug: 't-shirts' },
               { name: 'Hoodies', image: 'https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=400', slug: 'hoodies' },
               { name: 'Sneakers', image: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400', slug: 'footwear' },
               { name: 'Accessories', image: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400', slug: 'accessories' }
-            ].map(cat => (
-              <Link to={`/shop?category=${cat.slug}`} key={cat.name} className="category-luxury-card">
-                <img src={cat.image} alt={cat.name} className="img-cover" />
+            ]).map(cat => (
+              <Link to={`/shop/${cat.slug}`} key={cat.id || cat.slug || cat.name} className="category-luxury-card">
+                <img 
+                  src={cat.image || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400'} 
+                  alt={cat.name} 
+                  className="img-cover" 
+                />
                 <div className="category-overlay-content">
-                  <h3>{cat.name}</h3>
+                  <h3>{(cat.name || '').replace(/_/g, ' ')}</h3>
                   <span className="shop-link-text">Shop Collection <ArrowRight size={14} /></span>
                 </div>
               </Link>

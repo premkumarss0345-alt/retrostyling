@@ -340,6 +340,10 @@
 .rp-ep svg.danger { color: var(--error); }
 
 /* FAQs */
+#faq {
+  scroll-margin-top: 100px;
+}
+
 .rp-faqs {
   display: flex;
   flex-direction: column;

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { MessageSquare, ExternalLink } from 'lucide-react';
+import { MessageSquare } from 'lucide-react';
 import { marketingSettingsService } from '../services/firestoreService';
+import './WhatsAppFloatingButton.css';
 
 const WhatsAppFloatingButton = () => {
   const [settings, setSettings] = useState(null);
@@ -33,27 +34,7 @@ const WhatsAppFloatingButton = () => {
       target="_blank"
       rel="noopener noreferrer"
       aria-label="Browse WhatsApp Catalog"
-      style={{
-        position: 'fixed',
-        bottom: '80px',
-        right: '20px',
-        zIndex: 999,
-        display: 'flex',
-        alignItems: 'center',
-        gap: '0.6rem',
-        padding: '0.65rem 1.1rem',
-        background: 'linear-gradient(135deg, #25D366, #128C7E)',
-        color: '#000',
-        borderRadius: '50px',
-        fontWeight: 800,
-        fontSize: '0.85rem',
-        textDecoration: 'none',
-        boxShadow: '0 8px 25px rgba(37,211,102,0.4)',
-        transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-        border: '1.5px solid rgba(255,255,255,0.3)',
-      }}
-      onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.05)'}
-      onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+      className="whatsapp-floating-btn"
     >
       <MessageSquare size={20} fill="#000" />
       <span>WhatsApp Catalog</span>

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import BottomNav from './components/BottomNav';
@@ -6,6 +6,7 @@ import Footer from './components/Footer';
 import WhatsAppFloatingButton from './components/WhatsAppFloatingButton';
 import PopupAdModal from './components/PopupAdModal';
 import ProtectedRoute from './components/ProtectedRoute';
+import SplashScreen from './components/SplashScreen';
 import './App.css';
 
 /* ─── Customer Pages ─────────────────────────────────────── */
@@ -69,8 +70,10 @@ function AppContent() {
   }, []);
 
   useEffect(() => {
-    window.scrollTo(0, 0);
-  }, [location.pathname]);
+    if (!location.hash) {
+      window.scrollTo(0, 0);
+    }
+  }, [location.pathname, location.hash]);
 
   const adminRoute = (path, Component) => (
     <Route
@@ -153,10 +156,24 @@ function AppContent() {
 }
 
 function App() {
+  // Show splash only once per browser session (not on every navigation)
+  const [showSplash, setShowSplash] = useState(() => {
+    const seen = sessionStorage.getItem('rs_splash_seen');
+    return !seen;
+  });
+
+  const handleSplashFinish = () => {
+    sessionStorage.setItem('rs_splash_seen', '1');
+    setShowSplash(false);
+  };
+
   return (
-    <Router>
-      <AppContent />
-    </Router>
+    <>
+      {showSplash && <SplashScreen onFinish={handleSplashFinish} />}
+      <Router>
+        <AppContent />
+      </Router>
+    </>
   );
 }
 

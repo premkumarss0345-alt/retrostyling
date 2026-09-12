@@ -1,9 +1,28 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Facebook, Twitter, Instagram, Linkedin, Send } from 'lucide-react';
+import { categoryService } from '../services/firestoreService';
 import './Footer.css';
 
 const Footer = () => {
+    const [categories, setCategories] = useState([]);
+
+    useEffect(() => {
+        let isMounted = true;
+        categoryService.getAll()
+            .then(data => {
+                if (isMounted && Array.isArray(data)) {
+                    setCategories(data.filter(c => c.status === 'active' || !c.status));
+                }
+            })
+            .catch(err => {
+                console.warn('Footer categories load notice:', err);
+            });
+        return () => {
+            isMounted = false;
+        };
+    }, []);
+
     return (
         <footer className="footer">
             <div className="container footer-grid">
@@ -34,15 +53,36 @@ const Footer = () => {
                 <div className="footer-links">
                     <h3>CATEGORY</h3>
                     <ul>
-                        <li><a href="#">Men's Clothing</a></li>
-                        <li><a href="#">Women's Clothing</a></li>
+                        {categories.length > 0 ? (
+                            <>
+                                {categories.slice(0, 6).map((cat) => (
+                                    <li key={cat.id || cat.slug}>
+                                        <Link to={`/shop/${cat.slug}`}>
+                                            {(cat.name || '').replace(/_/g, ' ')}
+                                        </Link>
+                                    </li>
+                                ))}
+                                {categories.length > 6 && (
+                                    <li>
+                                        <Link to="/shop" style={{ opacity: 0.8, fontSize: '0.85rem' }}>
+                                            View All ({categories.length}) →
+                                        </Link>
+                                    </li>
+                                )}
+                            </>
+                        ) : (
+                            <>
+                                <li><Link to="/shop">Men's Clothing</Link></li>
+                                <li><Link to="/shop">Women's Clothing</Link></li>
+                            </>
+                        )}
                     </ul>
                 </div>
 
                 <div className="footer-links">
                     <h3>HELP & SUPPORT</h3>
                     <ul>
-                        <li><Link to="/return-policy">FAQ Information</Link></li>
+                        <li><Link to="/return-policy#faq">FAQ Information</Link></li>
                         <li><Link to="/return-policy">Return Policy</Link></li>
                         <li><Link to="/shipping-info">Shipping & Delivery</Link></li>
                         <li><Link to="/track-order">Order Tracking</Link></li>
