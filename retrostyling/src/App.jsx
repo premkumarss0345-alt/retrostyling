@@ -157,13 +157,9 @@ function AppContent() {
 
 function App() {
   // Show splash only once per browser session (not on every navigation)
-  const [showSplash, setShowSplash] = useState(() => {
-    const seen = sessionStorage.getItem('rs_splash_seen');
-    return !seen;
-  });
+  const [showSplash, setShowSplash] = useState(true);
 
   const handleSplashFinish = () => {
-    sessionStorage.setItem('rs_splash_seen', '1');
     setShowSplash(false);
   };
 

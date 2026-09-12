@@ -6,11 +6,8 @@ const SplashScreen = ({ onFinish }) => {
   const [phase, setPhase] = useState('enter'); // enter | hold | exit
 
   useEffect(() => {
-    // Phase 1: logo animates in (600ms)
-    // Phase 2: hold (800ms)
-    // Phase 3: exit fade-out (500ms)
-    const holdTimer = setTimeout(() => setPhase('exit'), 1400);
-    const doneTimer = setTimeout(() => onFinish(), 1900);
+    const holdTimer = setTimeout(() => setPhase('exit'), 3000);
+    const doneTimer = setTimeout(() => onFinish(), 3500);
     return () => {
       clearTimeout(holdTimer);
       clearTimeout(doneTimer);
@@ -30,15 +27,8 @@ const SplashScreen = ({ onFinish }) => {
             src={logoImg}
             alt="Retro Stylings"
             className="splash-logo-img"
-            style={{
-              width: '90px',
-              height: '90px',
-              display: 'block',
-              objectFit: 'contain',
-              background: '#ffffff',
-              padding: '10px',
-              boxSizing: 'border-box',
-              borderRadius: '22px',
+            onError={(event) => {
+              event.currentTarget.src = '/logo.png';
             }}
           />
           <div className="splash-logo-ring" />

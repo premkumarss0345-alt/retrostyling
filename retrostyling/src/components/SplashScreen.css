@@ -80,25 +80,24 @@
   display: flex !important;
   align-items: center;
   justify-content: center;
-  width: 110px;
-  height: 110px;
+  width: 180px;
+  height: 180px;
   flex-shrink: 0;
 }
 
 .splash-logo-img {
-  width: 90px !important;
-  height: 90px !important;
+  width: 160px !important;
+  height: 160px !important;
   object-fit: contain !important;
   display: block !important;
   flex-shrink: 0;
-  border-radius: 22px;
-  background: #ffffff;
-  padding: 10px;
-  box-sizing: border-box !important;
+  border-radius: 24px;
+  /* The supplied artwork is intentionally dark; lift it above the black splash background. */
+  filter: brightness(1.65) contrast(1.12) saturate(1.15);
   box-shadow:
-    0 0 0 1px rgba(223, 255, 27, 0.15),
-    0 0 40px rgba(223, 255, 27, 0.18),
-    0 8px 32px rgba(0, 0, 0, 0.6);
+    0 0 0 1px rgba(223, 255, 27, 0.2),
+    0 0 50px rgba(223, 255, 27, 0.15),
+    0 8px 40px rgba(0, 0, 0, 0.8);
   animation: splashLogoPulse 1.6s ease-in-out infinite;
 }
 
@@ -110,19 +109,23 @@
 /* Spinning ring around logo */
 .splash-logo-ring {
   position: absolute;
-  inset: -4px;
-  border-radius: 26px;
-  border: 1.5px solid transparent;
-  background:
-    linear-gradient(#050505, #050505) padding-box,
-    conic-gradient(
-      from 0deg,
-      rgba(223, 255, 27, 0) 0%,
-      rgba(223, 255, 27, 0.8) 25%,
-      rgba(223, 255, 27, 0) 50%,
-      rgba(139, 92, 246, 0.5) 75%,
-      rgba(223, 255, 27, 0) 100%
-    ) border-box;
+  inset: -6px;
+  border-radius: 30px;
+  padding: 2px;
+  background: conic-gradient(
+    from 0deg,
+    rgba(223, 255, 27, 0) 0%,
+    rgba(223, 255, 27, 0.9) 25%,
+    rgba(223, 255, 27, 0) 50%,
+    rgba(139, 92, 246, 0.6) 75%,
+    rgba(223, 255, 27, 0) 100%
+  );
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
   animation: splashRingSpin 1.8s linear infinite;
 }
 
@@ -200,14 +203,14 @@
 /* ─── Mobile adjustments ─── */
 @media (max-width: 480px) {
   .splash-logo-img {
-    width: 75px;
-    height: 75px;
-    border-radius: 18px;
+    width: 130px !important;
+    height: 130px !important;
+    border-radius: 20px;
   }
 
   .splash-logo-wrap {
-    width: 90px;
-    height: 90px;
+    width: 150px;
+    height: 150px;
   }
 
   .splash-bar-track {
