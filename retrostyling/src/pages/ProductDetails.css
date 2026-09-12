@@ -216,6 +216,122 @@
     font-weight: 500;
 }
 
+/* ── Zoom Overlay ───────────────────────────────────── */
+.main-image--zoomable {
+    position: relative;
+    cursor: zoom-in;
+}
+
+.zoom-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    background: rgba(0, 0, 0, 0);
+    color: transparent;
+    transition: background 0.25s ease, color 0.25s ease;
+    border-radius: var(--radius);
+    pointer-events: none;
+}
+
+.zoom-overlay svg {
+    transition: transform 0.25s ease;
+    transform: scale(0.8);
+}
+
+.zoom-overlay span {
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    opacity: 0;
+    transform: translateY(6px);
+    transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.main-image--zoomable:hover .zoom-overlay {
+    background: rgba(0, 0, 0, 0.45);
+    color: #fff;
+}
+
+.main-image--zoomable:hover .zoom-overlay svg {
+    transform: scale(1);
+}
+
+.main-image--zoomable:hover .zoom-overlay span {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* ── Lightbox ────────────────────────────────────────── */
+.lightbox-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: rgba(0, 0, 0, 0.92);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+    animation: lightbox-fade-in 0.22s ease;
+}
+
+@keyframes lightbox-fade-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+.lightbox-close {
+    position: absolute;
+    top: 1.25rem;
+    right: 1.25rem;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.2s ease, transform 0.2s ease;
+    z-index: 10000;
+}
+
+.lightbox-close:hover {
+    background: rgba(255, 255, 255, 0.25);
+    transform: scale(1.1);
+}
+
+.lightbox-content {
+    max-width: min(90vw, 780px);
+    max-height: 90vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: lightbox-scale-in 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes lightbox-scale-in {
+    from { transform: scale(0.88); opacity: 0; }
+    to   { transform: scale(1);    opacity: 1; }
+}
+
+.lightbox-img {
+    max-width: 100%;
+    max-height: 90vh;
+    object-fit: contain;
+    border-radius: var(--radius);
+    box-shadow: 0 32px 80px rgba(0, 0, 0, 0.7);
+    user-select: none;
+    -webkit-user-drag: none;
+}
+
+/* ── Responsive ──────────────────────────────────────── */
 @media (max-width: 1024px) {
     .product-details-grid {
         grid-template-columns: 1fr;
@@ -242,5 +358,9 @@
     .product-features-small {
         grid-template-columns: 1fr;
         padding: 2rem;
+    }
+
+    .lightbox-content {
+        max-width: 95vw;
     }
 }

@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ShoppingBag, Heart, Truck, RotateCcw, ShieldCheck, ExternalLink, MessageSquare, ShoppingCart } from 'lucide-react';
+import { ShoppingBag, Heart, Truck, RotateCcw, ShieldCheck, ExternalLink, MessageSquare, ShoppingCart, ZoomIn, X } from 'lucide-react';
 import { productService, cartService, wishlistService, labelService } from '../services/firestoreService';
 import { useAuth } from '../services/AuthContext';
 import Toast from '../components/Toast';
@@ -21,6 +21,21 @@ const ProductDetails = () => {
   const [quantity, setQuantity]       = useState(1);
   const [adding, setAdding]           = useState(false);
   const [toast, setToast]             = useState({ show: false, message: '', type: 'success' });
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+
+  const openLightbox  = () => setLightboxOpen(true);
+  const closeLightbox = useCallback(() => setLightboxOpen(false), []);
+
+  useEffect(() => {
+    if (!lightboxOpen) return;
+    const onKey = (e) => { if (e.key === 'Escape') closeLightbox(); };
+    document.addEventListener('keydown', onKey);
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = '';
+    };
+  }, [lightboxOpen, closeLightbox]);
 
   const handleColorSelect = (color) => {
     setSelectedColor(color);
@@ -165,8 +180,12 @@ const ProductDetails = () => {
       <div className="product-details-grid">
         {/* Gallery */}
         <div className="product-gallery" ref={galleryRef}>
-          <div className="main-image">
+          <div className="main-image main-image--zoomable" onClick={openLightbox} title="Click to zoom">
             <img src={variantImage} alt={activeVariant?.imageAlt || product.name} className="w-100" />
+            <div className="zoom-overlay">
+              <ZoomIn size={28} />
+              <span>View Image</span>
+            </div>
           </div>
         </div>
 
@@ -354,6 +373,22 @@ const ProductDetails = () => {
       </div>
 
       <Toast isOpen={toast.show} message={toast.message} type={toast.type} onClose={() => setToast({ ...toast, show: false })} />
+
+      {/* Lightbox */}
+      {lightboxOpen && (
+        <div className="lightbox-overlay" onClick={closeLightbox} role="dialog" aria-modal="true" aria-label="Product image zoom">
+          <button className="lightbox-close" onClick={closeLightbox} aria-label="Close">
+            <X size={24} />
+          </button>
+          <div className="lightbox-content" onClick={(e) => e.stopPropagation()}>
+            <img
+              src={variantImage}
+              alt={activeVariant?.imageAlt || product.name}
+              className="lightbox-img"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };
