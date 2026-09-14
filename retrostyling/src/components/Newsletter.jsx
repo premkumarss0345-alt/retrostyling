@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Mail, ArrowRight } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { newsletterService } from '../services/firestoreService';
 import Toast from './Toast';
 import './Newsletter.css';
@@ -36,7 +36,6 @@ const Newsletter = () => {
 
                     <form className="card-form" onSubmit={handleSubmit}>
                         <div className="input-wrapper">
-                            <Mail size={20} className="mail-icon" />
                             <input 
                                 type="email" 
                                 placeholder="Enter your email" 

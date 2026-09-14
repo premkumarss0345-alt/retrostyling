@@ -28,6 +28,7 @@ import ReturnPolicy from './pages/ReturnPolicy';
 import ShippingInfo from './pages/ShippingInfo';
 import TrackOrder from './pages/TrackOrder';
 import PaymentType from './pages/PaymentType';
+import ReviewForm from './pages/ReviewForm';
 
 /* ─── Admin Pages ────────────────────────────────────────── */
 import AdminDashboard from './pages/admin/Dashboard';
@@ -111,6 +112,8 @@ function AppContent() {
         <Route path="/shipping-info" element={<ShippingInfo />} />
         <Route path="/track-order" element={<TrackOrder />} />
         <Route path="/payment-type" element={<PaymentType />} />
+        <Route path="/review" element={<ReviewForm />} />
+        <Route path="/write-review" element={<ReviewForm />} />
         <Route path="/blog" element={
           <div className="container section">
             <h1>Our Blog</h1>

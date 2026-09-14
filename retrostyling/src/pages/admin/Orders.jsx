@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Eye, X, Package, MapPin, Phone, Check, Truck, ChevronRight, Search, RotateCcw, Plus, Trash2, Settings, CreditCard } from 'lucide-react';
+import { Eye, X, Package, MapPin, Phone, Check, Truck, ChevronRight, Search, RotateCcw, Plus, Trash2, Settings, CreditCard, Star, Send, Copy, ExternalLink, Mail, MessageSquare } from 'lucide-react';
 import AdminLayout from './AdminLayout';
 import { orderService, invoiceTemplateService } from '../../services/firestoreService';
 import { API_BASE_URL } from '../../config';
+import Toast from '../../components/Toast';
 
 const ORDER_STATUSES = ['processing', 'packed', 'shipped', 'out_for_delivery', 'delivered', 'cancelled'];
 
@@ -83,6 +84,59 @@ const AdminOrders = () => {
     invoicePrefix: ''
   });
   const [savingTemplate, setSavingTemplate] = useState(false);
+
+  // Review Link Request state for orders
+  const [reviewOrderTarget, setReviewOrderTarget] = useState(null);
+  const [selectedReviewItemIdx, setSelectedReviewItemIdx] = useState(0);
+  const [orderToast, setOrderToast] = useState(null);
+
+  const getOrderReviewUrl = (order, itemIdx = 0) => {
+    if (!order) return '';
+    const origin = window.location.origin;
+    const params = new URLSearchParams();
+    params.append('orderId', order.id);
+    if (order.customerName) params.append('customer', order.customerName);
+    if (order.customerEmail) params.append('email', order.customerEmail);
+
+    const item = order.items?.[itemIdx] || order.items?.[0];
+    if (item) {
+      if (item.productId || item.id) params.append('productId', item.productId || item.id);
+      if (item.name) params.append('product', item.name);
+      if (item.image) params.append('image', item.image);
+    }
+
+    return `${origin}/review?${params.toString()}`;
+  };
+
+  const handleCopyOrderReviewLink = (order, itemIdx = 0) => {
+    const url = getOrderReviewUrl(order, itemIdx);
+    navigator.clipboard.writeText(url);
+    setOrderToast({ text: 'Review form link copied to clipboard!', type: 'success' });
+    setTimeout(() => setOrderToast(null), 3000);
+  };
+
+  const handleSendOrderWhatsApp = (order, itemIdx = 0) => {
+    const url = getOrderReviewUrl(order, itemIdx);
+    const item = order.items?.[itemIdx] || order.items?.[0];
+    const prodName = item?.name ? `"${item.name}"` : 'your recent order';
+    const message = `Hello ${order.customerName || ''}! 👋 Thank you for choosing Retrostylings! We hope you loved ${prodName}. We'd love your review! Share your feedback here to earn VIP reward points: ${url} ⭐`;
+
+    let phone = (order.phone || '').replace(/[^0-9]/g, '');
+    if (phone.length === 10) phone = '91' + phone;
+    const waUrl = phone
+      ? `https://wa.me/${phone}?text=${encodeURIComponent(message)}`
+      : `https://wa.me/?text=${encodeURIComponent(message)}`;
+    window.open(waUrl, '_blank');
+  };
+
+  const handleSendOrderEmail = (order, itemIdx = 0) => {
+    const url = getOrderReviewUrl(order, itemIdx);
+    const item = order.items?.[itemIdx] || order.items?.[0];
+    const prodName = item?.name ? `"${item.name}"` : 'your purchase';
+    const subject = `How was your experience with Retrostylings? Share your review!`;
+    const body = `Hi ${order.customerName || 'there'},\n\nThank you for shopping with Retrostylings! We hope you love ${prodName}.\n\nCould you spare 60 seconds to review your item? It earns you VIP rewards points and helps our community:\n${url}\n\nWarm regards,\nRetrostylings Team`;
+    window.location.href = `mailto:${order.customerEmail || ''}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  };
 
   const openTemplateModal = async () => {
     try {
@@ -476,6 +530,20 @@ const AdminOrders = () => {
                         </button>
                       )}
                       <button
+                        onClick={() => {
+                          setReviewOrderTarget(order);
+                          setSelectedReviewItemIdx(0);
+                        }}
+                        title="Send Review Link"
+                        style={{
+                          background: 'rgba(255, 215, 0, 0.08)', padding: '0.35rem 0.5rem',
+                          borderRadius: '6px', color: 'var(--primary)', border: '1px solid rgba(255, 215, 0, 0.25)',
+                          cursor: 'pointer', display: 'flex', alignItems: 'center',
+                        }}
+                      >
+                        <Star size={15} fill="currentColor" />
+                      </button>
+                      <button
                         onClick={() => openOrder(order)}
                         title="View Details"
                         style={{
@@ -498,11 +566,11 @@ const AdminOrders = () => {
       {/* Order Detail Modal */}
       {selectedOrder && (
         <div className="modal-overlay" onClick={() => setSelectedOrder(null)}>
-          <div className="modal-content" style={{ maxWidth: '780px' }} onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
+          <div className="modal-content" style={{ maxWidth: '850px', width: '92%' }} onClick={e => e.stopPropagation()}>
+            <div className="modal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border)', paddingBottom: '1rem', marginBottom: '1.25rem' }}>
               <div>
-                <h2>{isEditingInvoice ? 'Edit Invoice' : `Order #${selectedOrder.id.slice(-6).toUpperCase()}`}</h2>
-                {!isEditingInvoice && (
+                <h2>Order Details - #{selectedOrder.id.slice(-8).toUpperCase()}</h2>
+                {selectedOrder.orderStatus && (
                   <span className={`status-badge status-${selectedOrder.orderStatus}`} style={{ marginTop: '0.35rem', display: 'inline-block' }}>
                     {STATUS_LABELS[selectedOrder.orderStatus] || selectedOrder.orderStatus}
                   </span>
@@ -510,13 +578,25 @@ const AdminOrders = () => {
               </div>
               <div style={{ display: 'flex', gap: '0.50rem', alignItems: 'center' }}>
                 {!isEditingInvoice && (
-                  <button
-                    className="btn btn-outline btn-sm"
-                    onClick={() => setIsEditingInvoice(true)}
-                    style={{ fontSize: '0.8rem', padding: '0.4rem 0.8rem' }}
-                  >
-                    Edit Invoice
-                  </button>
+                  <>
+                    <button
+                      className="btn btn-primary btn-sm"
+                      onClick={() => {
+                        setReviewOrderTarget(selectedOrder);
+                        setSelectedReviewItemIdx(0);
+                      }}
+                      style={{ fontSize: '0.8rem', padding: '0.4rem 0.8rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontWeight: 700 }}
+                    >
+                      <Star size={13} fill="currentColor" /> Request Review
+                    </button>
+                    <button
+                      className="btn btn-outline btn-sm"
+                      onClick={() => setIsEditingInvoice(true)}
+                      style={{ fontSize: '0.8rem', padding: '0.4rem 0.8rem' }}
+                    >
+                      Edit Invoice
+                    </button>
+                  </>
                 )}
                 <button className="btn-close" onClick={() => setSelectedOrder(null)}><X size={24} /></button>
               </div>
@@ -995,6 +1075,133 @@ const AdminOrders = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Order Review Request Modal */}
+      {reviewOrderTarget && (
+        <div className="modal-overlay" onClick={() => setReviewOrderTarget(null)} style={{ zIndex: 10000 }}>
+          <div
+            className="modal-content"
+            style={{ maxWidth: '600px', width: '92%', borderRadius: '16px', background: 'var(--bg-card)', border: '1px solid var(--border)', padding: '1.75rem' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.75rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                <div style={{ width: 36, height: 36, borderRadius: '8px', background: 'rgba(255,215,0,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)' }}>
+                  <Star size={18} fill="currentColor" />
+                </div>
+                <div>
+                  <h2 style={{ fontSize: '1.15rem', margin: 0, color: 'var(--white)' }}>Send Review Link to Customer</h2>
+                  <p style={{ fontSize: '0.76rem', color: 'var(--text-muted)', margin: 0 }}>
+                    Order #{reviewOrderTarget.id.slice(-8).toUpperCase()} • {reviewOrderTarget.customerName}
+                  </p>
+                </div>
+              </div>
+              <button
+                className="btn-close"
+                onClick={() => setReviewOrderTarget(null)}
+                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              {/* If order has items, allow picking which item to request review for */}
+              {reviewOrderTarget.items?.length > 0 && (
+                <div>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-dim)', textTransform: 'uppercase', display: 'block', marginBottom: '0.4rem' }}>
+                    Select Ordered Item to Review
+                  </label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    {reviewOrderTarget.items.map((item, idx) => (
+                      <div
+                        key={idx}
+                        onClick={() => setSelectedReviewItemIdx(idx)}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: '0.75rem',
+                          padding: '0.5rem 0.75rem', borderRadius: '10px',
+                          background: selectedReviewItemIdx === idx ? 'rgba(255,215,0,0.08)' : 'var(--bg-soft)',
+                          border: `1px solid ${selectedReviewItemIdx === idx ? 'var(--primary)' : 'var(--border)'}`,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        <img src={item.image} alt={item.name} style={{ width: 36, height: 44, objectFit: 'cover', borderRadius: 4 }} />
+                        <div style={{ flex: 1, fontSize: '0.85rem' }}>
+                          <div style={{ color: 'var(--white)', fontWeight: 600 }}>{item.name}</div>
+                          <div style={{ color: 'var(--text-muted)', fontSize: '0.74rem' }}>
+                            {item.size ? `Size: ${item.size} ` : ''} {item.color ? `| Color: ${item.color} ` : ''} | ₹{item.price}
+                          </div>
+                        </div>
+                        {selectedReviewItemIdx === idx && (
+                          <span style={{ fontSize: '0.7rem', color: 'var(--primary)', fontWeight: 700, textTransform: 'uppercase' }}>Selected</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Generated link preview */}
+              <div style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid var(--border)', borderRadius: '12px', padding: '0.85rem 1rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--primary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Customer Review Form Link</span>
+                  <a
+                    href={getOrderReviewUrl(reviewOrderTarget, selectedReviewItemIdx)}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{ fontSize: '0.74rem', color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', textDecoration: 'none' }}
+                  >
+                    Open Form <ExternalLink size={12} />
+                  </a>
+                </div>
+                <div style={{ fontFamily: 'monospace', fontSize: '0.8rem', color: 'var(--text-light)', wordBreak: 'break-all' }}>
+                  {getOrderReviewUrl(reviewOrderTarget, selectedReviewItemIdx)}
+                </div>
+              </div>
+
+              {/* Action buttons */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.65rem', marginTop: '0.5rem' }}>
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  onClick={() => handleCopyOrderReviewLink(reviewOrderTarget, selectedReviewItemIdx)}
+                  style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', fontSize: '0.85rem' }}
+                >
+                  <Copy size={15} /> Copy Link
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSendOrderWhatsApp(reviewOrderTarget, selectedReviewItemIdx)}
+                  style={{
+                    background: '#25D366', color: '#000', fontWeight: 700, border: 'none', borderRadius: '8px',
+                    padding: '0.6rem 0.8rem', fontSize: '0.85rem', cursor: 'pointer',
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem'
+                  }}
+                >
+                  <Phone size={15} /> WhatsApp
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => handleSendOrderEmail(reviewOrderTarget, selectedReviewItemIdx)}
+                  style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', fontSize: '0.85rem' }}
+                >
+                  <Mail size={15} /> Email
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {orderToast && (
+        <Toast
+          isOpen={true}
+          message={orderToast.text}
+          type={orderToast.type}
+          onClose={() => setOrderToast(null)}
+        />
       )}
     </AdminLayout>
   );

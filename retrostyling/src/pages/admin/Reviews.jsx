@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import AdminLayout from './AdminLayout';
-import { reviewService } from '../../services/firestoreService';
-import { Star, Check, X, MessageSquare, Search, ThumbsUp, Flag, RefreshCw, Trash2, Clock } from 'lucide-react';
+import { reviewService, productService } from '../../services/firestoreService';
+import { Star, Check, X, MessageSquare, Search, ThumbsUp, Flag, RefreshCw, Trash2, Clock, Send, Copy, ExternalLink, Mail, Phone, Share2 } from 'lucide-react';
 // eslint-disable-next-line no-unused-vars
 import { motion } from 'framer-motion';
+import Toast from '../../components/Toast';
 
 const StarRating = ({ rating }) => (
   <div style={{ display: 'flex', gap: '2px' }}>
@@ -24,9 +25,69 @@ const Reviews = () => {
   const [replyTarget, setReplyTarget] = useState(null);
   const [replyText, setReplyText] = useState('');
 
+  // Send Review Link Modal State
+  const [showRequestModal, setShowRequestModal] = useState(false);
+  const [productsList, setProductsList] = useState([]);
+  const [requestForm, setRequestForm] = useState({
+    productId: '',
+    customerName: '',
+    customerPhone: '',
+    customerEmail: '',
+    orderId: '',
+  });
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+
   useEffect(() => {
     loadData();
+    productService.getAll().then(prods => setProductsList(prods || [])).catch(() => {});
   }, []);
+
+  const getGeneratedReviewUrl = () => {
+    const origin = window.location.origin;
+    const params = new URLSearchParams();
+    if (requestForm.productId) {
+      const p = productsList.find(item => item.id === requestForm.productId);
+      params.append('productId', requestForm.productId);
+      if (p?.name) params.append('product', p.name);
+      if (p?.image) params.append('image', p.image);
+    }
+    if (requestForm.orderId) params.append('orderId', requestForm.orderId.trim());
+    if (requestForm.customerName) params.append('customer', requestForm.customerName.trim());
+    if (requestForm.customerEmail) params.append('email', requestForm.customerEmail.trim());
+
+    const qs = params.toString();
+    return `${origin}/review${qs ? `?${qs}` : ''}`;
+  };
+
+  const handleCopyLink = () => {
+    const url = getGeneratedReviewUrl();
+    navigator.clipboard.writeText(url);
+    setToast({ show: true, message: 'Review form link copied to clipboard!', type: 'success' });
+  };
+
+  const handleSendWhatsApp = () => {
+    const url = getGeneratedReviewUrl();
+    const p = productsList.find(item => item.id === requestForm.productId);
+    const prodName = p?.name ? `"${p.name}"` : 'your recent order';
+    const custName = requestForm.customerName ? ` ${requestForm.customerName}` : '';
+    const message = `Hello${custName}! 👋 Thank you for choosing Retrostylings! We'd love to know how you liked ${prodName}. Please take 30 seconds to share your review and earn VIP reward points: ${url} ⭐`;
+
+    let phone = (requestForm.customerPhone || '').replace(/[^0-9]/g, '');
+    if (phone.length === 10) phone = '91' + phone;
+    const waUrl = phone
+      ? `https://wa.me/${phone}?text=${encodeURIComponent(message)}`
+      : `https://wa.me/?text=${encodeURIComponent(message)}`;
+    window.open(waUrl, '_blank');
+  };
+
+  const handleSendEmail = () => {
+    const url = getGeneratedReviewUrl();
+    const p = productsList.find(item => item.id === requestForm.productId);
+    const prodName = p?.name ? `"${p.name}"` : 'your purchase';
+    const subject = `How was your experience with Retrostylings? Share your review!`;
+    const body = `Hi ${requestForm.customerName || 'there'},\n\nThank you for choosing Retrostylings! We hope you love ${prodName}.\n\nCould you spare 60 seconds to share your review? Your feedback helps fellow retro lovers:\n${url}\n\nWarm regards,\nRetrostylings Team`;
+    window.location.href = `mailto:${requestForm.customerEmail || ''}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  };
 
   const loadData = async () => {
     setLoading(true);
@@ -126,9 +187,18 @@ const Reviews = () => {
             <h1 className="page-title">Review Management</h1>
             <p className="page-subtitle">Moderate customer reviews, approve, reject, or reply to feedback.</p>
           </div>
-          <button className="btn btn-secondary btn-sm" onClick={loadData}>
-            <RefreshCw size={14} /> Refresh
-          </button>
+          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+            <button
+              className="btn btn-primary btn-sm"
+              onClick={() => setShowRequestModal(true)}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontWeight: 700 }}
+            >
+              <Send size={14} /> Send Review Link
+            </button>
+            <button className="btn btn-secondary btn-sm" onClick={loadData}>
+              <RefreshCw size={14} /> Refresh
+            </button>
+          </div>
         </motion.div>
 
         {/* Stats */}
@@ -295,6 +365,168 @@ const Reviews = () => {
           ))}
         </div>
       </motion.div>
+
+      {/* ─── Send Review Request Modal ─── */}
+      {showRequestModal && (
+        <div className="modal-overlay" onClick={() => setShowRequestModal(false)} style={{ zIndex: 10000 }}>
+          <div
+            className="modal-content"
+            style={{ maxWidth: '640px', width: '92%', borderRadius: '16px', background: 'var(--bg-card)', border: '1px solid var(--border)', padding: '1.75rem' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.75rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                <div style={{ width: 36, height: 36, borderRadius: '8px', background: 'rgba(255,215,0,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)' }}>
+                  <Send size={18} />
+                </div>
+                <div>
+                  <h2 style={{ fontSize: '1.2rem', margin: 0, color: 'var(--white)' }}>Send Customer Review Link</h2>
+                  <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: 0 }}>Create and share direct review form links with customers</p>
+                </div>
+              </div>
+              <button
+                className="btn-close"
+                onClick={() => setShowRequestModal(false)}
+                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              {/* Product Selector */}
+              <div>
+                <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-dim)', textTransform: 'uppercase', display: 'block', marginBottom: '0.35rem' }}>
+                  Target Product (Optional)
+                </label>
+                <select
+                  value={requestForm.productId}
+                  onChange={e => setRequestForm(p => ({ ...p, productId: e.target.value }))}
+                  style={{ width: '100%', background: 'var(--bg-soft)', border: '1px solid var(--border)', borderRadius: '10px', padding: '0.65rem 0.85rem', color: 'var(--white)', fontSize: '0.9rem', outline: 'none' }}
+                >
+                  <option value="">General Store Review (Customer can choose any product)</option>
+                  {productsList.map(p => (
+                    <option key={p.id} value={p.id}>
+                      {p.name} {p.brand ? `[${p.brand}]` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Customer & Order details (Optional) */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                <div>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-dim)', textTransform: 'uppercase', display: 'block', marginBottom: '0.35rem' }}>
+                    Customer Name (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Rohith S."
+                    value={requestForm.customerName}
+                    onChange={e => setRequestForm(p => ({ ...p, customerName: e.target.value }))}
+                    style={{ width: '100%', background: 'var(--bg-soft)', border: '1px solid var(--border)', borderRadius: '10px', padding: '0.65rem 0.85rem', color: 'var(--white)', fontSize: '0.88rem', outline: 'none' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-dim)', textTransform: 'uppercase', display: 'block', marginBottom: '0.35rem' }}>
+                    Order ID (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. ORD-10928"
+                    value={requestForm.orderId}
+                    onChange={e => setRequestForm(p => ({ ...p, orderId: e.target.value }))}
+                    style={{ width: '100%', background: 'var(--bg-soft)', border: '1px solid var(--border)', borderRadius: '10px', padding: '0.65rem 0.85rem', color: 'var(--white)', fontSize: '0.88rem', outline: 'none' }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                <div>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-dim)', textTransform: 'uppercase', display: 'block', marginBottom: '0.35rem' }}>
+                    Customer WhatsApp Phone (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. 9876543210"
+                    value={requestForm.customerPhone}
+                    onChange={e => setRequestForm(p => ({ ...p, customerPhone: e.target.value }))}
+                    style={{ width: '100%', background: 'var(--bg-soft)', border: '1px solid var(--border)', borderRadius: '10px', padding: '0.65rem 0.85rem', color: 'var(--white)', fontSize: '0.88rem', outline: 'none' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-dim)', textTransform: 'uppercase', display: 'block', marginBottom: '0.35rem' }}>
+                    Customer Email (Optional)
+                  </label>
+                  <input
+                    type="email"
+                    placeholder="customer@email.com"
+                    value={requestForm.customerEmail}
+                    onChange={e => setRequestForm(p => ({ ...p, customerEmail: e.target.value }))}
+                    style={{ width: '100%', background: 'var(--bg-soft)', border: '1px solid var(--border)', borderRadius: '10px', padding: '0.65rem 0.85rem', color: 'var(--white)', fontSize: '0.88rem', outline: 'none' }}
+                  />
+                </div>
+              </div>
+
+              {/* Live Generated URL Box */}
+              <div style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid var(--border)', borderRadius: '12px', padding: '0.85rem 1rem', marginTop: '0.25rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--primary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Generated Review Form Link</span>
+                  <a
+                    href={getGeneratedReviewUrl()}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', textDecoration: 'none' }}
+                  >
+                    Open Link Preview <ExternalLink size={12} />
+                  </a>
+                </div>
+                <div style={{ fontFamily: 'monospace', fontSize: '0.82rem', color: 'var(--text-light)', wordBreak: 'break-all', userSelect: 'all' }}>
+                  {getGeneratedReviewUrl()}
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.65rem', marginTop: '0.5rem' }}>
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  onClick={handleCopyLink}
+                  style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', fontSize: '0.85rem' }}
+                >
+                  <Copy size={15} /> Copy Link
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSendWhatsApp}
+                  style={{
+                    background: '#25D366', color: '#000', fontWeight: 700, border: 'none', borderRadius: '8px',
+                    padding: '0.6rem 0.8rem', fontSize: '0.85rem', cursor: 'pointer',
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem'
+                  }}
+                >
+                  <Phone size={15} /> WhatsApp
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={handleSendEmail}
+                  style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', fontSize: '0.85rem' }}
+                >
+                  <Mail size={15} /> Email
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <Toast
+        isOpen={toast.show}
+        message={toast.message}
+        type={toast.type}
+        onClose={() => setToast({ ...toast, show: false })}
+      />
     </AdminLayout>
   );
 };

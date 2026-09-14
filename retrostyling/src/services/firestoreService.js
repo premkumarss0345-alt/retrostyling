@@ -1096,6 +1096,14 @@ export const orderService = {
     return snap2arr(snap);
   },
 
+  /** Get single order by ID */
+  async getById(orderId) {
+    if (!orderId) return null;
+    const orderRef = doc(db, 'orders', orderId);
+    const snap = await getDoc(orderRef);
+    return snap.exists() ? { id: snap.id, ...snap.data() } : null;
+  },
+
   /** Admin: get recent orders (limit 5) */
   async getRecent() {
     const q = query(col('orders'), orderBy('createdAt', 'desc'), limit(5));

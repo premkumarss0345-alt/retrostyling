@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { User, Mail, Lock, Eye, EyeOff, UserPlus, Chrome } from 'lucide-react';
+import { Eye, EyeOff, UserPlus, Chrome } from 'lucide-react';
 import { useAuth } from '../services/AuthContext';
 import Toast from '../components/Toast';
 import SEO from '../components/SEO';
@@ -103,7 +103,6 @@ const Signup = () => {
             <div className="input-container">
               <label>Full Name</label>
               <div className="input-wrapper">
-                <User size={18} className="input-icon" />
                 <input
                   type="text"
                   placeholder="Enter your name"
@@ -117,7 +116,6 @@ const Signup = () => {
             <div className="input-container">
               <label>Email Address</label>
               <div className="input-wrapper">
-                <Mail size={18} className="input-icon" />
                 <input
                   type="email"
                   placeholder="name@example.com"
@@ -131,7 +129,6 @@ const Signup = () => {
             <div className="input-container">
               <label>Password</label>
               <div className="input-wrapper">
-                <Lock size={18} className="input-icon" />
                 <input
                   type={showPass ? 'text' : 'password'}
                   placeholder="Min. 6 characters"

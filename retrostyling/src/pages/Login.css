@@ -106,13 +106,21 @@
 
 .input-wrapper input {
     width: 100%;
-    padding: 1rem 1.25rem 1rem 3.5rem;
+    padding: 1rem 1.25rem;
     background: var(--bg-soft);
     border: 1px solid var(--border);
     border-radius: 12px;
     color: var(--white);
     font-size: 1rem;
     transition: var(--transition);
+}
+
+.input-wrapper .input-icon + input {
+    padding-left: 3.5rem;
+}
+
+.input-wrapper:has(.password-toggle) input {
+    padding-right: 3.25rem;
 }
 
 .input-wrapper input:focus {

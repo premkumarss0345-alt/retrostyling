@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { ShoppingBag, Heart, Truck, RotateCcw, ShieldCheck, ExternalLink, MessageSquare, ShoppingCart, ZoomIn, X } from 'lucide-react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import { ShoppingBag, Heart, Truck, RotateCcw, ShieldCheck, ExternalLink, MessageSquare, ShoppingCart, ZoomIn, X, Star } from 'lucide-react';
 import { productService, cartService, wishlistService, labelService } from '../services/firestoreService';
 import { useAuth } from '../services/AuthContext';
 import Toast from '../components/Toast';
@@ -354,6 +354,20 @@ const ProductDetails = () => {
               </div>
             </div>
           )}
+
+          <div style={{ marginTop: '1.5rem', marginBottom: '1.5rem', padding: '1rem 1.25rem', background: 'rgba(255,215,0,0.04)', border: '1px dashed rgba(255,215,0,0.3)', borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
+            <div>
+              <span style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--white)', display: 'block' }}>Loved this retro style?</span>
+              <span style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>Share your review & earn +150 VIP reward points!</span>
+            </div>
+            <Link
+              to={`/review?productId=${product.id}&product=${encodeURIComponent(product.name)}&image=${encodeURIComponent(product.image || '')}`}
+              className="btn btn-outline btn-sm"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', whiteSpace: 'nowrap', fontSize: '0.82rem', color: 'var(--primary)', borderColor: 'rgba(255,215,0,0.4)', padding: '0.45rem 0.9rem' }}
+            >
+              <Star size={13} fill="currentColor" /> Write a Review
+            </Link>
+          </div>
 
           <div className="product-features-small">
             <div className="feature-small">
