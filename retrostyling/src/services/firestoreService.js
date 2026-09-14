@@ -984,11 +984,24 @@ export const addressService = {
 // ─── ORDERS ───────────────────────────────────────────────────────────────────
 export const orderService = {
   /** Place a new order from cart items */
-  async place({ cartItems, shippingAddress, phone, userInfo, paymentMethod = 'cod', paymentStatus = 'pending', paymentId = null }) {
+  async place({ 
+    cartItems, 
+    shippingAddress, 
+    phone, 
+    userInfo, 
+    paymentMethod = 'cod', 
+    paymentStatus = 'pending', 
+    paymentId = null,
+    couponCode = null,
+    couponDiscount = 0,
+    couponId = null,
+    userRewardId = null,
+    freeShipping = false
+  }) {
     const userId = uid();
 
-    // Compute total server-side (from cart data)
-    const total = cartItems.reduce((acc, item) => {
+    // Compute subtotal server-side (from cart data)
+    const subtotal = cartItems.reduce((acc, item) => {
       const price = item.price_override || (item.on_sale ? item.discount_price : item.price);
       return acc + price * item.quantity;
     }, 0);
@@ -1004,8 +1017,9 @@ export const orderService = {
       }
     } catch (_) {}
 
-    const shipping = total > freeLimit ? 0 : charge;
-    const grandTotal = total + shipping;
+    const discountAmount = Math.max(0, Number(couponDiscount) || 0);
+    const shipping = freeShipping ? 0 : (subtotal > freeLimit ? 0 : charge);
+    const grandTotal = Math.max(0, subtotal - discountAmount) + shipping;
 
     // Prepare order items
     const items = cartItems.map((item) => ({
@@ -1038,6 +1052,10 @@ export const orderService = {
       customerName: userInfo?.displayName || userInfo?.email || 'Customer',
       customerEmail: userInfo?.email || '',
       items,
+      subtotal,
+      discount: discountAmount,
+      couponCode: couponCode ? String(couponCode).toUpperCase() : null,
+      shipping,
       total: grandTotal,
       shippingAddress,
       phone,
@@ -1074,6 +1092,16 @@ export const orderService = {
     batch.set(cartRef, { items: [], updatedAt: serverTimestamp() }, { merge: true });
 
     await batch.commit();
+
+    // Record coupon & userReward usage asynchronously
+    if (couponCode) {
+      try {
+        await couponService.recordUsage(couponId, couponCode, userRewardId);
+      } catch (err) {
+        console.warn('Failed to record coupon usage in order placement:', err);
+      }
+    }
+
     return orderRef.id;
   },
 
@@ -1926,6 +1954,397 @@ export const rewardsService = {
     await batch.commit();
     return newPoints;
   }
+};
+
+// ─── USER REWARDS SERVICE (Which User Has Which Reward) ────────
+export const userRewardsService = {
+  /** Admin: Get all assigned user rewards */
+  async getAll() {
+    try {
+      const snap = await getDocs(col('userRewards'));
+      const list = snap2arr(snap);
+      return list.sort((a, b) => {
+        const timeA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : (new Date(a.createdAt || 0)).getTime();
+        const timeB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : (new Date(b.createdAt || 0)).getTime();
+        return timeB - timeA;
+      });
+    } catch (err) {
+      console.error('userRewardsService getAll error:', err);
+      return [];
+    }
+  },
+
+  /** Customer / Admin: Get rewards assigned to a specific user */
+  async getByUser(userId, userEmail = '') {
+    const results = [];
+    const seen = new Set();
+
+    try {
+      if (userId) {
+        try {
+          const qId = query(col('userRewards'), where('userId', '==', userId));
+          const snapId = await getDocs(qId);
+          for (const d of snapId.docs) {
+            if (!seen.has(d.id)) {
+              seen.add(d.id);
+              results.push({ id: d.id, ...d.data() });
+            }
+          }
+        } catch (_) {}
+      }
+
+      if (userEmail) {
+        try {
+          const qEmail = query(col('userRewards'), where('userEmail', '==', userEmail.toLowerCase()));
+          const snapEmail = await getDocs(qEmail);
+          for (const d of snapEmail.docs) {
+            if (!seen.has(d.id)) {
+              seen.add(d.id);
+              results.push({ id: d.id, ...d.data() });
+            }
+          }
+        } catch (_) {}
+      }
+
+      // Memory fallback if needed
+      if (results.length === 0) {
+        try {
+          const allSnap = await getDocs(col('userRewards'));
+          for (const d of allSnap.docs) {
+            const data = d.data();
+            if (
+              (userId && data.userId === userId) ||
+              (userEmail && (data.userEmail || '').toLowerCase() === userEmail.toLowerCase())
+            ) {
+              if (!seen.has(d.id)) {
+                seen.add(d.id);
+                results.push({ id: d.id, ...data });
+              }
+            }
+          }
+        } catch (_) {}
+      }
+
+      return results.sort((a, b) => {
+        const timeA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : (new Date(a.createdAt || 0)).getTime();
+        const timeB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : (new Date(b.createdAt || 0)).getTime();
+        return timeB - timeA;
+      });
+    } catch (err) {
+      console.warn('userRewardsService getByUser warning:', err);
+      return results;
+    }
+  },
+
+  /** Admin: Assign a reward to a specific user */
+  async assignReward({
+    userId,
+    userEmail,
+    userName,
+    title,
+    type = 'percentage', // 'percentage', 'flat', 'free_shipping', 'points', 'perk'
+    code = '',
+    discountValue = 0,
+    minOrder = 0,
+    maxDiscount = null,
+    points = 0,
+    expiry = '',
+    notes = '',
+  }) {
+    const cleanCode = code ? code.trim().toUpperCase() : `REW-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+
+    const payload = {
+      userId: userId || null,
+      userEmail: userEmail ? userEmail.toLowerCase() : '',
+      userName: userName || 'Valued Customer',
+      title: title || 'Special Reward',
+      type,
+      code: cleanCode,
+      discountValue: Number(discountValue) || 0,
+      minOrder: Number(minOrder) || 0,
+      maxDiscount: maxDiscount ? Number(maxDiscount) : null,
+      points: Number(points) || 0,
+      expiry: expiry || '',
+      notes: notes || '',
+      status: 'active',
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    };
+
+    const docRef = await addDoc(col('userRewards'), payload);
+
+    // If type is a coupon, also register an active coupon in the 'coupons' collection
+    if (['percentage', 'flat', 'free_shipping'].includes(type)) {
+      try {
+        await addDoc(col('coupons'), {
+          code: cleanCode,
+          type,
+          value: Number(discountValue) || 0,
+          minOrder: Number(minOrder) || 0,
+          maxDiscount: maxDiscount ? Number(maxDiscount) : null,
+          usageLimit: 1,
+          used: 0,
+          expiry: expiry || '',
+          status: 'active',
+          customers: [userId || userEmail].filter(Boolean),
+          createdAt: serverTimestamp(),
+        });
+      } catch (couponErr) {
+        console.warn('Could not auto-create in coupons collection:', couponErr);
+      }
+    }
+
+    // If type is bonus points, credit the customer's account immediately
+    if (type === 'points' && Number(points) > 0 && userId) {
+      try {
+        const uRef = doc(db, 'users', userId);
+        const uSnap = await getDoc(uRef);
+        const currPts = uSnap.exists() ? (uSnap.data().points || 0) : 0;
+        const newPts = currPts + Number(points);
+        await updateDoc(uRef, { points: newPts, updatedAt: serverTimestamp() });
+
+        await addDoc(col('rewardHistory'), {
+          userId,
+          points: `+${points}`,
+          reason: `Admin Reward: ${title || 'Bonus Points'}`,
+          status: 'Credited',
+          createdAt: serverTimestamp(),
+        });
+      } catch (ptsErr) {
+        console.warn('Error crediting points:', ptsErr);
+      }
+    }
+
+    return docRef.id;
+  },
+
+  async updateStatus(id, status) {
+    const ref = doc(db, 'userRewards', id);
+    await updateDoc(ref, {
+      status,
+      updatedAt: serverTimestamp(),
+    });
+  },
+
+  async delete(id) {
+    await deleteDoc(doc(db, 'userRewards', id));
+  },
+};
+
+// ─── COUPON SERVICE ───────────────────────────────────────────
+export const couponService = {
+  async getAll() {
+    const snap = await getDocs(col('coupons'));
+    return snap2arr(snap);
+  },
+
+  async getById(id) {
+    const snap = await getDoc(doc(db, 'coupons', id));
+    if (!snap.exists()) return null;
+    return { id: snap.id, ...snap.data() };
+  },
+
+  /** Get all coupons eligible for this user and store */
+  async getAvailableForUser(user, subtotal = 0) {
+    try {
+      const snap = await getDocs(col('coupons'));
+      const allCoupons = snap2arr(snap);
+      const today = new Date().toISOString().split('T')[0];
+
+      // Active public store coupons
+      const validStoreCoupons = allCoupons.filter(c => {
+        if (c.status !== 'active') return false;
+        if (c.expiry && c.expiry < today) return false;
+        if (c.usageLimit && (c.used || 0) >= Number(c.usageLimit)) return false;
+        return true;
+      });
+
+      // Personal user rewards coupons
+      let userCoupons = [];
+      if (user?.uid || user?.email) {
+        userCoupons = await userRewardsService.getByUser(user.uid, user.email);
+        userCoupons = userCoupons.filter(r => r.status === 'active' && (!r.expiry || r.expiry >= today) && r.code);
+      }
+
+      // Map user rewards into unified format
+      const mappedUserCoupons = userCoupons.map(r => ({
+        id: r.id,
+        code: r.code,
+        type: r.type || 'flat',
+        value: r.discountValue || 0,
+        minOrder: r.minOrder || 0,
+        maxDiscount: r.maxDiscount || null,
+        title: r.title || 'Personal Reward Coupon',
+        isUserReward: true,
+        userRewardId: r.id,
+        expiry: r.expiry || null,
+        notes: r.notes || '',
+      }));
+
+      // Deduplicate by code
+      const seen = new Set();
+      const combined = [];
+      for (const item of [...mappedUserCoupons, ...validStoreCoupons]) {
+        const normCode = (item.code || '').toUpperCase().trim();
+        if (normCode && !seen.has(normCode)) {
+          seen.add(normCode);
+          combined.push(item);
+        }
+      }
+
+      return combined;
+    } catch (err) {
+      console.warn('Error fetching available coupons:', err);
+      return [];
+    }
+  },
+
+  /** Validate a coupon code and calculate discount */
+  async validate(code, subtotal, user = null) {
+    if (!code || !code.trim()) {
+      return { valid: false, message: 'Please enter a coupon code.' };
+    }
+    const cleanCode = code.trim().toUpperCase();
+    const today = new Date().toISOString().split('T')[0];
+
+    // 1. Check personal user rewards first
+    if (user?.uid || user?.email) {
+      const userRewards = await userRewardsService.getByUser(user.uid, user.email);
+      const matchedReward = userRewards.find(r => (r.code || '').toUpperCase() === cleanCode);
+      if (matchedReward) {
+        if (matchedReward.status !== 'active') {
+          return { valid: false, message: 'This reward coupon has already been redeemed or is inactive.' };
+        }
+        if (matchedReward.expiry && matchedReward.expiry < today) {
+          return { valid: false, message: 'This reward coupon has expired.' };
+        }
+        const minOrder = Number(matchedReward.minOrder) || 0;
+        if (minOrder > 0 && subtotal < minOrder) {
+          return { valid: false, message: `Minimum order value of ₹${minOrder.toLocaleString()} required for this coupon.` };
+        }
+
+        let discountAmount = 0;
+        const rewardType = matchedReward.type || 'flat';
+        const val = Number(matchedReward.discountValue) || 0;
+
+        if (rewardType === 'percentage') {
+          discountAmount = Math.round((subtotal * val) / 100);
+          if (matchedReward.maxDiscount && Number(matchedReward.maxDiscount) > 0) {
+            discountAmount = Math.min(discountAmount, Number(matchedReward.maxDiscount));
+          }
+        } else if (rewardType === 'flat') {
+          discountAmount = Math.min(subtotal, val);
+        } else if (rewardType === 'free_shipping') {
+          discountAmount = 0;
+        }
+
+        return {
+          valid: true,
+          coupon: {
+            id: matchedReward.id,
+            code: cleanCode,
+            type: rewardType,
+            value: val,
+            title: matchedReward.title,
+            isUserReward: true,
+            userRewardId: matchedReward.id,
+          },
+          discountAmount,
+          freeShipping: rewardType === 'free_shipping',
+          message: `Reward applied: ${matchedReward.title || cleanCode}!`,
+        };
+      }
+    }
+
+    // 2. Check general store coupons in 'coupons' collection
+    const snap = await getDocs(query(col('coupons'), where('code', '==', cleanCode)));
+    let couponDoc = null;
+    if (!snap.empty) {
+      couponDoc = { id: snap.docs[0].id, ...snap.docs[0].data() };
+    } else {
+      const allSnap = await getDocs(col('coupons'));
+      for (const d of allSnap.docs) {
+        if ((d.data().code || '').toUpperCase() === cleanCode) {
+          couponDoc = { id: d.id, ...d.data() };
+          break;
+        }
+      }
+    }
+
+    if (!couponDoc) {
+      return { valid: false, message: 'Invalid coupon code. Please check and try again.' };
+    }
+
+    if (couponDoc.status !== 'active') {
+      return { valid: false, message: 'This coupon is no longer active.' };
+    }
+
+    if (couponDoc.expiry && couponDoc.expiry < today) {
+      return { valid: false, message: 'This coupon has expired.' };
+    }
+
+    if (couponDoc.usageLimit && (couponDoc.used || 0) >= Number(couponDoc.usageLimit)) {
+      return { valid: false, message: 'This coupon has reached its maximum usage limit.' };
+    }
+
+    const minOrder = Number(couponDoc.minOrder) || 0;
+    if (minOrder > 0 && subtotal < minOrder) {
+      return { valid: false, message: `Minimum order value of ₹${minOrder.toLocaleString()} required for this coupon.` };
+    }
+
+    let discountAmount = 0;
+    const val = Number(couponDoc.value) || 0;
+    if (couponDoc.type === 'percentage') {
+      discountAmount = Math.round((subtotal * val) / 100);
+      if (couponDoc.maxDiscount && Number(couponDoc.maxDiscount) > 0) {
+        discountAmount = Math.min(discountAmount, Number(couponDoc.maxDiscount));
+      }
+    } else if (couponDoc.type === 'flat') {
+      discountAmount = Math.min(subtotal, val);
+    } else if (couponDoc.type === 'free_shipping') {
+      discountAmount = 0;
+    }
+
+    return {
+      valid: true,
+      coupon: couponDoc,
+      discountAmount,
+      freeShipping: couponDoc.type === 'free_shipping',
+      message: `Coupon ${cleanCode} applied successfully!`,
+    };
+  },
+
+  async recordUsage(couponId, code, userRewardId = null) {
+    if (couponId) {
+      try {
+        const cRef = doc(db, 'coupons', couponId);
+        await updateDoc(cRef, {
+          used: increment(1),
+          updatedAt: serverTimestamp(),
+        });
+      } catch (e) {
+        console.warn('Error updating coupon usage count:', e);
+      }
+    } else if (code) {
+      try {
+        const snap = await getDocs(query(col('coupons'), where('code', '==', code.toUpperCase())));
+        if (!snap.empty) {
+          await updateDoc(snap.docs[0].ref, {
+            used: increment(1),
+            updatedAt: serverTimestamp(),
+          });
+        }
+      } catch (e) {}
+    }
+
+    if (userRewardId) {
+      try {
+        await userRewardsService.updateStatus(userRewardId, 'used');
+      } catch (e) {
+        console.warn('Error marking user reward as used:', e);
+      }
+    }
+  },
 };
 
 // ─── REVIEWS SERVICE ──────────────────────────────────────────

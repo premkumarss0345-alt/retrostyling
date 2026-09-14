@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import AdminLayout from './AdminLayout';
 import { userService, orderService } from '../../services/firestoreService';
-import { Users, Search, Download, TrendingUp, ShoppingBag, Award, MoreVertical, RefreshCw } from 'lucide-react';
+import { Users, Search, Download, TrendingUp, ShoppingBag, Award, MoreVertical, RefreshCw, Gift } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const containerVariants = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.06 } } };
@@ -143,13 +144,14 @@ const Customers = () => {
                   <th>Reward Points</th>
                   <th>Status</th>
                   <th>Last Order</th>
+                  <th style={{ textAlign: 'right' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan="7" style={{ textAlign: 'center', padding: '2rem' }}>Loading customers...</td></tr>
+                  <tr><td colSpan="8" style={{ textAlign: 'center', padding: '2rem' }}>Loading customers...</td></tr>
                 ) : filtered.length === 0 ? (
-                  <tr><td colSpan="7" style={{ textAlign: 'center', padding: '2rem' }}>No customers found.</td></tr>
+                  <tr><td colSpan="8" style={{ textAlign: 'center', padding: '2rem' }}>No customers found.</td></tr>
                 ) : filtered.map(c => (
                   <tr key={c.id}>
                     <td>
@@ -173,6 +175,16 @@ const Customers = () => {
                       </span>
                     </td>
                     <td>{c.lastOrder}</td>
+                    <td style={{ textAlign: 'right' }}>
+                      <Link
+                        to="/admin/marketing"
+                        state={{ tab: 'loyalty' }}
+                        className="btn btn-ghost btn-sm"
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.78rem', color: 'var(--primary)' }}
+                      >
+                        <Gift size={13} /> Manage Rewards
+                      </Link>
+                    </td>
                   </tr>
                 ))}
               </tbody>

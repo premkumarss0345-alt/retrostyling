@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import AdminLayout from './AdminLayout';
 import {
   Zap, Star, Lightbulb, Gift, Award, Users, Mail,
-  Plus, Edit2, Trash2, ToggleLeft, ToggleRight, Clock, Globe, Search, FileText, Check
+  Plus, Edit2, Trash2, ToggleLeft, ToggleRight, Clock, Globe, Search, FileText, Check,
+  Tag, Percent, Truck, Copy, Sparkles, X, UserCheck
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { rewardsService, flashSaleService, productService } from '../../services/firestoreService';
+import { rewardsService, flashSaleService, productService, userRewardsService, userService } from '../../services/firestoreService';
 import Toast from '../../components/Toast';
 
 const containerVariants = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.07 } } };
@@ -30,6 +32,7 @@ const CountdownTimer = ({ endTime }) => {
 };
 
 const Marketing = () => {
+  const location = useLocation();
   const [flashSales, setFlashSales] = useState([]);
   const [loadingFlash, setLoadingFlash] = useState(true);
   const [isFlashModalOpen, setIsFlashModalOpen] = useState(false);
@@ -38,7 +41,7 @@ const Marketing = () => {
   const [productsList, setProductsList] = useState([]);
 
   const [loyaltyRules, setLoyaltyRules] = useState(mockLoyaltyRules);
-  const [activeTab, setActiveTab] = useState('flash');
+  const [activeTab, setActiveTab] = useState(location.state?.tab || 'flash');
   const [newsletterForm, setNewsletterForm] = useState({ subject: '', body: '', segment: 'all' });
   const [seoForm, setSeoForm] = useState({
     siteTitle: "Retrostylings | Premium Men's Fashion & Apparel",
@@ -57,11 +60,63 @@ const Marketing = () => {
   const [rewardForm, setRewardForm] = useState({ title: '', points: '', desc: '', available: true });
   const [toast, setToast] = useState(null);
 
+  // User-specific rewards state ("Which user has which reward")
+  const [userRewards, setUserRewards] = useState([]);
+  const [loadingUserRewards, setLoadingUserRewards] = useState(true);
+  const [usersList, setUsersList] = useState([]);
+  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+  const [userRewardSearch, setUserRewardSearch] = useState('');
+  const [userRewardFilter, setUserRewardFilter] = useState('all');
+  const [copiedCode, setCopiedCode] = useState(null);
+  const [assignForm, setAssignForm] = useState({
+    userId: '',
+    userEmail: '',
+    userName: '',
+    title: '',
+    type: 'percentage',
+    code: '',
+    discountValue: '',
+    minOrder: '',
+    maxDiscount: '',
+    points: '',
+    expiry: '',
+    notes: '',
+  });
+
   useEffect(() => {
     loadRewards();
     loadFlashSales();
     loadProducts();
+    loadUserRewards();
+    loadUsers();
   }, []);
+
+  useEffect(() => {
+    if (location.state?.tab) {
+      setActiveTab(location.state.tab);
+    }
+  }, [location.state]);
+
+  const loadUserRewards = async () => {
+    setLoadingUserRewards(true);
+    try {
+      const data = await userRewardsService.getAll();
+      setUserRewards(data);
+    } catch (err) {
+      console.error('Error loading user rewards:', err);
+    } finally {
+      setLoadingUserRewards(false);
+    }
+  };
+
+  const loadUsers = async () => {
+    try {
+      const data = await userService.getAll();
+      setUsersList(data);
+    } catch (err) {
+      console.error('Error loading users:', err);
+    }
+  };
 
   const loadRewards = async () => {
     setLoadingRewards(true);
@@ -148,6 +203,98 @@ const Marketing = () => {
     setEditingReward(reward);
     setRewardForm({ title: reward.title, points: reward.points, desc: reward.desc, available: reward.available });
     setIsModalOpen(true);
+  };
+
+  // ─── USER REWARDS HANDLERS ──────────────────────────────────────
+  const openAssignModal = (preUser = null) => {
+    const generatedCode = `REW-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+    setAssignForm({
+      userId: preUser?.id || preUser?.uid || '',
+      userEmail: preUser?.email || '',
+      userName: preUser?.name || preUser?.displayName || '',
+      title: 'Special VIP Discount',
+      type: 'percentage',
+      code: generatedCode,
+      discountValue: '20',
+      minOrder: '',
+      maxDiscount: '',
+      points: '200',
+      expiry: '',
+      notes: 'Thank you for your valuable patronage!',
+    });
+    setIsAssignModalOpen(true);
+  };
+
+  const handleAssignReward = async (e) => {
+    e.preventDefault();
+    if (!assignForm.userId && !assignForm.userEmail) {
+      showMsg('Please select a customer for this reward', 'error');
+      return;
+    }
+    if (!assignForm.title.trim()) {
+      showMsg('Please enter a reward title', 'error');
+      return;
+    }
+
+    try {
+      // Find user details if only userId was selected
+      let selectedUser = usersList.find(u => (u.id || u.uid) === assignForm.userId);
+      const email = assignForm.userEmail || selectedUser?.email || '';
+      const name = assignForm.userName || selectedUser?.displayName || selectedUser?.name || 'Customer';
+
+      await userRewardsService.assignReward({
+        userId: assignForm.userId || selectedUser?.id || selectedUser?.uid,
+        userEmail: email,
+        userName: name,
+        title: assignForm.title,
+        type: assignForm.type,
+        code: assignForm.code,
+        discountValue: assignForm.discountValue,
+        minOrder: assignForm.minOrder,
+        maxDiscount: assignForm.maxDiscount,
+        points: assignForm.points,
+        expiry: assignForm.expiry,
+        notes: assignForm.notes,
+      });
+
+      showMsg(`Reward assigned to ${name}!`);
+      setIsAssignModalOpen(false);
+      loadUserRewards();
+    } catch (err) {
+      console.error('Error assigning reward:', err);
+      showMsg('Failed to assign reward to customer', 'error');
+    }
+  };
+
+  const handleToggleUserRewardStatus = async (id, currentStatus) => {
+    const newStatus = currentStatus === 'active' ? 'used' : 'active';
+    try {
+      await userRewardsService.updateStatus(id, newStatus);
+      showMsg(`Reward marked as ${newStatus}`);
+      loadUserRewards();
+    } catch (err) {
+      console.error(err);
+      showMsg('Failed to update reward status', 'error');
+    }
+  };
+
+  const handleDeleteUserReward = async (id) => {
+    if (!window.confirm('Revoke and delete this assigned reward?')) return;
+    try {
+      await userRewardsService.delete(id);
+      showMsg('Assigned reward revoked');
+      loadUserRewards();
+    } catch (err) {
+      console.error(err);
+      showMsg('Failed to delete reward', 'error');
+    }
+  };
+
+  const copyRewardCode = (code) => {
+    navigator.clipboard.writeText(code);
+    setCopiedCode(code);
+    showMsg(`Code ${code} copied!`);
+    setTimeout(() => setCopiedCode(null), 2000);
   };
 
   const openCreateFlashModal = () => {
@@ -389,6 +536,183 @@ const Marketing = () => {
                 </table>
               </div>
             )}
+
+            {/* ─── CUSTOMER REWARD ASSIGNMENTS ("Which User Has Which Reward") ─── */}
+            <div style={{ marginTop: '2.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+                <div>
+                  <h3 style={{ fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <Sparkles size={18} style={{ color: 'var(--primary)' }} /> Customer Reward Assignments
+                  </h3>
+                  <p style={{ margin: '0.25rem 0 0', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                    Track and manage which customer has which reward. Directly assign personal coupons, bonus points, or VIP perks.
+                  </p>
+                </div>
+                <button className="btn btn-primary btn-sm" onClick={() => openAssignModal()}>
+                  <Plus size={14} /> Assign Reward to Customer
+                </button>
+              </div>
+
+              {/* Filters & Search for User Rewards */}
+              <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap', marginTop: '0.5rem' }}>
+                <div className="search-wrapper" style={{ maxWidth: 280, flex: 1 }}>
+                  <Search size={15} className="search-icon" />
+                  <input
+                    className="form-input search-input"
+                    placeholder="Search by customer, email, reward..."
+                    value={userRewardSearch}
+                    onChange={e => setUserRewardSearch(e.target.value)}
+                  />
+                </div>
+                <div className="period-tabs">
+                  {['all', 'active', 'used'].map(f => (
+                    <button
+                      key={f}
+                      type="button"
+                      className={`period-btn ${userRewardFilter === f ? 'active' : ''}`}
+                      onClick={() => setUserRewardFilter(f)}
+                    >
+                      {f.toUpperCase()}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Table */}
+              {loadingUserRewards ? (
+                <div style={{ color: 'var(--text-muted)', padding: '1.5rem 0', textAlign: 'center' }}>
+                  Loading assigned customer rewards...
+                </div>
+              ) : userRewards.length === 0 ? (
+                <div style={{ 
+                  background: 'var(--bg-card)', 
+                  border: '1px dashed var(--border)', 
+                  borderRadius: 'var(--radius-md)', 
+                  padding: '2.5rem', 
+                  textAlign: 'center',
+                  color: 'var(--text-muted)'
+                }}>
+                  <Gift size={36} style={{ color: 'var(--primary)', margin: '0 auto 0.75rem', opacity: 0.8 }} />
+                  <h4 style={{ color: 'var(--white)', marginBottom: '0.3rem' }}>No Rewards Assigned Yet</h4>
+                  <p style={{ fontSize: '0.85rem', maxWidth: '420px', margin: '0 auto 1.25rem' }}>
+                    Reward your top customers or send special discounts and perks directly to specific users!
+                  </p>
+                  <button className="btn btn-primary btn-sm" onClick={() => openAssignModal()}>
+                    <Plus size={14} /> Assign First Reward
+                  </button>
+                </div>
+              ) : (
+                <div className="admin-table-container">
+                  <table className="admin-table">
+                    <thead>
+                      <tr>
+                        <th>Customer</th>
+                        <th>Reward Title</th>
+                        <th>Type & Value</th>
+                        <th>Code</th>
+                        <th>Expiry</th>
+                        <th>Status</th>
+                        <th style={{ textAlign: 'right' }}>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {userRewards
+                        .filter(r => {
+                          const matchesSearch = 
+                            (r.userName || '').toLowerCase().includes(userRewardSearch.toLowerCase()) ||
+                            (r.userEmail || '').toLowerCase().includes(userRewardSearch.toLowerCase()) ||
+                            (r.title || '').toLowerCase().includes(userRewardSearch.toLowerCase()) ||
+                            (r.code || '').toLowerCase().includes(userRewardSearch.toLowerCase());
+                          const matchesFilter = userRewardFilter === 'all' || r.status === userRewardFilter;
+                          return matchesSearch && matchesFilter;
+                        })
+                        .map(r => (
+                          <tr key={r.id}>
+                            <td>
+                              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                <strong style={{ color: 'var(--white)' }}>{r.userName || 'Anonymous User'}</strong>
+                                <small style={{ color: 'var(--text-muted)' }}>{r.userEmail || 'No email'}</small>
+                              </div>
+                            </td>
+                            <td>
+                              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                <span style={{ fontWeight: 600 }}>{r.title}</span>
+                                {r.notes && <small style={{ color: 'var(--text-dim)', fontStyle: 'italic' }}>"{r.notes}"</small>}
+                              </div>
+                            </td>
+                            <td>
+                              <span className="badge badge-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                                {r.type === 'percentage' ? `${r.discountValue}% OFF`
+                                  : r.type === 'flat' ? `₹${r.discountValue} OFF`
+                                  : r.type === 'free_shipping' ? 'FREE SHIPPING'
+                                  : r.type === 'points' ? `+${r.points} PTS`
+                                  : 'GIFT'}
+                              </span>
+                              {r.minOrder > 0 && (
+                                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block', marginTop: '0.2rem' }}>
+                                  Min ₹{r.minOrder}
+                                </span>
+                              )}
+                            </td>
+                            <td>
+                              {r.code ? (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                                  <code style={{ background: 'var(--bg-soft)', padding: '0.15rem 0.4rem', borderRadius: 4, fontFamily: 'monospace', fontSize: '0.8rem' }}>
+                                    {r.code}
+                                  </code>
+                                  <button
+                                    type="button"
+                                    className="btn btn-ghost btn-icon btn-sm"
+                                    style={{ padding: '0.15rem' }}
+                                    onClick={() => copyRewardCode(r.code)}
+                                    title="Copy code"
+                                  >
+                                    <Copy size={13} />
+                                  </button>
+                                  {copiedCode === r.code && (
+                                    <span style={{ fontSize: '0.7rem', color: 'var(--success)' }}>Copied!</span>
+                                  )}
+                                </div>
+                              ) : (
+                                <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>-</span>
+                              )}
+                            </td>
+                            <td style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                              {r.expiry || 'No Expiry'}
+                            </td>
+                            <td>
+                              <span className={`status-pill ${r.status === 'active' ? 'pill-delivered' : 'pill-cancelled'}`}>
+                                {r.status === 'active' ? 'Active' : 'Redeemed'}
+                              </span>
+                            </td>
+                            <td style={{ textAlign: 'right' }}>
+                              <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'flex-end', alignItems: 'center' }}>
+                                <button
+                                  type="button"
+                                  className="btn btn-ghost btn-sm"
+                                  style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
+                                  onClick={() => handleToggleUserRewardStatus(r.id, r.status)}
+                                  title={r.status === 'active' ? 'Mark as Used' : 'Reactivate'}
+                                >
+                                  {r.status === 'active' ? 'Mark Used' : 'Activate'}
+                                </button>
+                                <button
+                                  type="button"
+                                  className="btn btn-ghost btn-icon text-red"
+                                  onClick={() => handleDeleteUserReward(r.id)}
+                                  title="Revoke Reward"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
           </motion.div>
         )}
 
@@ -635,6 +959,243 @@ const Marketing = () => {
                 <div className="modal-footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1.5rem' }}>
                   <button type="button" className="btn btn-secondary" onClick={() => setIsFlashModalOpen(false)}>Cancel</button>
                   <button type="submit" className="btn btn-primary">{editingFlash ? 'Update Sale' : 'Create Sale'}</button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ─── Assign Reward to Customer Modal ─── */}
+      <AnimatePresence>
+        {isAssignModalOpen && (
+          <div className="modal-backdrop" onClick={() => setIsAssignModalOpen(false)}>
+            <motion.div
+              className="modal-box"
+              onClick={e => e.stopPropagation()}
+              style={{ maxWidth: 620, maxHeight: '85vh', overflowY: 'auto' }}
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+            >
+              <div className="modal-header">
+                <div>
+                  <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <Sparkles size={18} style={{ color: 'var(--primary)' }} /> Assign Reward to Customer
+                  </h3>
+                  <p style={{ margin: '0.2rem 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                    Grant custom discounts, coupons, or bonus points to a specific customer.
+                  </p>
+                </div>
+                <button className="btn btn-ghost btn-icon" onClick={() => setIsAssignModalOpen(false)}>✕</button>
+              </div>
+
+              <form onSubmit={handleAssignReward}>
+                <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
+                  
+                  {/* Customer Selector */}
+                  <div className="form-group">
+                    <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span>Select Target Customer *</span>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{usersList.length} registered customers</span>
+                    </label>
+                    <select
+                      required
+                      className="form-input"
+                      value={assignForm.userId}
+                      onChange={e => {
+                        const selId = e.target.value;
+                        const selUser = usersList.find(u => (u.id || u.uid) === selId);
+                        setAssignForm(prev => ({
+                          ...prev,
+                          userId: selId,
+                          userEmail: selUser?.email || '',
+                          userName: selUser?.displayName || selUser?.name || 'Customer'
+                        }));
+                      }}
+                    >
+                      <option value="">-- Choose a Customer --</option>
+                      {usersList.map(u => (
+                        <option key={u.id || u.uid} value={u.id || u.uid}>
+                          {u.displayName || u.name || 'User'} ({u.email}) • {u.points || 0} pts
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Preset Template Quick-fill */}
+                  <div className="form-group">
+                    <label className="form-label">Reward Template (Optional Preset)</label>
+                    <select
+                      className="form-input"
+                      onChange={e => {
+                        const val = e.target.value;
+                        if (val === 'pct20') {
+                          setAssignForm(f => ({ ...f, title: 'VIP 20% OFF Reward', type: 'percentage', discountValue: '20', minOrder: '999' }));
+                        } else if (val === 'flat250') {
+                          setAssignForm(f => ({ ...f, title: '₹250 Welcome Gift Voucher', type: 'flat', discountValue: '250', minOrder: '1200' }));
+                        } else if (val === 'flat500') {
+                          setAssignForm(f => ({ ...f, title: '₹500 Loyalty Appreciation', type: 'flat', discountValue: '500', minOrder: '2499' }));
+                        } else if (val === 'freeship') {
+                          setAssignForm(f => ({ ...f, title: 'Free Express Shipping Perk', type: 'free_shipping', discountValue: '0', minOrder: '0' }));
+                        } else if (val === 'pts500') {
+                          setAssignForm(f => ({ ...f, title: '500 Birthday Bonus Points', type: 'points', points: '500', discountValue: '0' }));
+                        }
+                      }}
+                    >
+                      <option value="">-- Select or write custom below --</option>
+                      <option value="pct20">VIP 20% OFF (Min ₹999)</option>
+                      <option value="flat250">₹250 Gift Voucher (Min ₹1,200)</option>
+                      <option value="flat500">₹500 Loyalty Appreciation (Min ₹2,499)</option>
+                      <option value="freeship">Free Express Shipping</option>
+                      <option value="pts500">500 Bonus Points (Direct balance credit)</option>
+                    </select>
+                  </div>
+
+                  {/* Title & Type */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <div className="form-group">
+                      <label className="form-label">Reward Name / Title *</label>
+                      <input
+                        required
+                        className="form-input"
+                        placeholder="e.g. VIP 20% Discount"
+                        value={assignForm.title}
+                        onChange={e => setAssignForm({ ...assignForm, title: e.target.value })}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Reward Type *</label>
+                      <select
+                        className="form-input"
+                        value={assignForm.type}
+                        onChange={e => setAssignForm({ ...assignForm, type: e.target.value })}
+                      >
+                        <option value="percentage">Percentage Discount (%)</option>
+                        <option value="flat">Flat Discount (₹)</option>
+                        <option value="free_shipping">Free Shipping</option>
+                        <option value="points">Bonus Loyalty Points</option>
+                        <option value="perk">Exclusive Perk / Gift</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Value / Points depending on type */}
+                  {assignForm.type === 'points' ? (
+                    <div className="form-group">
+                      <label className="form-label">Points to Credit Customer *</label>
+                      <input
+                        required
+                        type="number"
+                        min="1"
+                        className="form-input"
+                        placeholder="e.g. 500"
+                        value={assignForm.points}
+                        onChange={e => setAssignForm({ ...assignForm, points: e.target.value })}
+                      />
+                      <small style={{ color: 'var(--text-muted)', marginTop: '0.2rem', display: 'block' }}>
+                        Points will be immediately added to the customer's balance and logged in points history.
+                      </small>
+                    </div>
+                  ) : assignForm.type !== 'free_shipping' ? (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                      <div className="form-group">
+                        <label className="form-label">{assignForm.type === 'percentage' ? 'Discount Percentage (%)' : 'Discount Amount (₹)'} *</label>
+                        <input
+                          required
+                          type="number"
+                          min="1"
+                          max={assignForm.type === 'percentage' ? "100" : undefined}
+                          className="form-input"
+                          placeholder="e.g. 20"
+                          value={assignForm.discountValue}
+                          onChange={e => setAssignForm({ ...assignForm, discountValue: e.target.value })}
+                        />
+                      </div>
+                      {assignForm.type === 'percentage' && (
+                        <div className="form-group">
+                          <label className="form-label">Max Discount Cap (₹, Optional)</label>
+                          <input
+                            type="number"
+                            min="0"
+                            className="form-input"
+                            placeholder="e.g. 500"
+                            value={assignForm.maxDiscount}
+                            onChange={e => setAssignForm({ ...assignForm, maxDiscount: e.target.value })}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  ) : null}
+
+                  {/* Coupon Code generation */}
+                  {assignForm.type !== 'points' && (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                      <div className="form-group">
+                        <label className="form-label">Coupon Code *</label>
+                        <div style={{ display: 'flex', gap: '0.4rem' }}>
+                          <input
+                            required
+                            className="form-input"
+                            style={{ textTransform: 'uppercase', fontFamily: 'monospace' }}
+                            placeholder="e.g. VIP20"
+                            value={assignForm.code}
+                            onChange={e => setAssignForm({ ...assignForm, code: e.target.value.toUpperCase() })}
+                          />
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => setAssignForm(f => ({ ...f, code: `REW-${Math.random().toString(36).substring(2, 8).toUpperCase()}` }))}
+                          >
+                            Gen
+                          </button>
+                        </div>
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label">Minimum Order (₹, Optional)</label>
+                        <input
+                          type="number"
+                          min="0"
+                          className="form-input"
+                          placeholder="0 = No minimum"
+                          value={assignForm.minOrder}
+                          onChange={e => setAssignForm({ ...assignForm, minOrder: e.target.value })}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Expiry & Note */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <div className="form-group">
+                      <label className="form-label">Expiry Date (Optional)</label>
+                      <input
+                        type="date"
+                        className="form-input"
+                        value={assignForm.expiry}
+                        onChange={e => setAssignForm({ ...assignForm, expiry: e.target.value })}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Personal Note / Message for Customer</label>
+                      <input
+                        className="form-input"
+                        placeholder="e.g. Exclusive gift from store management"
+                        value={assignForm.notes}
+                        onChange={e => setAssignForm({ ...assignForm, notes: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                </div>
+
+                <div className="modal-footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1.5rem' }}>
+                  <button type="button" className="btn btn-secondary" onClick={() => setIsAssignModalOpen(false)}>
+                    Cancel
+                  </button>
+                  <button type="submit" className="btn btn-primary">
+                    Assign Reward
+                  </button>
                 </div>
               </form>
             </motion.div>

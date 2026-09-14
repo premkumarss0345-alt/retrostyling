@@ -63,7 +63,15 @@ service cloud.firestore {
 
     match /coupons/{couponId} {
       allow read: if true;
+      allow update: if isSignedIn();
+      allow create, delete: if isAdmin();
+    }
+
+    // User Rewards: Assigned rewards for specific customers
+    match /userRewards/{rewardId} {
+      allow read: if isSignedIn();
       allow write: if isAdmin();
+      allow update: if isSignedIn();
     }
 
     // Users can read/write their own profile, admin can read all

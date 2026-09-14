@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { 
   Award, Zap, Gift, Trophy, Star, Users, Calendar, ShoppingBag, 
-  Share2, Copy, Check, MessageSquare, ArrowRight, ArrowLeft, RefreshCw, Info, Lock
+  Share2, Copy, Check, MessageSquare, ArrowRight, ArrowLeft, RefreshCw, Info, Lock, Tag, Sparkles
 } from 'lucide-react';
 import Toast from '../components/Toast';
 import SEO from '../components/SEO';
-import { rewardsService, shippingSettingsService } from '../services/firestoreService';
+import { rewardsService, shippingSettingsService, userRewardsService, couponService } from '../services/firestoreService';
+import { useAuth } from '../services/AuthContext';
 import './Rewards.css';
 
 // ─── DATA DEFINITIONS ─────────────────────────────────────────
@@ -84,8 +85,16 @@ const Rewards = () => {
   const [birthdayClaimed, setBirthdayClaimed] = useState(false);
   const [redeemOptions, setRedeemOptions] = useState(REDEEM_OPTIONS);
 
+  // Live assigned rewards from Admin and store coupons
+  const [myAssignedRewards, setMyAssignedRewards] = useState([]);
+  const [storeCoupons, setStoreCoupons] = useState([]);
+  const [loadingRewardsList, setLoadingRewardsList] = useState(true);
+
   const [hideRewards, setHideRewards] = useState(false);
   const [settingsLoading, setSettingsLoading] = useState(true);
+
+  const { currentUser } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
     shippingSettingsService.get().then(s => {
@@ -95,7 +104,7 @@ const Rewards = () => {
       setSettingsLoading(false);
     }).catch(() => setSettingsLoading(false));
     loadRewards();
-  }, []);
+  }, [currentUser]);
 
   const loadRewards = async () => {
     try {
@@ -114,6 +123,33 @@ const Rewards = () => {
       const hist = await rewardsService.getHistory();
       setHistory(hist);
     } catch (_) {}
+
+    // Load rewards assigned by admin to this user
+    setLoadingRewardsList(true);
+    try {
+      if (currentUser) {
+        const userRewards = await userRewardsService.getByUser(currentUser.uid, currentUser.email);
+        setMyAssignedRewards(userRewards);
+      }
+      const coupons = await couponService.getAll();
+      const activeCoupons = coupons.filter(c => c.status === 'active');
+      setStoreCoupons(activeCoupons);
+    } catch (err) {
+      console.warn('Error loading assigned rewards:', err);
+    } finally {
+      setLoadingRewardsList(false);
+    }
+  };
+
+  const applyToCheckout = (code) => {
+    sessionStorage.setItem('pendingCoupon', code);
+    showMsg(`Coupon ${code} activated! Taking you to checkout...`);
+    setTimeout(() => navigate('/checkout'), 700);
+  };
+
+  const copyCouponCode = (code) => {
+    navigator.clipboard.writeText(code);
+    showMsg(`Coupon code ${code} copied to clipboard!`);
   };
 
   const showMsg = (text, type = 'success') => {
@@ -430,32 +466,153 @@ const Rewards = () => {
           </div>
         </section>
 
-        {/* AVAILABLE COUPONS */}
+        {/* AVAILABLE COUPONS & PERSONAL ASSIGNED REWARDS */}
         <section className="rewards-section mt-5">
           <div className="section-header-standalone text-center">
-            <h2 className="section-title">Active Coupons</h2>
-            <p className="section-subtitle">Claimed coupon codes ready for use at checkout</p>
+            <h2 className="section-title">My Rewards & Active Coupons</h2>
+            <p className="section-subtitle">Exclusive rewards assigned to your account and storewide discount codes</p>
           </div>
-          <div className="coupons-scroller-grid">
-            <div className="active-coupon-card">
-              <div className="coupon-value">20% OFF</div>
-              <div className="coupon-details">
-                <h4>SUMMEREXCLUSIVE</h4>
-                <p>Minimum Order: ₹1,999</p>
-                <span className="expires-tag">Expires in 8 Days</span>
-              </div>
-              <button className="btn btn-primary btn-sm" onClick={() => showMsg('Coupon code copied! Ready to apply.')}>Apply Now</button>
+
+          {loadingRewardsList ? (
+            <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem 0' }}>
+              Loading your rewards & coupons...
             </div>
-            <div className="active-coupon-card">
-              <div className="coupon-value">₹500 OFF</div>
-              <div className="coupon-details">
-                <h4>GOLDTREAT500</h4>
-                <p>Minimum Order: ₹2,499</p>
-                <span className="expires-tag text-red">Expires in 2 Days</span>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+              {/* 1. Personalized Admin-Assigned Rewards */}
+              {myAssignedRewards.length > 0 && (
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+                    <Sparkles size={18} style={{ color: 'var(--primary)' }} />
+                    <h3 style={{ fontSize: '1.15rem', fontWeight: 700, margin: 0, color: 'var(--white)' }}>
+                      Special Rewards For You ({myAssignedRewards.length})
+                    </h3>
+                  </div>
+
+                  <div className="coupons-scroller-grid">
+                    {myAssignedRewards.map((reward) => {
+                      const isExpired = reward.expiry && reward.expiry < new Date().toISOString().split('T')[0];
+                      const isUsed = reward.status === 'used';
+                      const isInactive = isExpired || isUsed;
+
+                      return (
+                        <div 
+                          key={reward.id} 
+                          className="active-coupon-card" 
+                          style={{
+                            border: isInactive ? '1px solid var(--border)' : '1px solid rgba(223, 255, 27, 0.4)',
+                            background: isInactive ? 'var(--bg-soft)' : 'linear-gradient(135deg, rgba(223, 255, 27, 0.05), rgba(139, 92, 246, 0.05))',
+                            opacity: isInactive ? 0.6 : 1
+                          }}
+                        >
+                          <div className="coupon-value" style={{ color: isInactive ? 'var(--text-muted)' : 'var(--primary)' }}>
+                            {reward.type === 'percentage'
+                              ? `${reward.discountValue}% OFF`
+                              : reward.type === 'flat'
+                              ? `₹${reward.discountValue} OFF`
+                              : reward.type === 'free_shipping'
+                              ? 'FREE SHIP'
+                              : reward.type === 'points'
+                              ? `+${reward.points} PTS`
+                              : 'VIP GIFT'}
+                          </div>
+
+                          <div className="coupon-details">
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                              <h4 style={{ margin: 0 }}>{reward.code}</h4>
+                              <span style={{ fontSize: '0.62rem', background: 'rgba(139, 92, 246, 0.2)', color: '#C084FC', padding: '0.1rem 0.4rem', borderRadius: '4px', fontWeight: 800 }}>
+                                {reward.title}
+                              </span>
+                            </div>
+
+                            {reward.notes && (
+                              <p style={{ margin: '0.3rem 0 0', fontSize: '0.78rem', color: 'var(--text-dim)', fontStyle: 'italic' }}>
+                                "{reward.notes}"
+                              </p>
+                            )}
+
+                            {reward.minOrder > 0 && (
+                              <p style={{ margin: '0.2rem 0 0', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                Min. Order: ₹{reward.minOrder.toLocaleString()}
+                              </p>
+                            )}
+
+                            <div style={{ marginTop: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              {reward.expiry && (
+                                <span className={`expires-tag ${isExpired ? 'text-red' : ''}`} style={{ fontSize: '0.72rem' }}>
+                                  {isExpired ? 'Expired' : `Valid till ${reward.expiry}`}
+                                </span>
+                              )}
+                              {isUsed && (
+                                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.08)', padding: '0.1rem 0.4rem', borderRadius: 4 }}>
+                                  Redeemed
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                            <button
+                              className="btn btn-primary btn-sm"
+                              disabled={isInactive || !reward.code}
+                              onClick={() => applyToCheckout(reward.code)}
+                            >
+                              {isUsed ? 'Redeemed' : isExpired ? 'Expired' : 'Apply at Checkout'}
+                            </button>
+                            {reward.code && !isInactive && (
+                              <button
+                                className="btn btn-ghost btn-xs"
+                                style={{ color: 'var(--text-muted)', fontSize: '0.7rem' }}
+                                onClick={() => copyCouponCode(reward.code)}
+                              >
+                                Copy Code
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* 2. Storewide Active Coupons */}
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+                  <Tag size={16} style={{ color: 'var(--primary)' }} />
+                  <h3 style={{ fontSize: '1.15rem', fontWeight: 700, margin: 0, color: 'var(--white)' }}>
+                    Storewide Coupons
+                  </h3>
+                </div>
+
+                {storeCoupons.length === 0 ? (
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>No public coupons currently active.</p>
+                ) : (
+                  <div className="coupons-scroller-grid">
+                    {storeCoupons.map((coupon) => (
+                      <div key={coupon.id} className="active-coupon-card">
+                        <div className="coupon-value">
+                          {coupon.type === 'percentage'
+                            ? `${coupon.value}% OFF`
+                            : coupon.type === 'flat'
+                            ? `₹${coupon.value} OFF`
+                            : 'FREE SHIP'}
+                        </div>
+                        <div className="coupon-details">
+                          <h4>{coupon.code}</h4>
+                          <p>{coupon.minOrder > 0 ? `Minimum Order: ₹${Number(coupon.minOrder).toLocaleString()}` : 'No minimum order'}</p>
+                          {coupon.expiry && <span className="expires-tag">Valid till {coupon.expiry}</span>}
+                        </div>
+                        <button className="btn btn-primary btn-sm" onClick={() => applyToCheckout(coupon.code)}>
+                          Apply Now
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-              <button className="btn btn-primary btn-sm" onClick={() => showMsg('Coupon code copied! Ready to apply.')}>Apply Now</button>
             </div>
-          </div>
+          )}
         </section>
 
         {/* REFERRAL PROGRAM */}

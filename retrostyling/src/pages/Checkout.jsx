@@ -1,10 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { MapPin, Phone, CreditCard, ShieldCheck, ChevronLeft, Truck, Calendar } from 'lucide-react';
+import { 
+  MapPin, Phone, CreditCard, ShieldCheck, ChevronLeft, Truck, Calendar,
+  Tag, Check, X, Sparkles, Gift, ChevronDown, ChevronUp, AlertCircle
+} from 'lucide-react';
 import Toast from '../components/Toast';
 import SEO from '../components/SEO';
-import { cartService, orderService, shippingSettingsService, globalSettingsService } from '../services/firestoreService';
+import { 
+  cartService, 
+  orderService, 
+  shippingSettingsService, 
+  globalSettingsService,
+  couponService 
+} from '../services/firestoreService';
 import { useAuth } from '../services/AuthContext';
 import { API_BASE_URL } from '../config';
 import './Checkout.css';
@@ -22,6 +31,15 @@ const Checkout = () => {
   const [payLink, setPayLink] = useState('');
   const [qrCodeUrl, setQrCodeUrl] = useState('');
   const [tempOrderData, setTempOrderData] = useState(null);
+
+  // Coupon & Reward states
+  const [couponInput, setCouponInput] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState(null);
+  const [couponLoading, setCouponLoading] = useState(false);
+  const [couponError, setCouponError] = useState('');
+  const [couponSuccess, setCouponSuccess] = useState('');
+  const [availableCoupons, setAvailableCoupons] = useState([]);
+  const [showCouponsDrawer, setShowCouponsDrawer] = useState(false);
 
   const { currentUser }  = useAuth();
   const navigate         = useNavigate();
@@ -92,8 +110,87 @@ const Checkout = () => {
   };
 
   const subtotal = cartItems.reduce((acc, item) => acc + getItemPrice(item) * item.quantity, 0);
-  const shipping = subtotal > shippingSettings.freeShippingLimit ? 0 : shippingSettings.standardCharge;
-  const total    = subtotal + shipping;
+  const isFreeShippingCoupon = appliedCoupon?.freeShipping || appliedCoupon?.type === 'free_shipping';
+  const shipping = isFreeShippingCoupon ? 0 : (subtotal > shippingSettings.freeShippingLimit ? 0 : shippingSettings.standardCharge);
+  const discountAmount = appliedCoupon ? (appliedCoupon.discountAmount || 0) : 0;
+  const total = Math.max(0, subtotal - discountAmount) + shipping;
+
+  // Load available coupons for this user and auto-apply any pending coupon from Rewards page
+  useEffect(() => {
+    if (currentUser && subtotal > 0) {
+      couponService.getAvailableForUser(currentUser, subtotal).then(coupons => {
+        setAvailableCoupons(coupons);
+      }).catch(() => {});
+
+      const pending = sessionStorage.getItem('pendingCoupon');
+      if (pending) {
+        sessionStorage.removeItem('pendingCoupon');
+        setCouponInput(pending);
+        handleApplyCoupon(pending);
+      }
+    }
+  }, [currentUser, subtotal]);
+
+  // Recalculate applied coupon discount if cart changes
+  useEffect(() => {
+    if (appliedCoupon && subtotal > 0) {
+      couponService.validate(appliedCoupon.code, subtotal, currentUser).then(res => {
+        if (res.valid) {
+          setAppliedCoupon({
+            ...res.coupon,
+            discountAmount: res.discountAmount,
+            freeShipping: res.freeShipping
+          });
+        } else {
+          setAppliedCoupon(null);
+          setCouponError(res.message || 'Coupon criteria no longer met.');
+        }
+      }).catch(() => {});
+    }
+  }, [subtotal]);
+
+  const handleApplyCoupon = async (codeToUse) => {
+    const code = (codeToUse || couponInput).trim();
+    if (!code) {
+      setCouponError('Please enter a coupon code');
+      return;
+    }
+
+    setCouponLoading(true);
+    setCouponError('');
+    setCouponSuccess('');
+
+    try {
+      const res = await couponService.validate(code, subtotal, currentUser);
+      if (!res.valid) {
+        setCouponError(res.message || 'Invalid coupon code');
+        setAppliedCoupon(null);
+        setToast({ show: true, message: res.message || 'Invalid coupon code', type: 'error' });
+      } else {
+        setAppliedCoupon({
+          ...res.coupon,
+          discountAmount: res.discountAmount,
+          freeShipping: res.freeShipping
+        });
+        setCouponSuccess(res.message || 'Coupon applied successfully!');
+        setCouponInput(code.toUpperCase());
+        setToast({ show: true, message: res.message || 'Coupon applied successfully!', type: 'success' });
+      }
+    } catch (err) {
+      console.error('Error applying coupon:', err);
+      setCouponError('Failed to apply coupon. Please try again.');
+    } finally {
+      setCouponLoading(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponSuccess('');
+    setCouponError('');
+    setCouponInput('');
+    setToast({ show: true, message: 'Coupon removed', type: 'info' });
+  };
 
   const getEstimatedDelivery = () => {
     const today = new Date();
@@ -216,7 +313,13 @@ const Checkout = () => {
           cartItems,
           shippingAddress: fullAddress,
           phone: formData.phone,
-          userInfo: currentUser
+          userInfo: currentUser,
+          couponCode: appliedCoupon?.code || null,
+          couponDiscount: discountAmount,
+          couponId: appliedCoupon?.id || null,
+          userRewardId: appliedCoupon?.userRewardId || null,
+          freeShipping: isFreeShippingCoupon,
+          finalTotal: total,
         });
         setShowQRModal(true);
         setSubmitting(false);
@@ -230,7 +333,12 @@ const Checkout = () => {
         userInfo: currentUser,
         paymentMethod: pMethod,
         paymentStatus: pStatus,
-        paymentId: pId
+        paymentId: pId,
+        couponCode: appliedCoupon?.code || null,
+        couponDiscount: discountAmount,
+        couponId: appliedCoupon?.id || null,
+        userRewardId: appliedCoupon?.userRewardId || null,
+        freeShipping: isFreeShippingCoupon,
       });
 
       // ── Send order confirmation email (fire-and-forget, never blocks UI) ──
@@ -250,7 +358,10 @@ const Checkout = () => {
               quantity: item.quantity,
               price: item.price_override || (item.on_sale ? item.discount_price : item.price),
             })),
-            total: subtotal + shipping,
+            subtotal,
+            discount: discountAmount,
+            couponCode: appliedCoupon?.code || null,
+            total,
             shippingAddress: fullAddress,
             phone: formData.phone,
             paymentMethod: pMethod,
@@ -280,15 +391,16 @@ const Checkout = () => {
         userInfo: tempOrderData.userInfo,
         paymentMethod: 'razorpay_link_qr',
         paymentStatus: 'paid',
-        paymentId: pId
+        paymentId: pId,
+        couponCode: tempOrderData.couponCode,
+        couponDiscount: tempOrderData.couponDiscount,
+        couponId: tempOrderData.couponId,
+        userRewardId: tempOrderData.userRewardId,
+        freeShipping: tempOrderData.freeShipping,
       });
 
       // ── Send confirmation email ──
       if (tempOrderData.userInfo?.email) {
-        const qrSubtotal = tempOrderData.cartItems.reduce((acc, item) => {
-          const p = item.price_override || (item.on_sale ? item.discount_price : item.price);
-          return acc + p * item.quantity;
-        }, 0);
         fetch(`${API_BASE_URL}/api/email/order-confirm`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -304,7 +416,10 @@ const Checkout = () => {
               quantity: item.quantity,
               price: item.price_override || (item.on_sale ? item.discount_price : item.price),
             })),
-            total: qrSubtotal + (qrSubtotal > shippingSettings.freeShippingLimit ? 0 : shippingSettings.standardCharge),
+            subtotal,
+            discount: tempOrderData.couponDiscount || 0,
+            couponCode: tempOrderData.couponCode,
+            total: tempOrderData.finalTotal || total,
             shippingAddress: tempOrderData.shippingAddress,
             phone: tempOrderData.phone,
             paymentMethod: 'razorpay_link_qr',
@@ -463,13 +578,157 @@ const Checkout = () => {
                   </div>
                 ))}
               </div>
+
+              {/* ─── COUPONS & REWARDS SECTION ─── */}
+              <div className="checkout-coupon-box">
+                <div className="coupon-box-header">
+                  <div className="coupon-title flex-center gap-1">
+                    <Tag size={15} style={{ color: 'var(--primary)' }} />
+                    <span style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--white)' }}>Coupons & Rewards</span>
+                  </div>
+                  {availableCoupons.length > 0 && (
+                    <button
+                      type="button"
+                      className="available-toggle-btn"
+                      onClick={() => setShowCouponsDrawer(!showCouponsDrawer)}
+                    >
+                      {showCouponsDrawer ? 'Hide' : `View (${availableCoupons.length})`}
+                      {showCouponsDrawer ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                    </button>
+                  )}
+                </div>
+
+                {appliedCoupon ? (
+                  <div className="applied-coupon-pill">
+                    <div className="applied-coupon-info">
+                      <div className="applied-coupon-header">
+                        <Check size={15} className="applied-check-icon" />
+                        <strong className="applied-code">{appliedCoupon.code}</strong>
+                        <span className="applied-badge">APPLIED</span>
+                      </div>
+                      <p className="applied-desc">
+                        {appliedCoupon.freeShipping
+                          ? 'Free Shipping applied to your order!'
+                          : appliedCoupon.type === 'percentage'
+                          ? `${appliedCoupon.value}% discount applied (-₹${discountAmount.toLocaleString()})`
+                          : `₹${discountAmount.toLocaleString()} flat discount applied`}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      className="remove-coupon-btn"
+                      onClick={handleRemoveCoupon}
+                      title="Remove Coupon"
+                    >
+                      <X size={15} />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="coupon-input-group">
+                    <input
+                      type="text"
+                      className="coupon-input"
+                      placeholder="ENTER COUPON CODE"
+                      value={couponInput}
+                      onChange={(e) => {
+                        setCouponInput(e.target.value.toUpperCase());
+                        if (couponError) setCouponError('');
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleApplyCoupon();
+                        }
+                      }}
+                    />
+                    <button
+                      type="button"
+                      className="btn btn-primary coupon-apply-btn"
+                      onClick={() => handleApplyCoupon()}
+                      disabled={couponLoading || !couponInput.trim()}
+                    >
+                      {couponLoading ? '...' : 'APPLY'}
+                    </button>
+                  </div>
+                )}
+
+                {couponError && (
+                  <div className="coupon-msg error">
+                    <AlertCircle size={13} /> <span>{couponError}</span>
+                  </div>
+                )}
+                {couponSuccess && !appliedCoupon && (
+                  <div className="coupon-msg success">
+                    <Check size={13} /> <span>{couponSuccess}</span>
+                  </div>
+                )}
+
+                {/* Available & Assigned Coupons List */}
+                {showCouponsDrawer && availableCoupons.length > 0 && (
+                  <div className="available-coupons-drawer">
+                    <div className="drawer-header-row">
+                      <span>Available for You</span>
+                    </div>
+                    <div className="drawer-cards-stack">
+                      {availableCoupons.map((c) => {
+                        const isThisApplied = appliedCoupon?.code === c.code;
+                        return (
+                          <div key={c.id || c.code} className={`available-coupon-mini-card ${isThisApplied ? 'active' : ''}`}>
+                            <div className="mini-card-left">
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                                <span className="mini-card-code">{c.code}</span>
+                                {c.isUserReward && <span className="personal-reward-tag">Special Reward</span>}
+                              </div>
+                              <p className="mini-card-text">
+                                {c.type === 'percentage'
+                                  ? `${c.value}% OFF${c.maxDiscount ? ` (up to ₹${c.maxDiscount})` : ''}`
+                                  : c.type === 'flat'
+                                  ? `Flat ₹${c.value} OFF`
+                                  : 'Free Shipping'}
+                                {c.minOrder > 0 ? ` • Min ₹${c.minOrder}` : ''}
+                              </p>
+                              {c.notes && <p className="mini-card-notes">"{c.notes}"</p>}
+                              {c.expiry && <span className="mini-card-expiry">Expires: {c.expiry}</span>}
+                            </div>
+                            <button
+                              type="button"
+                              className={`mini-apply-btn ${isThisApplied ? 'applied' : ''}`}
+                              disabled={isThisApplied}
+                              onClick={() => {
+                                handleApplyCoupon(c.code);
+                              }}
+                            >
+                              {isThisApplied ? 'Applied ✓' : 'Apply'}
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <div className="summary-details">
                 <div className="summary-row"><span>Subtotal</span><span>₹{subtotal.toLocaleString()}</span></div>
+                
+                {appliedCoupon && (
+                  <div className="summary-row coupon-discount-row">
+                    <span className="flex-center gap-1" style={{ color: 'var(--primary)' }}>
+                      <Tag size={13} /> Coupon ({appliedCoupon.code})
+                    </span>
+                    <span className="coupon-discount-value" style={{ color: 'var(--primary)', fontWeight: 700 }}>
+                      -₹{discountAmount.toLocaleString()}
+                    </span>
+                  </div>
+                )}
+
                 <div className="summary-row">
                   <span className="flex-center gap-1"><Truck size={14} /> Shipping</span>
-                  <span className={shipping === 0 ? 'free-tag' : ''}>{shipping === 0 ? 'FREE' : `₹${shipping}`}</span>
+                  <span className={shipping === 0 ? 'free-tag' : ''}>
+                    {shipping === 0 ? (isFreeShippingCoupon ? 'FREE (COUPON)' : 'FREE') : `₹${shipping}`}
+                  </span>
                 </div>
-                {shipping > 0 && <p className="shipping-hint">Add ₹{Math.max(0, shippingSettings.freeShippingLimit - subtotal)} more for free shipping!</p>}
+                {shipping > 0 && !isFreeShippingCoupon && <p className="shipping-hint">Add ₹{Math.max(0, shippingSettings.freeShippingLimit - subtotal)} more for free shipping!</p>}
                 <div className="summary-row" style={{ fontSize: '0.8rem', color: 'var(--text-dim)', borderTop: 'none', paddingTop: 0 }}>
                   <span className="flex-center gap-1"><Calendar size={13} /> Estimated Delivery</span>
                   <span style={{ color: 'var(--success)', fontWeight: 600 }}>{getEstimatedDelivery()}</span>
