@@ -56,13 +56,22 @@
 
 @media (max-width: 768px) {
   .breadcrumbs-nav {
-    margin: 0.5rem 0 1rem 0;
+    margin: 0.25rem 0 0.65rem 0;
+    padding: 0.25rem 0;
   }
   .breadcrumbs-list {
-    font-size: 0.78rem;
-    gap: 0.25rem 0.4rem;
+    font-size: 0.75rem;
+    gap: 0.2rem 0.35rem;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    padding-bottom: 2px;
+  }
+  .breadcrumbs-list::-webkit-scrollbar {
+    display: none;
   }
   .breadcrumb-current {
-    max-width: 160px;
+    max-width: 140px;
   }
 }

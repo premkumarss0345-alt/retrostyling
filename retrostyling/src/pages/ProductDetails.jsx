@@ -244,12 +244,15 @@ const ProductDetails = () => {
   const subcategoryName = product.subcategoryName || product.subcategory_name || '';
   const subcategorySlug = product.subcategorySlug || '';
 
-  // Construct structured breadcrumb items
+  // Construct structured breadcrumb items (deduplicated)
+  const isCategorySameAsProduct = categoryName && categoryName.trim().toLowerCase() === product.name.trim().toLowerCase();
+  const isSubcategorySameAsProduct = subcategoryName && subcategoryName.trim().toLowerCase() === product.name.trim().toLowerCase();
+
   const breadcrumbItems = [
     { label: 'Home', url: '/' },
     { label: 'Shop', url: '/shop' },
-    ...(categoryName ? [{ label: categoryName, url: `/shop/${categorySlug}` }] : []),
-    ...(subcategoryName ? [{ label: subcategoryName, url: `/shop/${categorySlug}/${subcategorySlug}` }] : []),
+    ...(categoryName && !isCategorySameAsProduct ? [{ label: categoryName, url: `/shop/${categorySlug}` }] : []),
+    ...(subcategoryName && !isSubcategorySameAsProduct && subcategoryName.toLowerCase() !== categoryName?.toLowerCase() ? [{ label: subcategoryName, url: `/shop/${categorySlug}/${subcategorySlug}` }] : []),
     { label: product.name },
   ];
 
@@ -520,22 +523,26 @@ const ProductDetails = () => {
           {/* Purchase / External Only Mode */}
           {product.enableOnlinePurchase !== false ? (
             <div className="purchase-section">
-              <div className="quantity-selector">
-                <button onClick={() => setQuantity(Math.max(1, quantity - 1))} aria-label="Decrease quantity">-</button>
-                <span>{quantity}</span>
-                <button onClick={() => setQuantity(quantity + 1)} aria-label="Increase quantity">+</button>
+              <div className="purchase-row-top">
+                <div className="quantity-selector">
+                  <button onClick={() => setQuantity(Math.max(1, quantity - 1))} aria-label="Decrease quantity">-</button>
+                  <span>{quantity}</span>
+                  <button onClick={() => setQuantity(quantity + 1)} aria-label="Increase quantity">+</button>
+                </div>
               </div>
-              <button
-                className="btn btn-primary add-to-cart-big"
-                onClick={handleAddToCart}
-                disabled={adding || product.stock === 0}
-              >
-                <ShoppingBag size={20} />
-                {adding ? 'ADDING...' : product.stock === 0 ? 'OUT OF STOCK' : 'ADD TO CART'}
-              </button>
-              <button className="wishlist-btn-round" onClick={handleWishlist} aria-label="Add to Wishlist">
-                <Heart size={20} />
-              </button>
+              <div className="purchase-actions-row">
+                <button
+                  className="btn btn-primary add-to-cart-big"
+                  onClick={handleAddToCart}
+                  disabled={adding || product.stock === 0}
+                >
+                  <ShoppingBag size={20} />
+                  <span>{adding ? 'ADDING...' : product.stock === 0 ? 'OUT OF STOCK' : 'ADD TO CART'}</span>
+                </button>
+                <button className="wishlist-btn-round" onClick={handleWishlist} aria-label="Add to Wishlist" title="Add to Wishlist">
+                  <Heart size={20} />
+                </button>
+              </div>
             </div>
           ) : (
             <div className="external-purchase-notice" style={{ margin: '1.25rem 0', padding: '1rem 1.25rem', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>

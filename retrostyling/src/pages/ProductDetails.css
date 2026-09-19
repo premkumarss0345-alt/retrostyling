@@ -28,7 +28,7 @@
 .main-image {
     position: relative;
     aspect-ratio: 4 / 5;
-    background: var(--bg-soft);
+    background: #0f0f0f;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -39,13 +39,13 @@
 .slideshow-main-img {
     width: 100%;
     height: 100%;
-    object-fit: cover;
-    object-position: center top;
+    object-fit: contain;
+    object-position: center;
     transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .main-image:hover .slideshow-main-img {
-    transform: scale(1.03);
+    transform: scale(1.02);
 }
 
 /* Slide Counter Badge */
@@ -307,28 +307,48 @@
 
 .purchase-section {
     display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-top: 2.5rem;
+    width: 100%;
+}
+
+.purchase-row-top {
+    display: flex;
     align-items: center;
-    gap: 2rem;
-    margin-top: 4rem;
+    justify-content: flex-start;
+}
+
+.purchase-actions-row {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    width: 100%;
 }
 
 .quantity-selector {
-    display: flex;
+    display: inline-flex;
     align-items: center;
     background: var(--bg-soft);
     border: 1px solid var(--border-bright);
     border-radius: var(--radius-sm);
-    height: 64px;
+    height: 48px;
+    width: 125px;
+    user-select: none;
 }
 
 .quantity-selector button {
-    width: 60px;
+    width: 40px;
     height: 100%;
     border: none;
     background: none;
-    font-size: 1.52rem;
+    font-size: 1.3rem;
     color: var(--white);
     transition: var(--transition);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
 }
 
 .quantity-selector button:hover {
@@ -336,35 +356,47 @@
 }
 
 .quantity-selector span {
-    padding: 0 1rem;
+    flex: 1;
+    text-align: center;
+    padding: 0 0.25rem;
     font-weight: 800;
-    font-size: 1.25rem;
+    font-size: 1.1rem;
+    color: #fff;
 }
 
 .add-to-cart-big {
     flex: 1;
-    height: 64px;
+    height: 54px;
     font-weight: 800;
-    letter-spacing: 0.1em;
+    letter-spacing: 0.08em;
+    border-radius: var(--radius-sm);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    text-transform: uppercase;
 }
 
 .wishlist-btn-round {
-    width: 64px;
-    height: 64px;
-    border-radius: 50%;
+    width: 54px;
+    height: 54px;
+    flex-shrink: 0;
+    border-radius: var(--radius-sm);
     border: var(--border);
-    display: flex;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
     background: var(--bg-soft);
     color: var(--white);
     transition: var(--transition);
+    cursor: pointer;
 }
 
 .wishlist-btn-round:hover {
     background: var(--error);
     color: var(--white);
     border-color: var(--error);
+    transform: scale(1.04);
 }
 
 .product-features-small {
@@ -643,7 +675,8 @@
 @media (max-width: 1024px) {
     .product-details-grid {
         grid-template-columns: 1fr;
-        padding: 60px 0;
+        padding: 40px 0;
+        gap: 2.5rem;
     }
 
     .main-image {
@@ -653,22 +686,197 @@
 }
 
 @media (max-width: 768px) {
+    .product-details-page {
+        padding-top: 0.25rem;
+    }
+
+    .product-details-grid {
+        grid-template-columns: 1fr;
+        padding: 0.25rem 0 2.5rem 0;
+        gap: 1.5rem;
+    }
+
+    .main-image {
+        max-width: 100%;
+        aspect-ratio: 4 / 5;
+        border-radius: var(--radius-md, 14px);
+    }
+
+    .slideshow-main-img {
+        object-fit: contain;
+        object-position: center;
+    }
+
+    .slide-counter-badge {
+        top: 0.65rem;
+        left: 0.65rem;
+        padding: 0.25rem 0.65rem;
+        font-size: 0.72rem;
+    }
+
+    .slide-nav-btn {
+        width: 36px;
+        height: 36px;
+        background: rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
+    }
+
+    .slide-nav-btn.prev-btn {
+        left: 0.5rem;
+    }
+
+    .slide-nav-btn.next-btn {
+        right: 0.5rem;
+    }
+
+    .slide-dots-container {
+        bottom: 0.6rem;
+        padding: 0.25rem 0.5rem;
+        gap: 0.35rem;
+    }
+
+    .slide-dot {
+        width: 6px;
+        height: 6px;
+    }
+
+    .slide-dot.active {
+        width: 16px;
+    }
+
+    .product-thumbnails-strip {
+        gap: 0.5rem;
+        padding: 0.2rem 0;
+    }
+
+    .thumbnail-item {
+        flex: 0 0 58px;
+        height: 70px;
+    }
+
+    .product-info h1 {
+        font-size: clamp(1.75rem, 6vw, 2.3rem);
+        margin-bottom: 1rem;
+    }
+
+    .product-category-label {
+        font-size: 0.78rem;
+        letter-spacing: 0.15em;
+        margin-bottom: 0.5rem;
+    }
+
+    .product-price-section {
+        margin-bottom: 1.5rem;
+        padding-bottom: 1.5rem;
+        gap: 1rem;
+    }
+
+    .current-price {
+        font-size: 2rem;
+    }
+
+    .product-description {
+        margin-bottom: 2rem;
+        font-size: 0.95rem;
+        line-height: 1.6;
+    }
+
+    .variant-group {
+        margin-bottom: 1.75rem;
+    }
+
+    .variant-group h3 {
+        margin-bottom: 0.75rem;
+        font-size: 0.8rem;
+    }
+
+    .variant-options {
+        gap: 0.6rem;
+    }
+
+    .variant-btn {
+        padding: 0.75rem 1.25rem;
+        font-size: 0.82rem;
+    }
+
     .purchase-section {
         flex-direction: column;
         align-items: stretch;
+        margin-top: 1.5rem;
+        gap: 0.85rem;
+    }
+
+    .purchase-row-top {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+    }
+
+    .quantity-selector {
+        height: 46px;
+        width: 120px;
+    }
+
+    .purchase-actions-row {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        width: 100%;
+    }
+
+    .add-to-cart-big {
+        flex: 1;
+        height: 52px;
+        font-size: 0.92rem;
     }
 
     .wishlist-btn-round {
-        width: 100%;
+        width: 52px;
+        height: 52px;
+        flex-shrink: 0;
         border-radius: var(--radius-sm);
     }
 
     .product-features-small {
         grid-template-columns: 1fr;
-        padding: 2rem;
+        padding: 1.5rem;
+        margin-top: 2.5rem;
+        gap: 1.5rem;
+    }
+
+    .lightbox-overlay {
+        padding: 0.5rem;
+    }
+
+    .lightbox-stage {
+        padding: 0;
+    }
+
+    .lightbox-nav-btn {
+        width: 40px;
+        height: 40px;
+    }
+
+    .lightbox-nav-btn.prev-btn {
+        left: 0.25rem;
+    }
+
+    .lightbox-nav-btn.next-btn {
+        right: 0.25rem;
     }
 
     .lightbox-content {
         max-width: 95vw;
+        max-height: 65vh;
+    }
+
+    .lightbox-img {
+        max-height: 65vh;
+    }
+
+    .lightbox-thumb {
+        width: 44px;
+        height: 54px;
     }
 }
