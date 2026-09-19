@@ -1,37 +1,88 @@
 /**
- * Cloudinary Image Storage & Optimization Service
+ * Cloudinary Direct Signed Storage & Optimization Service
  * Cloud Name: ckdk9sbc
  */
 
 export const CLOUDINARY_CONFIG = {
   cloudName: import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 'ckdk9sbc',
   apiKey: import.meta.env.VITE_CLOUDINARY_API_KEY || '898479282538369',
+  apiSecret: import.meta.env.VITE_CLOUDINARY_API_SECRET || '4JmwMMSy2ZeczACTPeKR-iWIQCQ',
+  uploadPreset: 'ml_default',
 };
 
 /**
- * Upload an image file to Cloudinary Storage.
- * @param {File} file - The file object to upload
+ * Generate SHA-1 hex hash using Web Crypto API in browser.
+ */
+async function computeSha1(message) {
+  const msgUint8 = new TextEncoder().encode(message);
+  const hashBuffer = await crypto.subtle.digest('SHA-1', msgUint8);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+/**
+ * Upload an image file directly to Cloudinary Storage using authenticated signed upload with preset ml_default.
+ * @param {File|Blob|string} file - The file to upload
  * @param {string} folder - Destination folder on Cloudinary (default: 'retrostyling/products')
- * @returns {Promise<{ url: string, public_id: string }>}
+ * @returns {Promise<{ url: string, public_id: string, format: string, width: number, height: number }>}
  */
 export async function uploadToCloudinary(file, folder = 'retrostyling/products') {
   if (!file) {
     throw new Error('No file provided for upload');
   }
 
-  // 1. Try uploading via Backend Express endpoint (/api/upload/cloudinary)
+  const timestamp = Math.floor(Date.now() / 1000);
+  const { cloudName, apiKey, apiSecret, uploadPreset } = CLOUDINARY_CONFIG;
+
+  // 1. Direct Signed Upload with upload_preset ml_default
   try {
+    // Alphabetical order of parameters for signing: folder, timestamp, upload_preset
+    const stringToSign = `folder=${folder}&timestamp=${timestamp}&upload_preset=${uploadPreset}${apiSecret}`;
+    const signature = await computeSha1(stringToSign);
+
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('api_key', apiKey);
+    formData.append('timestamp', timestamp);
     formData.append('folder', folder);
+    formData.append('upload_preset', uploadPreset);
+    formData.append('signature', signature);
 
-    const res = await fetch('/api/upload/cloudinary', {
+    const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
       method: 'POST',
       body: formData,
     });
 
     if (res.ok) {
       const data = await res.json();
+      return {
+        url: data.secure_url || data.url,
+        public_id: data.public_id,
+        format: data.format,
+        width: data.width,
+        height: data.height,
+      };
+    } else {
+      const errJson = await res.json().catch(() => ({}));
+      console.warn('Direct signed Cloudinary upload response not OK:', errJson);
+    }
+  } catch (directErr) {
+    console.warn('Direct signed Cloudinary upload error:', directErr);
+  }
+
+  // 2. Fallback: Backend Express route (/api/upload/cloudinary)
+  try {
+    const backendFormData = new FormData();
+    backendFormData.append('file', file);
+    backendFormData.append('folder', folder);
+
+    const backendRes = await fetch('/api/upload/cloudinary', {
+      method: 'POST',
+      body: backendFormData,
+    });
+
+    if (backendRes.ok) {
+      const data = await backendRes.json();
       if (data.url) {
         return {
           url: data.url,
@@ -43,36 +94,10 @@ export async function uploadToCloudinary(file, folder = 'retrostyling/products')
       }
     }
   } catch (backendErr) {
-    console.warn('Backend Cloudinary upload route unavailable, trying direct upload:', backendErr);
+    console.warn('Backend Cloudinary upload route failed:', backendErr);
   }
 
-  // 2. Direct Cloudinary REST Upload fallback
-  const directFormData = new FormData();
-  directFormData.append('file', file);
-  directFormData.append('upload_preset', 'ml_default');
-  directFormData.append('folder', folder);
-
-  const directRes = await fetch(
-    `https://api.cloudinary.com/v1_1/${CLOUDINARY_CONFIG.cloudName}/image/upload`,
-    {
-      method: 'POST',
-      body: directFormData,
-    }
-  );
-
-  if (!directRes.ok) {
-    const errData = await directRes.json().catch(() => ({}));
-    throw new Error(errData.error?.message || 'Failed to upload image to Cloudinary');
-  }
-
-  const directData = await directRes.json();
-  return {
-    url: directData.secure_url || directData.url,
-    public_id: directData.public_id,
-    format: directData.format,
-    width: directData.width,
-    height: directData.height,
-  };
+  throw new Error('Unable to upload image to Cloudinary. Please check your network connection.');
 }
 
 /**
