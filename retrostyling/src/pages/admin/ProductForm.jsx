@@ -39,13 +39,15 @@ const ProductForm = ({ product, onSave, onCancel, categories }) => {
         whatsappUrl: '',
         seeMoreUrl: '',
         seeMoreText: '',
-        variants: []
+        variants: [],
+        views: []
     });
 
     const [subcategories, setSubcategories] = useState([]);
     const [availableLabels, setAvailableLabels] = useState([]);
     const [uploadingMain, setUploadingMain] = useState(false);
     const [uploadingVariantIndex, setUploadingVariantIndex] = useState(null);
+    const [uploadingViewIndex, setUploadingViewIndex] = useState(null);
     const [invalidImageUrls, setInvalidImageUrls] = useState({});
 
     useEffect(() => {
@@ -96,6 +98,10 @@ const ProductForm = ({ product, onSave, onCancel, categories }) => {
                     sku: v.sku || '',
                     image: v.image || '',
                     imageAlt: v.imageAlt || ''
+                })),
+                views: (product.views || []).map(v => ({
+                    label: v.label || 'Front',
+                    url: v.url || ''
                 }))
             });
         }
@@ -181,6 +187,40 @@ const ProductForm = ({ product, onSave, onCancel, categories }) => {
             }
         } finally {
             setUploadingMain(false);
+        }
+    };
+
+    const handleViewFileUpload = async (index, e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        setUploadingViewIndex(index);
+        try {
+            const result = await uploadToCloudinary(file, 'retrostyling/views');
+            if (result?.url) {
+                setFormData(prev => {
+                    const updated = [...(prev.views || [])];
+                    updated[index] = { ...updated[index], url: result.url };
+                    return { ...prev, views: updated };
+                });
+            }
+        } catch (err) {
+            console.warn('Cloudinary view upload failed, attempting Firebase fallback:', err);
+            try {
+                const cleanName = file.name.replace(/[^a-zA-Z0-9._-]/g, '');
+                const fileRef = ref(storage, `product_views/${Date.now()}_${cleanName}`);
+                await uploadBytes(fileRef, file);
+                const downloadUrl = await getDownloadURL(fileRef);
+                setFormData(prev => {
+                    const updated = [...(prev.views || [])];
+                    updated[index] = { ...updated[index], url: downloadUrl };
+                    return { ...prev, views: updated };
+                });
+            } catch (fbErr) {
+                console.error('View image upload failed on both providers:', fbErr);
+                alert('Failed to upload view image: ' + (err.message || fbErr.message));
+            }
+        } finally {
+            setUploadingViewIndex(null);
         }
     };
 
@@ -410,6 +450,143 @@ const ProductForm = ({ product, onSave, onCancel, categories }) => {
                                     </label>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+
+                    {/* 🔹 Product Views (Front / Back / Side) */}
+                    <div className="form-section full-width">
+                        <div className="section-header-flex">
+                            <div>
+                                <h3>Product Views (Front / Back / Side)</h3>
+                                <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: '0.2rem' }}>
+                                    Add extra angle images shown as tabs on the product page. The main image above is always the "Front" view.
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                className="btn-add-variant"
+                                onClick={() => {
+                                    const labels = ['Back', 'Side', 'Detail', 'Custom'];
+                                    const existingLabels = (formData.views || []).map(v => v.label);
+                                    const nextLabel = labels.find(l => !existingLabels.includes(l)) || 'View';
+                                    setFormData(prev => ({
+                                        ...prev,
+                                        views: [...(prev.views || []), { label: nextLabel, url: '' }]
+                                    }));
+                                }}
+                            >
+                                + Add View
+                            </button>
+                        </div>
+
+                        <div className="variants-list">
+                            {(formData.views || []).length === 0 && (
+                                <p className="text-dim">No extra views added. Only the main image will be shown.</p>
+                            )}
+                            {(formData.views || []).map((view, index) => {
+                                const isUploadingThis = uploadingViewIndex === index;
+                                return (
+                                    <div key={index} className="variant-card">
+                                        <div className="variant-card-header">
+                                            <span className="variant-badge">View #{index + 1}</span>
+                                            <button
+                                                type="button"
+                                                className="btn-delete-variant"
+                                                title="Remove View"
+                                                onClick={() => {
+                                                    const updated = (formData.views || []).filter((_, i) => i !== index);
+                                                    setFormData(prev => ({ ...prev, views: updated }));
+                                                }}
+                                            >
+                                                <X size={18} />
+                                            </button>
+                                        </div>
+
+                                        <div className="variant-inputs-grid">
+                                            <div className="form-group">
+                                                <label>View Label</label>
+                                                <select
+                                                    value={view.label || 'Back'}
+                                                    onChange={(e) => {
+                                                        const updated = [...(formData.views || [])];
+                                                        updated[index] = { ...updated[index], label: e.target.value };
+                                                        setFormData(prev => ({ ...prev, views: updated }));
+                                                    }}
+                                                    style={{ padding: '0.5rem 0.75rem', borderRadius: '8px', background: 'var(--bg-soft)', border: '1px solid var(--border)', color: 'var(--text-main)', width: '100%' }}
+                                                >
+                                                    <option value="Front">Front</option>
+                                                    <option value="Back">Back</option>
+                                                    <option value="Side">Side</option>
+                                                    <option value="Detail">Detail</option>
+                                                    <option value="Custom">Custom</option>
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        <div className="variant-image-section">
+                                            <div className="variant-image-body">
+                                                <div className="variant-img-preview-box">
+                                                    {view.url ? (
+                                                        <img
+                                                            src={view.url}
+                                                            alt={`${view.label} view preview`}
+                                                            className="variant-thumb"
+                                                        />
+                                                    ) : (
+                                                        <div className="variant-thumb-placeholder">
+                                                            <ImageIcon size={24} />
+                                                            <span>No Image</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                <div className="variant-img-controls">
+                                                    <div className="url-input-row">
+                                                        <input
+                                                            type="text"
+                                                            placeholder="Paste image URL (https://...)"
+                                                            value={view.url || ''}
+                                                            onChange={(e) => {
+                                                                const updated = [...(formData.views || [])];
+                                                                updated[index] = { ...updated[index], url: e.target.value };
+                                                                setFormData(prev => ({ ...prev, views: updated }));
+                                                            }}
+                                                            className="variant-url-input"
+                                                        />
+                                                        <label className="btn-upload-label" title="Upload from Device">
+                                                            {isUploadingThis ? <RefreshCw size={15} className="spinner" /> : <Upload size={15} />}
+                                                            <span>{isUploadingThis ? 'Uploading...' : 'Upload'}</span>
+                                                            <input
+                                                                type="file"
+                                                                accept="image/*"
+                                                                onChange={(e) => handleViewFileUpload(index, e)}
+                                                                style={{ display: 'none' }}
+                                                                disabled={isUploadingThis}
+                                                            />
+                                                        </label>
+                                                    </div>
+                                                    {view.url && (
+                                                        <div style={{ marginTop: '0.5rem' }}>
+                                                            <button
+                                                                type="button"
+                                                                className="btn-remove-img"
+                                                                onClick={() => {
+                                                                    const updated = [...(formData.views || [])];
+                                                                    updated[index] = { ...updated[index], url: '' };
+                                                                    setFormData(prev => ({ ...prev, views: updated }));
+                                                                }}
+                                                                title="Remove Image"
+                                                            >
+                                                                <Trash2 size={14} /> Remove
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
                         </div>
                     </div>
 

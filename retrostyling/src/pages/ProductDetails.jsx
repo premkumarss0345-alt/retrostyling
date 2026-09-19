@@ -35,25 +35,48 @@ const ProductDetails = () => {
   const closeLightbox = useCallback(() => setLightboxOpen(false), []);
 
   // Collect all distinct product images for slideshow & SEO
-  const galleryImages = useMemo(() => {
-    if (!product) return [];
+  // Also builds a map: gallery index → view label (e.g. "Back", "Side")
+  const { galleryImages, viewLabelMap } = useMemo(() => {
+    if (!product) return { galleryImages: [], viewLabelMap: {} };
     const list = [];
-    if (product.image && typeof product.image === 'string') list.push(product.image);
+    const labelMap = {};
+
+    // Main image = "Front" view
+    if (product.image && typeof product.image === 'string') {
+      list.push(product.image);
+      labelMap[0] = 'Front';
+    }
+    // Additional images array
     if (Array.isArray(product.images)) {
       product.images.forEach((img) => {
         if (img && typeof img === 'string' && !list.includes(img)) list.push(img);
       });
     }
+    // Variant images
     if (Array.isArray(product.variants)) {
       product.variants.forEach((v) => {
         if (v?.image && typeof v.image === 'string' && !list.includes(v.image)) list.push(v.image);
       });
     }
-    return list.length > 0 ? list : ['/logo.png'];
+    // Extra angle views (Back / Side / Detail etc.)
+    if (Array.isArray(product.views)) {
+      product.views.forEach((v) => {
+        if (v?.url && typeof v.url === 'string' && !list.includes(v.url)) {
+          labelMap[list.length] = v.label || 'View';
+          list.push(v.url);
+        }
+      });
+    }
+    const imgs = list.length > 0 ? list : ['/logo.png'];
+    return { galleryImages: imgs, viewLabelMap: labelMap };
   }, [product]);
 
   // Active slide image URL
   const currentSlideImage = galleryImages[activeImageIndex] || galleryImages[0] || product?.image || '/logo.png';
+  // Label of the currently active view (e.g. "Front", "Back", "Side")
+  const activeViewLabel = viewLabelMap[activeImageIndex] || null;
+  // Collect only the labelled views for the tab bar
+  const namedViews = Object.entries(viewLabelMap).map(([idx, label]) => ({ index: Number(idx), label }));
 
   const nextSlide = useCallback((e) => {
     if (e) e.stopPropagation();
@@ -350,6 +373,13 @@ const ProductDetails = () => {
                 </div>
               )}
 
+              {/* View Label Badge (Front / Back / Side) */}
+              {activeViewLabel && (
+                <div className="view-label-badge">
+                  {activeViewLabel} View
+                </div>
+              )}
+
               {/* Zoom Overlay */}
               <div className="zoom-overlay">
                 <ZoomIn size={26} />
@@ -413,6 +443,24 @@ const ProductDetails = () => {
                     decoding="async"
                   />
                   {idx === activeImageIndex && <span className="active-thumb-indicator" />}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* View Tabs Bar (Front / Back / Side etc.) */}
+          {namedViews.length > 1 && (
+            <div className="view-tabs-bar" role="tablist" aria-label="Product views">
+              {namedViews.map(({ index, label }) => (
+                <button
+                  key={index}
+                  type="button"
+                  role="tab"
+                  aria-selected={activeImageIndex === index}
+                  className={`view-tab-btn ${activeImageIndex === index ? 'active' : ''}`}
+                  onClick={(e) => selectSlide(index, e)}
+                >
+                  {label}
                 </button>
               ))}
             </div>

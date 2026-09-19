@@ -12,7 +12,9 @@
     flex-direction: column;
     gap: 1.25rem;
     position: relative;
+    width: 100%;
     max-width: 100%;
+    min-width: 0;
 }
 
 .product-slideshow {
@@ -23,6 +25,7 @@
     border: var(--border);
     box-shadow: 0 12px 36px rgba(0, 0, 0, 0.35);
     user-select: none;
+    width: 100%;
 }
 
 .main-image {
@@ -204,6 +207,75 @@
     right: 0;
     height: 3px;
     background: var(--primary);
+}
+
+/* ── View Label Badge ────────────────────────────────── */
+.view-label-badge {
+    position: absolute;
+    bottom: 1rem;
+    right: 1rem;
+    background: rgba(139, 92, 246, 0.85);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    color: #fff;
+    padding: 0.32rem 0.85rem;
+    border-radius: 20px;
+    font-size: 0.73rem;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    z-index: 11;
+    pointer-events: none;
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    box-shadow: 0 4px 14px rgba(139, 92, 246, 0.45);
+    animation: badge-fade-in 0.25s ease;
+}
+
+@keyframes badge-fade-in {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── View Tabs Bar ───────────────────────────────────── */
+.view-tabs-bar {
+    display: flex;
+    gap: 0.55rem;
+    overflow-x: auto;
+    padding: 0.15rem 0.15rem 0.4rem 0.15rem;
+    scrollbar-width: none;
+}
+
+.view-tabs-bar::-webkit-scrollbar {
+    display: none;
+}
+
+.view-tab-btn {
+    flex: 0 0 auto;
+    padding: 0.42rem 1.1rem;
+    border-radius: 20px;
+    border: 1.5px solid rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-muted);
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.view-tab-btn:hover {
+    border-color: rgba(139, 92, 246, 0.6);
+    color: var(--text-main);
+    background: rgba(139, 92, 246, 0.1);
+}
+
+.view-tab-btn.active {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: #fff;
+    box-shadow: 0 4px 14px rgba(139, 92, 246, 0.5);
 }
 
 .product-category-label {
@@ -687,24 +759,44 @@
 
 @media (max-width: 768px) {
     .product-details-page {
-        padding-top: 0.25rem;
+        padding-top: 0.5rem !important;
+        padding-bottom: 5rem !important;
+        overflow-x: hidden;
+        width: 100%;
+        max-width: 100vw;
     }
 
     .product-details-grid {
         grid-template-columns: 1fr;
-        padding: 0.25rem 0 2.5rem 0;
-        gap: 1.5rem;
+        padding: 0 0 2rem 0;
+        gap: 1.25rem;
+        width: 100%;
+        min-width: 0;
+        overflow: hidden;
+    }
+
+    .product-gallery {
+        width: 100%;
+        min-width: 0;
+        overflow: hidden;
+    }
+
+    .product-slideshow {
+        width: 100%;
+        min-width: 0;
+        border-radius: var(--radius-sm);
     }
 
     .main-image {
         max-width: 100%;
-        aspect-ratio: 4 / 5;
-        border-radius: var(--radius-md, 14px);
+        width: 100%;
+        aspect-ratio: 3 / 4;
+        border-radius: var(--radius-sm);
     }
 
     .slideshow-main-img {
-        object-fit: contain;
-        object-position: center;
+        object-fit: cover;
+        object-position: center top;
     }
 
     .slide-counter-badge {
@@ -753,6 +845,22 @@
     .thumbnail-item {
         flex: 0 0 58px;
         height: 70px;
+    }
+
+    .view-label-badge {
+        bottom: 0.6rem;
+        right: 0.6rem;
+        font-size: 0.68rem;
+        padding: 0.28rem 0.65rem;
+    }
+
+    .view-tabs-bar {
+        gap: 0.4rem;
+    }
+
+    .view-tab-btn {
+        padding: 0.36rem 0.85rem;
+        font-size: 0.72rem;
     }
 
     .product-info h1 {
