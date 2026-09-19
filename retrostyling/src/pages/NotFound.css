@@ -1,0 +1,106 @@
+.not-found-page {
+  min-height: 65vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1rem;
+}
+
+.not-found-card {
+  max-width: 680px;
+  width: 100%;
+  text-align: center;
+  padding: 3.5rem 2.5rem;
+  border-radius: 20px;
+  background: var(--bg-soft, #121216);
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+}
+
+.not-found-badge {
+  display: inline-block;
+  padding: 4px 14px;
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 50px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  margin-bottom: 1.25rem;
+}
+
+.not-found-title {
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--text-main, #ffffff);
+  margin-bottom: 1rem;
+  line-height: 1.25;
+}
+
+.not-found-desc {
+  font-size: 0.95rem;
+  color: var(--text-muted, #9ca3af);
+  line-height: 1.6;
+  max-width: 480px;
+  margin: 0 auto 2rem auto;
+}
+
+.not-found-search-form {
+  max-width: 480px;
+  margin: 0 auto 2.5rem auto;
+}
+
+.not-found-search-box {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+  border-radius: 12px;
+  padding: 6px 6px 6px 14px;
+  transition: border-color 0.2s ease;
+}
+
+.not-found-search-box:focus-within {
+  border-color: var(--primary, #d4af37);
+}
+
+.not-found-search-box .search-icon {
+  color: var(--text-muted, #9ca3af);
+  flex-shrink: 0;
+}
+
+.not-found-search-box input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #ffffff;
+  font-size: 0.9rem;
+}
+
+.not-found-links-section h3 {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-muted, #9ca3af);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 1rem;
+}
+
+.not-found-chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.6rem;
+}
+
+@media (max-width: 640px) {
+  .not-found-card {
+    padding: 2rem 1.25rem;
+  }
+  .not-found-title {
+    font-size: 1.5rem;
+  }
+}

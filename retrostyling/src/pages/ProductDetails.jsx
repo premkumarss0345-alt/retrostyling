@@ -4,7 +4,9 @@ import { ShoppingBag, Heart, Truck, RotateCcw, ShieldCheck, ExternalLink, Messag
 import { productService, cartService, wishlistService, labelService } from '../services/firestoreService';
 import { useAuth } from '../services/AuthContext';
 import Toast from '../components/Toast';
-import SEO from '../components/SEO';
+import SEO, { SITE_URL } from '../components/SEO';
+import Breadcrumbs from '../components/Breadcrumbs';
+import ProductCard from '../components/ProductCard';
 import './ProductDetails.css';
 
 const ProductDetails = () => {
@@ -13,14 +15,15 @@ const ProductDetails = () => {
   const { currentUser }    = useAuth();
   const galleryRef         = useRef(null);
 
-  const [product, setProduct]         = useState(null);
+  const [product, setProduct]           = useState(null);
   const [activeLabels, setActiveLabels] = useState([]);
-  const [loading, setLoading]         = useState(true);
-  const [selectedSize, setSelectedSize]   = useState('');
-  const [selectedColor, setSelectedColor] = useState('');
-  const [quantity, setQuantity]       = useState(1);
-  const [adding, setAdding]           = useState(false);
-  const [toast, setToast]             = useState({ show: false, message: '', type: 'success' });
+  const [relatedProducts, setRelatedProducts] = useState([]);
+  const [loading, setLoading]           = useState(true);
+  const [selectedSize, setSelectedSize]     = useState('');
+  const [selectedColor, setSelectedColor]   = useState('');
+  const [quantity, setQuantity]         = useState(1);
+  const [adding, setAdding]             = useState(false);
+  const [toast, setToast]               = useState({ show: false, message: '', type: 'success' });
   const [lightboxOpen, setLightboxOpen] = useState(false);
 
   const openLightbox  = () => setLightboxOpen(true);
@@ -66,6 +69,20 @@ const ProductDetails = () => {
         setSelectedSize(data.variants[0].size || '');
         setSelectedColor(data.variants[0].color || '');
       }
+
+      // Load related products based on category
+      if (data) {
+        try {
+          const related = await productService.getAll({
+            categoryId: data.categoryId,
+            categorySlug: data.categorySlug || data.category,
+          });
+          const filtered = related.filter((p) => p.id !== data.id && p.slug !== data.slug).slice(0, 4);
+          setRelatedProducts(filtered);
+        } catch (rErr) {
+          console.warn('Could not load related products:', rErr);
+        }
+      }
     } catch (err) {
       console.error('Error fetching product:', err);
     } finally {
@@ -104,7 +121,16 @@ const ProductDetails = () => {
   };
 
   if (loading) return <div className="container section center-loading">Loading product details...</div>;
-  if (!product) return <div className="container section">Product not found.</div>;
+  if (!product) return (
+    <div className="container section">
+      <SEO title="Product Not Found" noindex={true} />
+      <h2>Product not found</h2>
+      <p style={{ marginTop: '1rem', color: 'var(--text-muted)' }}>The product you are looking for does not exist or has been removed.</p>
+      <Link to="/shop" className="btn btn-primary" style={{ marginTop: '1.5rem', display: 'inline-block' }}>
+        Back to Shop
+      </Link>
+    </div>
+  );
 
   const activeVariant = product.variants?.find(
     (v) => (v.size === selectedSize || !selectedSize) && (v.color === selectedColor || !selectedColor)
@@ -121,67 +147,105 @@ const ProductDetails = () => {
     ? Number(product.discount_price)
     : Number(product.price);
 
+  const isAvailable = (product.stock > 0 || (product.variants || []).some(v => (v.stock || 0) > 0));
+
+  // Collect all image URLs for Image and Schema.org SEO
+  const allImages = Array.from(new Set([
+    product.image,
+    variantImage,
+    ...(product.variants || []).map(v => v.image),
+    ...(product.images || [])
+  ])).filter(Boolean).map(img => img.startsWith('http') ? img : `${SITE_URL}${img.startsWith('/') ? '' : '/'}${img}`);
+
+  const categoryName = product.categoryName || product.category_name || (typeof product.category === 'string' ? product.category : '');
+  const categorySlug = product.categorySlug || (typeof product.category === 'string' ? product.category.toLowerCase().replace(/ /g, '-') : '');
+  const subcategoryName = product.subcategoryName || product.subcategory_name || '';
+  const subcategorySlug = product.subcategorySlug || '';
+
+  // Construct structured breadcrumb items
+  const breadcrumbItems = [
+    { label: 'Home', url: '/' },
+    { label: 'Shop', url: '/shop' },
+    ...(categoryName ? [{ label: categoryName, url: `/shop/${categorySlug}` }] : []),
+    ...(subcategoryName ? [{ label: subcategoryName, url: `/shop/${categorySlug}/${subcategorySlug}` }] : []),
+    { label: product.name },
+  ];
+
+  // Dynamic SEO description
+  const cleanDescription = product.description
+    ? product.description.replace(/<[^>]+>/g, '').trim().substring(0, 160)
+    : `Shop ${product.name} online at Retrostylings. Discover stylish fashion apparel with supreme comfort and pan-India delivery.`;
+
+  // Schema.org Structured Data
+  const productSchema = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    "@id": `${SITE_URL}/product/${product.slug || product.id}#product`,
+    "name": product.name,
+    "image": allImages.length > 0 ? allImages : [`${SITE_URL}/logo.png`],
+    "description": cleanDescription,
+    "sku": product.sku || `RS-${product.id}`,
+    "brand": {
+      "@type": "Brand",
+      "name": product.brand || "Retrostylings"
+    },
+    ...(categoryName ? { "category": categoryName } : {}),
+    "offers": {
+      "@type": "Offer",
+      "url": `${SITE_URL}/product/${product.slug || product.id}`,
+      "priceCurrency": "INR",
+      "price": displayPrice,
+      "priceValidUntil": "2027-12-31",
+      "itemCondition": "https://schema.org/NewCondition",
+      "availability": isAvailable ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+      "seller": {
+        "@type": "Organization",
+        "name": "Retrostylings",
+        "url": SITE_URL
+      }
+    }
+  };
+
+  const breadcrumbSchema = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": breadcrumbItems.map((item, index) => ({
+      "@type": "ListItem",
+      "position": index + 1,
+      "name": item.label,
+      ...(item.url ? { "item": item.url.startsWith('http') ? item.url : `${SITE_URL}${item.url.startsWith('/') ? '' : '/'}${item.url}` } : {})
+    }))
+  };
+
+  const dynamicAlt = `${product.name}${selectedColor ? ` in ${selectedColor}` : ''} - Retrostylings Fashion`;
+
   return (
     <div className="product-details-page container section">
       <SEO
-        title={`${product.name} - Buy Online`}
-        description={product.description ? product.description.substring(0, 160) : `Buy ${product.name} at Retrostylings. High quality men's apparel with fast delivery and easy returns.`}
-        keywords={`${product.name}, ${product.category || 'menswear'}, buy ${product.name} online, Retrostylings`}
+        title={product.name}
+        description={cleanDescription}
+        keywords={`${product.name}, ${categoryName || 'fashion'}, buy ${product.name} online, Retrostylings`}
         canonical={`/product/${product.slug || product.id}`}
         ogImage={variantImage || product.image}
         ogType="product"
-        schema={[
-          {
-            "@context": "https://schema.org/",
-            "@type": "Product",
-            "name": product.name,
-            "image": (variantImage || product.image) ? [variantImage || product.image] : [],
-            "description": product.description || product.name,
-            "sku": product.id,
-            "brand": {
-              "@type": "Brand",
-              "name": product.brand || "Retrostylings"
-            },
-            "offers": {
-              "@type": "Offer",
-              "url": typeof window !== 'undefined' ? window.location.href : '',
-              "priceCurrency": "INR",
-              "price": displayPrice,
-              "itemCondition": "https://schema.org/NewCondition",
-              "availability": (product.stock > 0 || activeVariant?.stock > 0) ? "https://schema.org/InStock" : "https://schema.org/OutOfStock"
-            }
-          },
-          {
-            "@context": "https://schema.org",
-            "@type": "BreadcrumbList",
-            "itemListElement": [
-              {
-                "@type": "ListItem",
-                "position": 1,
-                "name": "Home",
-                "item": typeof window !== 'undefined' ? window.location.origin : ''
-              },
-              {
-                "@type": "ListItem",
-                "position": 2,
-                "name": "Shop",
-                "item": typeof window !== 'undefined' ? `${window.location.origin}/shop` : ''
-              },
-              {
-                "@type": "ListItem",
-                "position": 3,
-                "name": product.name,
-                "item": typeof window !== 'undefined' ? window.location.href : ''
-              }
-            ]
-          }
-        ]}
+        schema={[productSchema, breadcrumbSchema]}
       />
+
+      {/* Visible Semantic Breadcrumbs */}
+      <Breadcrumbs items={breadcrumbItems} />
+
       <div className="product-details-grid">
         {/* Gallery */}
         <div className="product-gallery" ref={galleryRef}>
           <div className="main-image main-image--zoomable" onClick={openLightbox} title="Click to zoom">
-            <img src={variantImage} alt={activeVariant?.imageAlt || product.name} className="w-100" />
+            <img 
+              src={variantImage} 
+              alt={dynamicAlt} 
+              className="w-100" 
+              loading="eager" 
+              fetchPriority="high"
+              decoding="async" 
+            />
             <div className="zoom-overlay">
               <ZoomIn size={28} />
               <span>View Image</span>
@@ -191,7 +255,13 @@ const ProductDetails = () => {
 
         {/* Info */}
         <div className="product-info">
-          <p className="product-category-label">{product.categoryName || product.category_name}</p>
+          {categoryName && (
+            <p className="product-category-label">
+              <Link to={`/shop/${categorySlug}`} style={{ color: 'inherit', textDecoration: 'none' }}>
+                {categoryName}
+              </Link>
+            </p>
+          )}
 
           {/* Active Product Badges Bar */}
           {(() => {
@@ -223,7 +293,7 @@ const ProductDetails = () => {
             );
           })()}
 
-          <h1 className="h2">{product.name}</h1>
+          <h1 className="h2 product-name-heading">{product.name}</h1>
 
           <div className="product-price-section">
             {activeVariant?.price_override ? (
@@ -259,6 +329,7 @@ const ProductDetails = () => {
                       key={size}
                       className={`variant-btn ${selectedSize === size ? 'active' : ''}`}
                       onClick={() => handleSizeSelect(size)}
+                      aria-label={`Select size ${size}`}
                     >
                       {size}
                     </button>
@@ -273,6 +344,7 @@ const ProductDetails = () => {
                       key={color}
                       className={`variant-btn ${selectedColor === color ? 'active' : ''}`}
                       onClick={() => handleColorSelect(color)}
+                      aria-label={`Select color ${color}`}
                     >
                       {color}
                     </button>
@@ -286,9 +358,9 @@ const ProductDetails = () => {
           {product.enableOnlinePurchase !== false ? (
             <div className="purchase-section">
               <div className="quantity-selector">
-                <button onClick={() => setQuantity(Math.max(1, quantity - 1))}>-</button>
+                <button onClick={() => setQuantity(Math.max(1, quantity - 1))} aria-label="Decrease quantity">-</button>
                 <span>{quantity}</span>
-                <button onClick={() => setQuantity(quantity + 1)}>+</button>
+                <button onClick={() => setQuantity(quantity + 1)} aria-label="Increase quantity">+</button>
               </div>
               <button
                 className="btn btn-primary add-to-cart-big"
@@ -298,7 +370,7 @@ const ProductDetails = () => {
                 <ShoppingBag size={20} />
                 {adding ? 'ADDING...' : product.stock === 0 ? 'OUT OF STOCK' : 'ADD TO CART'}
               </button>
-              <button className="wishlist-btn-round" onClick={handleWishlist}>
+              <button className="wishlist-btn-round" onClick={handleWishlist} aria-label="Add to Wishlist">
                 <Heart size={20} />
               </button>
             </div>
@@ -308,7 +380,7 @@ const ProductDetails = () => {
                 <span style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--primary)', display: 'block' }}>Available via Partner Links / WhatsApp</span>
                 <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Direct website cart is disabled for this item. Click a partner link below to order.</span>
               </div>
-              <button className="wishlist-btn-round" onClick={handleWishlist} title="Add to Wishlist">
+              <button className="wishlist-btn-round" onClick={handleWishlist} title="Add to Wishlist" aria-label="Add to Wishlist">
                 <Heart size={20} />
               </button>
             </div>
@@ -386,6 +458,30 @@ const ProductDetails = () => {
         </div>
       </div>
 
+      {/* ── Related Products Section (Internal Linking & Discovery) ── */}
+      {relatedProducts.length > 0 && (
+        <section className="related-products-section" style={{ marginTop: '4rem', paddingTop: '2.5rem', borderTop: '1px solid var(--border)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+            <div>
+              <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-main)' }}>You May Also Like</h2>
+              <p style={{ fontSize: '0.88rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                Explore more trending styles from {categoryName ? `our ${categoryName} collection` : 'our catalog'}.
+              </p>
+            </div>
+            {categorySlug && (
+              <Link to={`/shop/${categorySlug}`} className="btn btn-outline btn-sm" style={{ fontWeight: 600 }}>
+                View All {categoryName} →
+              </Link>
+            )}
+          </div>
+          <div className="products-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '1.5rem' }}>
+            {relatedProducts.map((p) => (
+              <ProductCard key={p.id || p.slug} product={p} />
+            ))}
+          </div>
+        </section>
+      )}
+
       <Toast isOpen={toast.show} message={toast.message} type={toast.type} onClose={() => setToast({ ...toast, show: false })} />
 
       {/* Lightbox */}
@@ -397,7 +493,7 @@ const ProductDetails = () => {
           <div className="lightbox-content" onClick={(e) => e.stopPropagation()}>
             <img
               src={variantImage}
-              alt={activeVariant?.imageAlt || product.name}
+              alt={dynamicAlt}
               className="lightbox-img"
             />
           </div>

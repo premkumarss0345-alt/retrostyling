@@ -925,7 +925,7 @@ app.put('/api/admin/returns/:id/status', authenticateToken, adminOnly, async (re
 // Dynamic XML Sitemap Generator
 app.get('/api/sitemap.xml', async (req, res) => {
   try {
-    const baseUrl = process.env.CLIENT_URL || 'https://retrostylings.com';
+    const baseUrl = process.env.CLIENT_URL || 'https://www.retrostylings.in';
     let products = [];
     let categories = [];
 

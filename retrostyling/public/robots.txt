@@ -1,24 +1,49 @@
 # https://www.robotstxt.org/robotstxt.html
+# Retrostylings Search Engine Directives
+
 User-agent: *
 Allow: /
 Allow: /shop
+Allow: /shop/
 Allow: /product/
 Allow: /category/
+Allow: /mens
+Allow: /womens
+Allow: /new-arrivals
+Allow: /sale
+Allow: /best-sellers
 Allow: /about
 Allow: /contact
 Allow: /return-policy
 Allow: /shipping-info
+Allow: /track-order
+Allow: /payment-type
+Allow: /rewards
+Allow: /blog
+Allow: /*.js$
+Allow: /*.css$
+Allow: /*.png$
+Allow: /*.jpg$
+Allow: /*.jpeg$
+Allow: /*.webp$
+Allow: /*.svg$
 
-# Disallow private user & checkout pages
+# Disallow private user, auth, cart, checkout & admin pages
+Disallow: /admin
+Disallow: /admin/
+Disallow: /admin/*
+Disallow: /api/
+Disallow: /api/*
 Disallow: /cart
 Disallow: /checkout
+Disallow: /order-success
 Disallow: /profile
 Disallow: /orders
 Disallow: /wishlist
 Disallow: /login
 Disallow: /signup
-Disallow: /admin
-Disallow: /admin/*
+Disallow: /review
+Disallow: /write-review
 
 # Sitemap Location
-Sitemap: https://retrostylings.com/sitemap.xml
+Sitemap: https://www.retrostylings.in/sitemap.xml

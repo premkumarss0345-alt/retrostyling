@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { Eye, ShoppingBag, Heart } from 'lucide-react';
 import { cartService, wishlistService, labelService } from '../services/firestoreService';
 import { useAuth } from '../services/AuthContext';
@@ -17,7 +17,9 @@ const ProductCard = ({ product }) => {
         labelService.getActive().then(setActiveLabels).catch(() => setActiveLabels([]));
     }, []);
 
-    const handleAddToCart = async () => {
+    const handleAddToCart = async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
         if (!currentUser) return navigate('/login');
         setLoading(true);
 
@@ -33,7 +35,9 @@ const ProductCard = ({ product }) => {
         }
     };
 
-    const handleAddToWishlist = async () => {
+    const handleAddToWishlist = async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
         if (!currentUser) return navigate('/login');
 
         try {
@@ -51,13 +55,21 @@ const ProductCard = ({ product }) => {
     // Resolve assigned active labels
     const prodLabelIds = product.labelIds || [];
     const matchedLabels = activeLabels.filter(l => prodLabelIds.includes(l.id) && l.status === 'active');
+    const productUrl = `/product/${product.slug || product.id}`;
+    const imageAlt = `${product.name} - Retrostylings Fashion`;
 
     return (
         <div className="product-card">
             <figure className="card-banner">
-                <a href={`/product/${product.slug}`}>
-                    <img src={product.image} alt={product.name} className="w-100" />
-                </a>
+                <Link to={productUrl} aria-label={`View details of ${product.name}`}>
+                    <img 
+                        src={product.image || '/logo.png'} 
+                        alt={imageAlt} 
+                        className="w-100" 
+                        loading="lazy" 
+                        decoding="async" 
+                    />
+                </Link>
 
                 {/* Dynamic Product Badging */}
                 <div className="product-badges-stack">
@@ -83,20 +95,21 @@ const ProductCard = ({ product }) => {
                 </div>
 
                 <div className="card-actions">
-                    <button className="card-action-btn" aria-label="Quick view" onClick={() => navigate(`/product/${product.slug}`)}>
+                    <Link to={productUrl} className="card-action-btn" aria-label={`Quick view ${product.name}`}>
                         <Eye size={20} />
-                    </button>
+                    </Link>
 
                     <button 
                         className="card-action-btn cart-btn" 
                         onClick={handleAddToCart}
                         disabled={loading || product.stock === 0}
+                        aria-label={product.stock === 0 ? 'Out of Stock' : `Add ${product.name} to Cart`}
                     >
                         <ShoppingBag size={20} />
                         <p>{product.stock === 0 ? 'Out of Stock' : 'Add to Cart'}</p>
                     </button>
 
-                    <button className="card-action-btn" aria-label="Add to Wishlist" onClick={handleAddToWishlist}>
+                    <button className="card-action-btn" aria-label={`Add ${product.name} to Wishlist`} onClick={handleAddToWishlist}>
                         <Heart size={20} />
                     </button>
                 </div>
@@ -104,7 +117,7 @@ const ProductCard = ({ product }) => {
 
             <div className="card-content">
                 <h3 className="card-title">
-                    <a href={`/product/${product.slug}`}>{product.name}</a>
+                    <Link to={productUrl}>{product.name}</Link>
                 </h3>
 
                 <div className="card-price">

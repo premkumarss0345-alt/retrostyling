@@ -43,9 +43,16 @@ const About = () => {
     return (
         <div className="about-page">
             <SEO
-                title="About Us | Redefining Men's Fashion"
-                description="Learn about Retrostylings' journey, mission, and commitment to delivering high-quality, comfortable, and iconic men's clothing at affordable prices."
+                title="About Us | Premium Fashion & Apparel"
+                description="Learn about Retrostylings' journey, mission, and commitment to delivering high-quality, comfortable, and trendy fashion apparel at affordable prices across India."
                 canonical="/about"
+                schema={{
+                    "@context": "https://schema.org",
+                    "@type": "AboutPage",
+                    "name": "About Retrostylings",
+                    "description": "About Retrostylings fashion brand, mission, craftsmanship and values.",
+                    "url": "https://www.retrostylings.in/about"
+                }}
             />
             <section className="about-hero section">
                 <div className="container">

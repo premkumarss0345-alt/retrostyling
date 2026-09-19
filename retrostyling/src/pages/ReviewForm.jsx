@@ -198,7 +198,11 @@ const ReviewForm = () => {
 
   return (
     <div className="review-page">
-      <SEO title="Write a Customer Review" description="Share your feedback on Retrostylings clothing and earn VIP reward points." />
+      <SEO 
+        title="Write a Customer Review" 
+        description="Share your feedback on Retrostylings clothing and earn VIP reward points." 
+        noindex={true} 
+      />
 
       <div className="review-container">
         {/* Top Back Navigation */}

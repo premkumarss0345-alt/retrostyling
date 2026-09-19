@@ -27,18 +27,16 @@ const Footer = () => {
         <footer className="footer">
             <div className="container footer-grid">
                 <div className="footer-brand">
-                    <Link to="/" className="footer-logo">
-                        <img src="/logo.png" alt="RETRO STYLINGS" className="footer-logo-img" />
+                    <Link to="/" className="footer-logo" aria-label="Retrostylings Home">
+                        <img src="/logo.png" alt="Retrostylings - Trendy Fashion Online" className="footer-logo-img" width="140" height="40" loading="lazy" decoding="async" />
                         <span className="logo-text">RETRO <span>STYLINGS</span></span>
                     </Link>
                     <p className="footer-desc">
-                        Elevating everyday essentials with a focus on quality, comfort, and timeless style. Discover the perfect blend of tradition and modernity.
+                        Elevating everyday essentials with a focus on quality, comfort, and timeless style. Discover the perfect blend of tradition and modernity online in India.
                     </p>
                     <div className="social-links">
-                        <a href="https://www.facebook.com/share/1BWH68GNgH/" target="_blank" rel="noopener noreferrer"><Facebook size={20} /></a>
-                        <a href="#"><Twitter size={20} /></a>
-                        <a href="https://www.instagram.com/retro_stylings?igsh=MWZiY2NmMTFlMGhmYw==" target="_blank" rel="noopener noreferrer"><Instagram size={20} /></a>
-                        <a href="#"><Linkedin size={20} /></a>
+                        <a href="https://www.facebook.com/share/1BWH68GNgH/" target="_blank" rel="noopener noreferrer" aria-label="Retrostylings Facebook"><Facebook size={20} /></a>
+                        <a href="https://www.instagram.com/retro_stylings?igsh=MWZiY2NmMTFlMGhmYw==" target="_blank" rel="noopener noreferrer" aria-label="Retrostylings Instagram"><Instagram size={20} /></a>
                     </div>
                 </div>
 

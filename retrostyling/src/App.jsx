@@ -29,6 +29,7 @@ import ShippingInfo from './pages/ShippingInfo';
 import TrackOrder from './pages/TrackOrder';
 import PaymentType from './pages/PaymentType';
 import ReviewForm from './pages/ReviewForm';
+import NotFound from './pages/NotFound';
 
 /* ─── Admin Pages ────────────────────────────────────────── */
 import AdminDashboard from './pages/admin/Dashboard';
@@ -91,23 +92,37 @@ function AppContent() {
     <div className="app">
       {showNav && <Navbar />}
       <Routes>
+        {/* ─── Indexable Store & Category Routes ─── */}
         <Route path="/" element={<Home />} />
         <Route path="/shop" element={<Shop />} />
         <Route path="/shop/:categorySlug" element={<Shop />} />
         <Route path="/shop/:categorySlug/:subcategorySlug" element={<Shop />} />
         <Route path="/category/:slug" element={<Shop />} />
         <Route path="/product/:slug" element={<ProductDetails />} />
+
+        {/* Clean URL Shortcuts */}
+        <Route path="/sale" element={<Shop defaultSale={true} />} />
+        <Route path="/new-arrivals" element={<Shop defaultNewArrivals={true} />} />
+        <Route path="/best-sellers" element={<Shop defaultSort="popular" />} />
+        <Route path="/mens" element={<Shop defaultCategorySlug="mens" />} />
+        <Route path="/mens/:subcategorySlug" element={<Shop defaultCategorySlug="mens" />} />
+        <Route path="/womens" element={<Shop defaultCategorySlug="womens" />} />
+        <Route path="/womens/:subcategorySlug" element={<Shop defaultCategorySlug="womens" />} />
+
+        {/* ─── Private & Checkout Routes (Noindex) ─── */}
         <Route path="/cart" element={<Cart />} />
         <Route path="/wishlist" element={<Wishlist />} />
         <Route path="/checkout" element={<Checkout />} />
         <Route path="/order-success" element={<OrderSuccess />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/orders" element={<Profile />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
+
+        {/* ─── Information & Customer Care Routes ─── */}
         <Route path="/rewards" element={<Rewards />} />
         <Route path="/about" element={<About />} />
         <Route path="/contact" element={<Contact />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<Signup />} />
         <Route path="/return-policy" element={<ReturnPolicy />} />
         <Route path="/shipping-info" element={<ShippingInfo />} />
         <Route path="/track-order" element={<TrackOrder />} />
@@ -116,12 +131,12 @@ function AppContent() {
         <Route path="/write-review" element={<ReviewForm />} />
         <Route path="/blog" element={
           <div className="container section">
-            <h1>Our Blog</h1>
-            <p style={{ color: 'var(--text-muted)', marginTop: '1rem' }}>Stay tuned for the latest fashion trends and updates.</p>
+            <h1>Fashion Blog & Styling Guides</h1>
+            <p style={{ color: 'var(--text-muted)', marginTop: '1rem' }}>Stay tuned for the latest streetwear trends, styling tips, and brand updates from Retrostylings.</p>
           </div>
         } />
 
-        {/* ─── Admin Routes ─── */}
+        {/* ─── Admin Routes (Private) ─── */}
         {adminRoute('/admin', AdminDashboard)}
         {adminRoute('/admin/products', AdminProducts)}
         {adminRoute('/admin/categories', AdminCategories)}
@@ -138,8 +153,8 @@ function AppContent() {
         {adminRoute('/admin/reviews', AdminReviews)}
         {adminRoute('/admin/media', AdminMediaLibrary)}
         {adminRoute('/admin/marketing', AdminMarketing)}
-{adminRoute('/admin/marketing/popup-ads', AdminPopupAds)}
-{adminRoute('/admin/marketing/whatsapp-catalog', AdminWhatsAppCatalog)}
+        {adminRoute('/admin/marketing/popup-ads', AdminPopupAds)}
+        {adminRoute('/admin/marketing/whatsapp-catalog', AdminWhatsAppCatalog)}
         {adminRoute('/admin/notifications', AdminNotifications)}
         {adminRoute('/admin/reports', AdminReports)}
         {adminRoute('/admin/analytics', AdminAnalytics)}
@@ -149,6 +164,9 @@ function AppContent() {
         {adminRoute('/admin/shipping', AdminShippingSettings)}
         {adminRoute('/admin/support', AdminSupport)}
         {adminRoute('/admin/amazon-sync', AmazonSync)}
+
+        {/* ─── 404 Catch-All Route ─── */}
+        <Route path="*" element={<NotFound />} />
       </Routes>
       {showNav && <BottomNav />}
       {showNav && <WhatsAppFloatingButton />}
@@ -159,7 +177,7 @@ function AppContent() {
 }
 
 function App() {
-  // Show splash only once per browser session (not on every navigation)
+  // Show splash only once per browser session
   const [showSplash, setShowSplash] = useState(true);
 
   const handleSplashFinish = () => {

@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite",
     "start": "vite",
-    "build": "vite build",
+    "build": "node scripts/generate-sitemap.mjs && node scripts/generate-merchant-feed.mjs && vite build",
+    "sitemap": "node scripts/generate-sitemap.mjs",
+    "merchant-feed": "node scripts/generate-merchant-feed.mjs",
     "lint": "eslint .",
     "preview": "vite preview"
   },

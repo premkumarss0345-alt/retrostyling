@@ -219,21 +219,42 @@ const Home = () => {
   return (
     <div className="home-page">
       <SEO
-        title="Retrostylings | Premium Men's Fashion & Apparel"
-        description="Discover top trend men's clothing at Retrostylings. Premium shirts, casual wear, vintage styles, and formal essentials designed for supreme comfort and style."
-        keywords="men fashion, retro shirts, casual menswear, formal shirts, Retrostylings, online clothing store"
+        title="Retrostylings | Trendy Men's & Women's Fashion Online"
+        description="Shop trendy men's and women's fashion at Retrostylings. Discover stylish T-shirts, tops, graphic prints and affordable apparel online in India."
+        keywords="men's fashion, women's fashion, graphic t-shirts, trendy clothing, casual wear, online fashion shopping India, Retrostylings"
         canonical="/"
-        schema={{
-          "@context": "https://schema.org",
-          "@type": "WebSite",
-          "name": "Retrostylings",
-          "url": typeof window !== 'undefined' ? window.location.origin : 'https://retrostylings.com',
-          "potentialAction": {
-            "@type": "SearchAction",
-            "target": `${typeof window !== 'undefined' ? window.location.origin : 'https://retrostylings.com'}/shop?search={search_term_string}`,
-            "query-input": "required name=search_term_string"
+        ogImage="https://www.retrostylings.in/logo.png"
+        schema={[
+          {
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            "@id": "https://www.retrostylings.in/#organization",
+            "name": "Retrostylings",
+            "url": "https://www.retrostylings.in/",
+            "logo": "https://www.retrostylings.in/logo.png",
+            "email": "retrostylings@retrostylings.in",
+            "sameAs": [
+              "https://www.facebook.com/share/1BWH68GNgH/",
+              "https://www.instagram.com/retro_stylings"
+            ]
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            "@id": "https://www.retrostylings.in/#website",
+            "url": "https://www.retrostylings.in/",
+            "name": "Retrostylings",
+            "description": "Trendy Men's & Women's Fashion Online in India",
+            "publisher": {
+              "@id": "https://www.retrostylings.in/#organization"
+            },
+            "potentialAction": {
+              "@type": "SearchAction",
+              "target": "https://www.retrostylings.in/shop?search={search_term_string}",
+              "query-input": "required name=search_term_string"
+            }
           }
-        }}
+        ]}
       />
       {/* Hero */}
       <Hero />

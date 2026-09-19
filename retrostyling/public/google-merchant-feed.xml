@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:g="http://base.google.com/ns/1.0">
+  <channel>
+    <title>Retrostylings Products Feed</title>
+    <link>https://www.retrostylings.in</link>
+    <description>Product catalog feed for Google Merchant Center - Retrostylings</description>
+    <item>
+      <g:id>GS_01</g:id>
+      <g:title>GROUP_SHIRTS SET</g:title>
+      <g:description>GROUP_SHIRTS SET by Retrostylings</g:description>
+      <g:link>https://www.retrostylings.in/product/group_shirts-set</g:link>
+      <g:image_link>https://yellowgreen-horse-725307.hostingersite.com/wp-content/uploads/2026/08/81a2cc83-463d-4d39-951b-ad5ea025bec2.jpg</g:image_link>
+      <g:price>699.00 INR</g:price>
+      <g:availability>in_stock</g:availability>
+      <g:brand>Retro</g:brand>
+      <g:condition>new</g:condition>
+      <g:product_type>GROUP_ SHIRTS</g:product_type>
+      <g:google_product_category>Clothing &amp; Accessories &gt; Clothing</g:google_product_category>
+    </item>
+    <item>
+      <g:id>GS_01</g:id>
+      <g:title>GROUP_SHIRTS</g:title>
+      <g:description>GROUP_SHIRTS by Retrostylings</g:description>
+      <g:link>https://www.retrostylings.in/product/group_shirts</g:link>
+      <g:image_link>https://yellowgreen-horse-725307.hostingersite.com/wp-content/uploads/2026/08/shirts.jpg</g:image_link>
+      <g:price>499.00 INR</g:price>
+      <g:availability>in_stock</g:availability>
+      <g:brand>Retro</g:brand>
+      <g:condition>new</g:condition>
+      <g:product_type>GROUP_ SHIRTS</g:product_type>
+      <g:google_product_category>Clothing &amp; Accessories &gt; Clothing</g:google_product_category>
+    </item>
+    <item>
+      <g:id>LST 001</g:id>
+      <g:title> Long-sleeve T-shirt.</g:title>
+      <g:description> Long-sleeve T-shirt. by Retrostylings</g:description>
+      <g:link>https://www.retrostylings.in/product/-long-sleeve-t-shirt</g:link>
+      <g:image_link>https://yellowgreen-horse-725307.hostingersite.com/wp-content/uploads/2026/09/file_00000000829881faaf25048509869edc.png</g:image_link>
+      <g:price>549.00 INR</g:price>
+      <g:availability>in_stock</g:availability>
+      <g:brand>Retro</g:brand>
+      <g:condition>new</g:condition>
+      <g:product_type> Long‑sleeve T‑shirt</g:product_type>
+      <g:google_product_category>Clothing &amp; Accessories &gt; Clothing</g:google_product_category>
+    </item>
+    <item>
+      <g:id>AW001</g:id>
+      <g:title>Acid Wash T-Shirt</g:title>
+      <g:description>Acid Wash T-Shirt by Retrostylings</g:description>
+      <g:link>https://www.retrostylings.in/product/acid-wash-t-shirt</g:link>
+      <g:image_link>https://yellowgreen-horse-725307.hostingersite.com/wp-content/uploads/2026/09/WhatsApp-Image-2026-09-07-at-11.16.27-AM-1.jpeg</g:image_link>
+      <g:price>499.00 INR</g:price>
+      <g:availability>in_stock</g:availability>
+      <g:brand>Retro</g:brand>
+      <g:condition>new</g:condition>
+      <g:product_type>Acid Wash tshirts</g:product_type>
+      <g:google_product_category>Clothing &amp; Accessories &gt; Clothing</g:google_product_category>
+    </item>
+  </channel>
+</rss>

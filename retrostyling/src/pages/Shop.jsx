@@ -3,15 +3,16 @@ import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { Search, SlidersHorizontal, X, ChevronRight, Filter, RefreshCw, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ProductCard from '../components/ProductCard';
-import SEO from '../components/SEO';
+import SEO, { SITE_URL } from '../components/SEO';
+import Breadcrumbs from '../components/Breadcrumbs';
 import { productService, categoryService, subcategoryService, labelService } from '../services/firestoreService';
 import './Shop.css';
 
-const Shop = () => {
+const Shop = ({ defaultSale = false, defaultNewArrivals = false, defaultSort = 'newest', defaultCategorySlug = '' }) => {
   const { categorySlug, subcategorySlug, slug } = useParams();
   const [searchParams] = useSearchParams();
 
-  const activeCatSlug = categorySlug || slug || searchParams.get('category') || '';
+  const activeCatSlug = categorySlug || slug || defaultCategorySlug || searchParams.get('category') || '';
   const activeSubSlug = subcategorySlug || searchParams.get('subcategory') || '';
 
   const [products, setProducts]               = useState([]);
@@ -24,16 +25,16 @@ const Shop = () => {
 
   // Search & Sort
   const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '');
-  const [sortBy, setSortBy]         = useState('newest');
+  const [sortBy, setSortBy]         = useState(defaultSort);
   const [showFilters, setShowFilters] = useState(false);
 
-  // Filter values — "pending" copies used in mobile drawer before Apply
+  // Filter values
   const [minPrice, setMinPrice]         = useState('');
   const [maxPrice, setMaxPrice]         = useState('');
   const [selectedSize, setSelectedSize] = useState('');
   const [selectedLabel, setSelectedLabel] = useState('');
   const [inStockOnly, setInStockOnly]   = useState(false);
-  const [onSaleOnly, setOnSaleOnly]     = useState(false);
+  const [onSaleOnly, setOnSaleOnly]     = useState(defaultSale);
 
   // Mobile pending state (held until Apply is tapped)
   const [pendingMin, setPendingMin]         = useState('');
@@ -41,7 +42,7 @@ const Shop = () => {
   const [pendingSize, setPendingSize]       = useState('');
   const [pendingLabel, setPendingLabel]     = useState('');
   const [pendingStock, setPendingStock]     = useState(false);
-  const [pendingSale, setPendingSale]       = useState(false);
+  const [pendingSale, setPendingSale]       = useState(defaultSale);
 
   const isMobileWidth = () => typeof window !== 'undefined' && window.innerWidth <= 768;
 
@@ -71,7 +72,7 @@ const Shop = () => {
 
   useEffect(() => {
     loadCategoryDataAndProducts();
-  }, [activeCatSlug, activeSubSlug, sortBy, minPrice, maxPrice, selectedSize, selectedLabel, inStockOnly, onSaleOnly]);
+  }, [activeCatSlug, activeSubSlug, sortBy, minPrice, maxPrice, selectedSize, selectedLabel, inStockOnly, onSaleOnly, defaultNewArrivals]);
 
   const loadCategoryDataAndProducts = async () => {
     setLoading(true);
@@ -90,10 +91,10 @@ const Shop = () => {
       let subObj = null;
 
       if (activeCatSlug) {
-        catObj = allCats.find(c => c.slug === activeCatSlug) || await categoryService.getBySlug(activeCatSlug);
+        catObj = allCats.find(c => c.slug?.toLowerCase() === activeCatSlug.toLowerCase()) || await categoryService.getBySlug(activeCatSlug);
       }
       if (activeCatSlug && activeSubSlug) {
-        subObj = allSubs.find(s => s.categorySlug === activeCatSlug && s.slug === activeSubSlug) ||
+        subObj = allSubs.find(s => s.categorySlug?.toLowerCase() === activeCatSlug.toLowerCase() && s.slug?.toLowerCase() === activeSubSlug.toLowerCase()) ||
                  await subcategoryService.getByCategorySlugAndSubSlug(activeCatSlug, activeSubSlug);
       }
 
@@ -107,6 +108,7 @@ const Shop = () => {
         subcategorySlug: activeSubSlug,
         search: searchTerm,
         sort: sortBy,
+        isNew: defaultNewArrivals || undefined,
         minPrice,
         maxPrice,
         size: selectedSize,
@@ -119,12 +121,6 @@ const Shop = () => {
         filteredProds = prods.filter(p => (p.labelIds || []).includes(selectedLabel));
       }
       setProducts(filteredProds);
-
-      const pageTitle = subObj?.seoTitle || catObj?.seoTitle || (subObj ? `${subObj.name} | RetroStylings` : catObj ? `${catObj.name} | RetroStylings` : 'Shop All Products | RetroStylings');
-      const pageDesc  = subObj?.seoDescription || catObj?.seoDescription || 'Discover premium retro clothing, dresses, tops, jackets, and fashion accessories.';
-      document.title  = pageTitle;
-      const metaDesc  = document.querySelector('meta[name="description"]');
-      if (metaDesc) metaDesc.setAttribute('content', pageDesc);
 
     } catch (err) {
       console.error('Shop loading error:', err);
@@ -168,9 +164,73 @@ const Shop = () => {
     ? subcategories.filter(s => s.categoryId === currentCategory.id)
     : [];
 
-  const bannerImg       = currentSubcategory?.image || currentCategory?.image || 'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?q=80&w=2070&auto=format&fit=crop';
-  const pageHeading     = currentSubcategory?.name || currentCategory?.name || 'Shop Collection';
-  const pageDescription = currentSubcategory?.description || currentCategory?.description || 'Browse our complete catalog of handpicked premium fashion.';
+  const bannerImg = currentSubcategory?.image || currentCategory?.image || 'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?q=80&w=2070&auto=format&fit=crop';
+  
+  // Page Headings & SEO Text
+  let pageHeading = 'Shop Collection';
+  let pageDescription = 'Explore our handpicked collection of trendy men\'s and women\'s clothing, graphic T-shirts, and everyday casual wear in India.';
+  let seoTitle = 'Shop Trendy Fashion & Apparel Online | Retrostylings';
+  let cleanCanonical = '/shop';
+
+  if (currentSubcategory && currentCategory) {
+    pageHeading = currentSubcategory.name;
+    pageDescription = currentSubcategory.description || `Explore ${currentSubcategory.name} at Retrostylings. Discover stylish fashion for everyday wear with pan-India delivery.`;
+    seoTitle = currentSubcategory.seoTitle || `${currentSubcategory.name} Online | Graphic & Trendy Styles | Retrostylings`;
+    cleanCanonical = `/shop/${currentCategory.slug}/${currentSubcategory.slug}`;
+  } else if (currentCategory) {
+    pageHeading = currentCategory.name;
+    pageDescription = currentCategory.description || `Explore ${currentCategory.name} at Retrostylings. Shop premium quality t-shirts, tops, and casual wear for everyday wear.`;
+    seoTitle = currentCategory.seoTitle || `${currentCategory.name} Online | Trendy Fashion & Apparel | Retrostylings`;
+    cleanCanonical = `/shop/${currentCategory.slug}`;
+  } else if (defaultSale) {
+    pageHeading = 'Sale & Special Offers';
+    pageDescription = 'Shop discounted fashion, limited-time deals, and exclusive offers on trendy apparel at Retrostylings.';
+    seoTitle = 'Sale & Discounts Online | Retrostylings';
+    cleanCanonical = '/sale';
+  } else if (defaultNewArrivals) {
+    pageHeading = 'New Arrivals';
+    pageDescription = 'Discover the newest drops, trending streetwear, and fresh fashion apparel at Retrostylings.';
+    seoTitle = 'New Arrivals | Latest Fashion Drops | Retrostylings';
+    cleanCanonical = '/new-arrivals';
+  }
+
+  // Breadcrumbs Trail
+  const breadcrumbItems = [
+    { label: 'Home', url: '/' },
+    { label: 'Shop', url: '/shop' },
+    ...(currentCategory ? [{ label: currentCategory.name, url: `/shop/${currentCategory.slug}` }] : []),
+    ...(currentSubcategory ? [{ label: currentSubcategory.name, url: `/shop/${currentCategory?.slug || ''}/${currentSubcategory.slug}` }] : []),
+  ];
+
+  // Collection Page Schema
+  const collectionSchema = {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    "name": pageHeading,
+    "description": pageDescription,
+    "url": `${SITE_URL}${cleanCanonical}`,
+    "mainEntity": {
+      "@type": "ItemList",
+      "numberOfItems": products.length,
+      "itemListElement": products.slice(0, 12).map((prod, idx) => ({
+        "@type": "ListItem",
+        "position": idx + 1,
+        "name": prod.name,
+        "url": `${SITE_URL}/product/${prod.slug || prod.id}`
+      }))
+    }
+  };
+
+  const breadcrumbSchema = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": breadcrumbItems.map((item, index) => ({
+      "@type": "ListItem",
+      "position": index + 1,
+      "name": item.label,
+      ...(item.url ? { "item": item.url.startsWith('http') ? item.url : `${SITE_URL}${item.url.startsWith('/') ? '' : '/'}${item.url}` } : {})
+    }))
+  };
 
   /* ─── Shared filter content ─────────────────────────────────────────── */
   const renderFilterContent = (mobile = false) => {
@@ -211,9 +271,9 @@ const Shop = () => {
         <div className="filter-block">
           <h4>Price Range (₹)</h4>
           <div className="price-inputs">
-            <input type="number" placeholder="Min" value={priceMin} onChange={(e) => setPMin(e.target.value)} />
+            <input type="number" placeholder="Min" value={priceMin} onChange={(e) => setPMin(e.target.value)} aria-label="Minimum price" />
             <span className="price-separator">–</span>
-            <input type="number" placeholder="Max" value={priceMax} onChange={(e) => setPMax(e.target.value)} />
+            <input type="number" placeholder="Max" value={priceMax} onChange={(e) => setPMax(e.target.value)} aria-label="Maximum price" />
           </div>
         </div>
 
@@ -228,6 +288,7 @@ const Shop = () => {
                 key={sz}
                 className={`size-btn ${size === sz ? 'active' : ''}`}
                 onClick={() => setSize(size === sz ? '' : sz)}
+                aria-label={`Filter by size ${sz}`}
               >
                 {sz}
               </button>
@@ -273,13 +334,13 @@ const Shop = () => {
         <div className="filter-block">
           <h4>Availability & Sale</h4>
           <div className="filter-toggles">
-            <div className="filter-toggle-row" onClick={() => setStock(!stock)}>
+            <div className="filter-toggle-row" onClick={() => setStock(!stock)} role="button" tabIndex={0}>
               <span>In Stock Only</span>
               <div className={`toggle-switch ${stock ? 'on' : ''}`}>
                 <div className="toggle-knob" />
               </div>
             </div>
-            <div className="filter-toggle-row" onClick={() => setSale(!sale)}>
+            <div className="filter-toggle-row" onClick={() => setSale(!sale)} role="button" tabIndex={0}>
               <span>On Sale Items</span>
               <div className={`toggle-switch ${sale ? 'on' : ''}`}>
                 <div className="toggle-knob" />
@@ -294,45 +355,15 @@ const Shop = () => {
   return (
     <div className="shop-page section">
       <SEO
-        title={pageHeading !== 'Shop Collection' ? `${pageHeading} | Men's Fashion` : "Shop All Men's Clothing & Essentials"}
+        title={seoTitle}
         description={pageDescription}
-        canonical={activeCatSlug ? `/category/${activeCatSlug}` : '/shop'}
-        schema={{
-          "@context": "https://schema.org",
-          "@type": "CollectionPage",
-          "name": pageHeading,
-          "description": pageDescription,
-          "url": typeof window !== 'undefined' ? window.location.href : '',
-          "mainEntity": {
-            "@type": "ItemList",
-            "itemListElement": products.slice(0, 10).map((prod, idx) => ({
-              "@type": "ListItem",
-              "position": idx + 1,
-              "url": typeof window !== 'undefined' ? `${window.location.origin}/product/${prod.slug || prod.id}` : ''
-            }))
-          }
-        }}
+        canonical={cleanCanonical}
+        schema={[collectionSchema, breadcrumbSchema]}
       />
       <div className="container">
 
-        {/* Breadcrumb */}
-        <nav className="shop-breadcrumb" aria-label="Breadcrumb">
-          <Link to="/">Home</Link>
-          <ChevronRight size={14} />
-          <Link to="/shop">Shop</Link>
-          {currentCategory && (
-            <>
-              <ChevronRight size={14} />
-              <Link to={`/shop/${currentCategory.slug}`}>{currentCategory.name}</Link>
-            </>
-          )}
-          {currentSubcategory && (
-            <>
-              <ChevronRight size={14} />
-              <span className="current">{currentSubcategory.name}</span>
-            </>
-          )}
-        </nav>
+        {/* Semantic Visible Breadcrumbs */}
+        <Breadcrumbs items={breadcrumbItems} />
 
         {/* Hero Banner */}
         <div className="shop-hero-banner glass-card" style={{ backgroundImage: `linear-gradient(to right, rgba(0,0,0,0.85), rgba(0,0,0,0.3)), url(${bannerImg})` }}>
@@ -384,10 +415,11 @@ const Shop = () => {
                 placeholder="Search within collection..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
+                aria-label="Search within collection"
               />
-              {searchTerm && <button onClick={() => setSearchTerm('')}><X size={16} /></button>}
+              {searchTerm && <button onClick={() => setSearchTerm('')} aria-label="Clear search"><X size={16} /></button>}
             </div>
-            <select className="sort-select" value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+            <select className="sort-select" value={sortBy} onChange={(e) => setSortBy(e.target.value)} aria-label="Sort products">
               <option value="newest">Newest Drops</option>
               <option value="price_low">Price: Low to High</option>
               <option value="price_high">Price: High to Low</option>

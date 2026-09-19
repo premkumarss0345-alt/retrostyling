@@ -93,32 +93,32 @@ const Hero = () => {
                   {s.description}
                 </motion.p>
               )}
-              <motion.a
-                href="/shop"
-                initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.5 }}
+              <Link
+                to="/shop"
                 className="btn btn-primary btn-hero"
                 style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
               >
                 Shop Collection <ChevronRight size={20} />
-              </motion.a>
+              </Link>
             </motion.div>
           </AnimatePresence>
         </div>
 
         {slides.length > 1 && (
           <div className="hero-controls">
-            <button onClick={prevSlide} className="control-btn prev"><ChevronLeft size={24} /></button>
+            <button onClick={prevSlide} className="control-btn prev" aria-label="Previous slide"><ChevronLeft size={24} /></button>
             <div className="dots">
               {slides.map((_, idx) => (
-                <span
+                <button
                   key={idx}
                   className={`dot ${idx === current ? 'active' : ''}`}
                   onClick={() => setCurrent(idx)}
+                  aria-label={`Go to slide ${idx + 1}`}
+                  style={{ background: 'none', border: 'none', padding: 0 }}
                 />
               ))}
             </div>
-            <button onClick={nextSlide} className="control-btn next"><ChevronRight size={24} /></button>
+            <button onClick={nextSlide} className="control-btn next" aria-label="Next slide"><ChevronRight size={24} /></button>
           </div>
         )}
       </div>
