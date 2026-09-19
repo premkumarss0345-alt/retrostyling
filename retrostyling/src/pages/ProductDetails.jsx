@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ShoppingBag, Heart, Truck, RotateCcw, ShieldCheck, ExternalLink, MessageSquare, ShoppingCart, ZoomIn, X, Star } from 'lucide-react';
+import { ShoppingBag, Heart, Truck, RotateCcw, ShieldCheck, ExternalLink, MessageSquare, ShoppingCart, ZoomIn, X, Star, ChevronLeft, ChevronRight, Maximize2 } from 'lucide-react';
 import { productService, cartService, wishlistService, labelService } from '../services/firestoreService';
 import { useAuth } from '../services/AuthContext';
 import Toast from '../components/Toast';
@@ -25,23 +25,104 @@ const ProductDetails = () => {
   const [adding, setAdding]             = useState(false);
   const [toast, setToast]               = useState({ show: false, message: '', type: 'success' });
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
+
+  // Touch swipe support
+  const [touchStartX, setTouchStartX] = useState(null);
+  const [touchEndX, setTouchEndX]     = useState(null);
 
   const openLightbox  = () => setLightboxOpen(true);
   const closeLightbox = useCallback(() => setLightboxOpen(false), []);
 
+  // Collect all distinct product images for slideshow & SEO
+  const galleryImages = useMemo(() => {
+    if (!product) return [];
+    const list = [];
+    if (product.image && typeof product.image === 'string') list.push(product.image);
+    if (Array.isArray(product.images)) {
+      product.images.forEach((img) => {
+        if (img && typeof img === 'string' && !list.includes(img)) list.push(img);
+      });
+    }
+    if (Array.isArray(product.variants)) {
+      product.variants.forEach((v) => {
+        if (v?.image && typeof v.image === 'string' && !list.includes(v.image)) list.push(v.image);
+      });
+    }
+    return list.length > 0 ? list : ['/logo.png'];
+  }, [product]);
+
+  // Active slide image URL
+  const currentSlideImage = galleryImages[activeImageIndex] || galleryImages[0] || product?.image || '/logo.png';
+
+  const nextSlide = useCallback((e) => {
+    if (e) e.stopPropagation();
+    if (galleryImages.length <= 1) return;
+    setActiveImageIndex((prev) => (prev + 1) % galleryImages.length);
+  }, [galleryImages.length]);
+
+  const prevSlide = useCallback((e) => {
+    if (e) e.stopPropagation();
+    if (galleryImages.length <= 1) return;
+    setActiveImageIndex((prev) => (prev - 1 + galleryImages.length) % galleryImages.length);
+  }, [galleryImages.length]);
+
+  const selectSlide = (index, e) => {
+    if (e) e.stopPropagation();
+    if (index >= 0 && index < galleryImages.length) {
+      setActiveImageIndex(index);
+    }
+  };
+
+  // Keyboard navigation for lightbox & gallery
   useEffect(() => {
-    if (!lightboxOpen) return;
-    const onKey = (e) => { if (e.key === 'Escape') closeLightbox(); };
+    const onKey = (e) => {
+      if (lightboxOpen) {
+        if (e.key === 'Escape') closeLightbox();
+        else if (e.key === 'ArrowRight') nextSlide();
+        else if (e.key === 'ArrowLeft') prevSlide();
+      }
+    };
     document.addEventListener('keydown', onKey);
-    document.body.style.overflow = 'hidden';
+    if (lightboxOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
     return () => {
       document.removeEventListener('keydown', onKey);
       document.body.style.overflow = '';
     };
-  }, [lightboxOpen, closeLightbox]);
+  }, [lightboxOpen, closeLightbox, nextSlide, prevSlide]);
+
+  // Touch Swipe handlers
+  const minSwipeDistance = 45;
+  const onTouchStart = (e) => {
+    setTouchEndX(null);
+    setTouchStartX(e.targetTouches[0].clientX);
+  };
+  const onTouchMove = (e) => {
+    setTouchEndX(e.targetTouches[0].clientX);
+  };
+  const onTouchEnd = () => {
+    if (!touchStartX || !touchEndX) return;
+    const distance = touchStartX - touchEndX;
+    if (distance > minSwipeDistance) {
+      nextSlide();
+    } else if (distance < -minSwipeDistance) {
+      prevSlide();
+    }
+  };
 
   const handleColorSelect = (color) => {
     setSelectedColor(color);
+    const variantForColor = product?.variants?.find((v) => v.color === color && v.image);
+    if (variantForColor && variantForColor.image) {
+      const idx = galleryImages.indexOf(variantForColor.image);
+      if (idx !== -1) {
+        setActiveImageIndex(idx);
+      }
+    }
     if (window.innerWidth <= 768 && galleryRef.current) {
       galleryRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
@@ -65,6 +146,7 @@ const ProductDetails = () => {
     try {
       const data = await productService.getBySlug(slug);
       setProduct(data);
+      setActiveImageIndex(0);
       if (data?.variants?.length > 0) {
         setSelectedSize(data.variants[0].size || '');
         setSelectedColor(data.variants[0].color || '');
@@ -235,22 +317,103 @@ const ProductDetails = () => {
       <Breadcrumbs items={breadcrumbItems} />
 
       <div className="product-details-grid">
-        {/* Gallery */}
+        {/* Gallery / Slideshow Photo View */}
         <div className="product-gallery" ref={galleryRef}>
-          <div className="main-image main-image--zoomable" onClick={openLightbox} title="Click to zoom">
-            <img 
-              src={variantImage} 
-              alt={dynamicAlt} 
-              className="w-100" 
-              loading="eager" 
-              fetchPriority="high"
-              decoding="async" 
-            />
-            <div className="zoom-overlay">
-              <ZoomIn size={28} />
-              <span>View Image</span>
+          <div
+            className="product-slideshow"
+            onTouchStart={onTouchStart}
+            onTouchMove={onTouchMove}
+            onTouchEnd={onTouchEnd}
+          >
+            <div
+              className="main-image main-image--zoomable"
+              onClick={openLightbox}
+              title="Click to open full slideshow"
+            >
+              <img
+                key={currentSlideImage}
+                src={currentSlideImage}
+                alt={`${dynamicAlt} - Photo ${activeImageIndex + 1}`}
+                className="w-100 slideshow-main-img"
+                loading="eager"
+                fetchPriority="high"
+                decoding="async"
+              />
+
+              {/* Slide Counter Badge */}
+              {galleryImages.length > 1 && (
+                <div className="slide-counter-badge">
+                  <span>{activeImageIndex + 1} / {galleryImages.length}</span>
+                </div>
+              )}
+
+              {/* Zoom Overlay */}
+              <div className="zoom-overlay">
+                <ZoomIn size={26} />
+                <span>View Full Photo</span>
+              </div>
             </div>
+
+            {/* Navigation Arrows */}
+            {galleryImages.length > 1 && (
+              <>
+                <button
+                  type="button"
+                  className="slide-nav-btn prev-btn"
+                  onClick={prevSlide}
+                  aria-label="Previous photo"
+                >
+                  <ChevronLeft size={22} />
+                </button>
+                <button
+                  type="button"
+                  className="slide-nav-btn next-btn"
+                  onClick={nextSlide}
+                  aria-label="Next photo"
+                >
+                  <ChevronRight size={22} />
+                </button>
+              </>
+            )}
+
+            {/* Pagination Dots */}
+            {galleryImages.length > 1 && (
+              <div className="slide-dots-container">
+                {galleryImages.map((_, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    className={`slide-dot ${idx === activeImageIndex ? 'active' : ''}`}
+                    onClick={(e) => selectSlide(idx, e)}
+                    aria-label={`Go to slide ${idx + 1}`}
+                  />
+                ))}
+              </div>
+            )}
           </div>
+
+          {/* Thumbnail Strip */}
+          {galleryImages.length > 1 && (
+            <div className="product-thumbnails-strip" aria-label="Photo thumbnails">
+              {galleryImages.map((imgUrl, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  className={`thumbnail-item ${idx === activeImageIndex ? 'active' : ''}`}
+                  onClick={(e) => selectSlide(idx, e)}
+                  aria-label={`View photo ${idx + 1}`}
+                >
+                  <img
+                    src={imgUrl}
+                    alt={`${product.name} thumbnail ${idx + 1}`}
+                    loading="lazy"
+                    decoding="async"
+                  />
+                  {idx === activeImageIndex && <span className="active-thumb-indicator" />}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Info */}
@@ -484,19 +647,93 @@ const ProductDetails = () => {
 
       <Toast isOpen={toast.show} message={toast.message} type={toast.type} onClose={() => setToast({ ...toast, show: false })} />
 
-      {/* Lightbox */}
+      {/* Slideshow Lightbox Modal */}
       {lightboxOpen && (
-        <div className="lightbox-overlay" onClick={closeLightbox} role="dialog" aria-modal="true" aria-label="Product image zoom">
-          <button className="lightbox-close" onClick={closeLightbox} aria-label="Close">
-            <X size={24} />
-          </button>
-          <div className="lightbox-content" onClick={(e) => e.stopPropagation()}>
-            <img
-              src={variantImage}
-              alt={dynamicAlt}
-              className="lightbox-img"
-            />
+        <div
+          className="lightbox-overlay"
+          onClick={closeLightbox}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Product image slideshow"
+        >
+          {/* Lightbox Header */}
+          <div className="lightbox-header" onClick={(e) => e.stopPropagation()}>
+            <div className="lightbox-info">
+              <span className="lightbox-title">{product.name}</span>
+              {galleryImages.length > 1 && (
+                <span className="lightbox-count">
+                  Photo {activeImageIndex + 1} of {galleryImages.length}
+                </span>
+              )}
+            </div>
+            <button
+              type="button"
+              className="lightbox-close"
+              onClick={closeLightbox}
+              aria-label="Close slideshow"
+            >
+              <X size={24} />
+            </button>
           </div>
+
+          {/* Lightbox Stage */}
+          <div
+            className="lightbox-stage"
+            onClick={(e) => e.stopPropagation()}
+            onTouchStart={onTouchStart}
+            onTouchMove={onTouchMove}
+            onTouchEnd={onTouchEnd}
+          >
+            {galleryImages.length > 1 && (
+              <button
+                type="button"
+                className="lightbox-nav-btn prev-btn"
+                onClick={prevSlide}
+                aria-label="Previous slide"
+              >
+                <ChevronLeft size={32} />
+              </button>
+            )}
+
+            <div className="lightbox-content">
+              <img
+                key={currentSlideImage}
+                src={currentSlideImage}
+                alt={`${dynamicAlt} - Slideshow photo ${activeImageIndex + 1}`}
+                className="lightbox-img"
+              />
+            </div>
+
+            {galleryImages.length > 1 && (
+              <button
+                type="button"
+                className="lightbox-nav-btn next-btn"
+                onClick={nextSlide}
+                aria-label="Next slide"
+              >
+                <ChevronRight size={32} />
+              </button>
+            )}
+          </div>
+
+          {/* Lightbox Footer Thumbnails */}
+          {galleryImages.length > 1 && (
+            <div className="lightbox-footer" onClick={(e) => e.stopPropagation()}>
+              <div className="lightbox-thumbnails">
+                {galleryImages.map((imgUrl, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    className={`lightbox-thumb ${idx === activeImageIndex ? 'active' : ''}`}
+                    onClick={() => selectSlide(idx)}
+                    aria-label={`View photo ${idx + 1}`}
+                  >
+                    <img src={imgUrl} alt={`Thumbnail ${idx + 1}`} />
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
