@@ -677,11 +677,85 @@ app.delete('/api/admin/categories/:id', authenticateToken, adminOnly, async (req
   }
 });
 
+// --- CLOUDINARY CONFIGURATION & UPLOAD ENDPOINTS ---
+const cloudinary = require('cloudinary').v2;
+
+cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME || 'ckdk9sbc',
+    api_key: process.env.CLOUDINARY_API_KEY || '898479282538369',
+    api_secret: process.env.CLOUDINARY_API_SECRET || '4JmwMMSy2ZeczACTPeKR-iWIQCQ'
+});
+
+const memoryUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 15 * 1024 * 1024 } // 15MB
+});
+
+// Upload image directly to Cloudinary
+app.post('/api/upload/cloudinary', memoryUpload.single('file'), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: 'No image file provided' });
+        }
+
+        const folder = req.body.folder || 'retrostyling';
+
+        const uploadResult = await new Promise((resolve, reject) => {
+            const stream = cloudinary.uploader.upload_stream(
+                {
+                    folder: folder,
+                    resource_type: 'auto',
+                    transformation: [
+                        { quality: 'auto', fetch_format: 'auto' }
+                    ]
+                },
+                (error, result) => {
+                    if (error) reject(error);
+                    else resolve(result);
+                }
+            );
+            stream.end(req.file.buffer);
+        });
+
+        res.json({
+            success: true,
+            url: uploadResult.secure_url,
+            public_id: uploadResult.public_id,
+            width: uploadResult.width,
+            height: uploadResult.height,
+            format: uploadResult.format
+        });
+    } catch (err) {
+        console.error('Cloudinary upload server error:', err);
+        res.status(500).json({ error: 'Cloudinary upload failed: ' + (err.message || 'Unknown error') });
+    }
+});
+
+// Cloudinary signature generation endpoint
+app.post('/api/cloudinary/sign', (req, res) => {
+    try {
+        const timestamp = Math.round((new Date).getTime() / 1000);
+        const folder = req.body.folder || 'retrostyling';
+        const signature = cloudinary.utils.api_sign_request(
+            { timestamp, folder },
+            process.env.CLOUDINARY_API_SECRET || '4JmwMMSy2ZeczACTPeKR-iWIQCQ'
+        );
+        res.json({
+            timestamp,
+            signature,
+            apiKey: process.env.CLOUDINARY_API_KEY || '898479282538369',
+            cloudName: process.env.CLOUDINARY_CLOUD_NAME || 'ckdk9sbc',
+            folder
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // --- HERO SLIDES ROUTES ---
-const multer = require('multer');
 const path = require('path');
 
-// Configure Multer for image uploads
+// Configure Multer for local disk fallbacks
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
         cb(null, 'uploads/');

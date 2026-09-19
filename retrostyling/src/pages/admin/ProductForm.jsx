@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Camera, Save, X, ChevronLeft, Upload, Image as ImageIcon, RefreshCw, Trash2, Copy, CheckCircle, AlertTriangle } from 'lucide-react';
 import { storage } from '../../firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { uploadToCloudinary } from '../../services/cloudinaryService';
 import { subcategoryService, labelService } from '../../services/firestoreService';
 import './ProductForm.css';
 
@@ -161,14 +162,23 @@ const ProductForm = ({ product, onSave, onCancel, categories }) => {
         if (!file) return;
         setUploadingMain(true);
         try {
-            const cleanName = file.name.replace(/[^a-zA-Z0-9._-]/g, '');
-            const fileRef = ref(storage, `product_gallery/${Date.now()}_${cleanName}`);
-            await uploadBytes(fileRef, file);
-            const downloadUrl = await getDownloadURL(fileRef);
-            setFormData(prev => ({ ...prev, image: downloadUrl }));
+            // Upload to Cloudinary
+            const result = await uploadToCloudinary(file, 'retrostyling/products');
+            if (result?.url) {
+                setFormData(prev => ({ ...prev, image: result.url }));
+            }
         } catch (err) {
-            console.error('Firebase Storage main image upload error:', err);
-            alert('Failed to upload main image: ' + err.message);
+            console.warn('Cloudinary upload failed, attempting Firebase storage fallback:', err);
+            try {
+                const cleanName = file.name.replace(/[^a-zA-Z0-9._-]/g, '');
+                const fileRef = ref(storage, `product_gallery/${Date.now()}_${cleanName}`);
+                await uploadBytes(fileRef, file);
+                const downloadUrl = await getDownloadURL(fileRef);
+                setFormData(prev => ({ ...prev, image: downloadUrl }));
+            } catch (fbErr) {
+                console.error('Image upload failed on both providers:', fbErr);
+                alert('Failed to upload main image: ' + (err.message || fbErr.message));
+            }
         } finally {
             setUploadingMain(false);
         }
@@ -179,26 +189,48 @@ const ProductForm = ({ product, onSave, onCancel, categories }) => {
         if (!file) return;
         setUploadingVariantIndex(index);
         try {
-            const cleanName = file.name.replace(/[^a-zA-Z0-9._-]/g, '');
-            const fileRef = ref(storage, `product_variants/${Date.now()}_${cleanName}`);
-            await uploadBytes(fileRef, file);
-            const downloadUrl = await getDownloadURL(fileRef);
+            // Upload to Cloudinary
+            const result = await uploadToCloudinary(file, 'retrostyling/variants');
+            const downloadUrl = result?.url;
 
-            setFormData(prev => {
-                const updated = [...(prev.variants || [])];
-                const v = updated[index];
-                updated[index] = {
-                    ...v,
-                    image: downloadUrl,
-                    imageAlt: v.imageAlt || `${v.color || ''} ${v.size || ''}`.trim() || 'Variant Image'
-                };
-                return { ...prev, variants: updated };
-            });
+            if (downloadUrl) {
+                setFormData(prev => {
+                    const updated = [...(prev.variants || [])];
+                    const v = updated[index];
+                    updated[index] = {
+                        ...v,
+                        image: downloadUrl,
+                        imageAlt: v.imageAlt || `${v.color || ''} ${v.size || ''}`.trim() || 'Variant Image'
+                    };
+                    return { ...prev, variants: updated };
+                });
 
-            setInvalidImageUrls(prev => ({ ...prev, [index]: false }));
+                setInvalidImageUrls(prev => ({ ...prev, [index]: false }));
+            }
         } catch (err) {
-            console.error('Firebase Storage variant upload error:', err);
-            alert('Failed to upload variant image: ' + err.message);
+            console.warn('Cloudinary variant upload failed, attempting Firebase fallback:', err);
+            try {
+                const cleanName = file.name.replace(/[^a-zA-Z0-9._-]/g, '');
+                const fileRef = ref(storage, `product_variants/${Date.now()}_${cleanName}`);
+                await uploadBytes(fileRef, file);
+                const downloadUrl = await getDownloadURL(fileRef);
+
+                setFormData(prev => {
+                    const updated = [...(prev.variants || [])];
+                    const v = updated[index];
+                    updated[index] = {
+                        ...v,
+                        image: downloadUrl,
+                        imageAlt: v.imageAlt || `${v.color || ''} ${v.size || ''}`.trim() || 'Variant Image'
+                    };
+                    return { ...prev, variants: updated };
+                });
+
+                setInvalidImageUrls(prev => ({ ...prev, [index]: false }));
+            } catch (fbErr) {
+                console.error('Variant image upload failed on both providers:', fbErr);
+                alert('Failed to upload variant image: ' + (err.message || fbErr.message));
+            }
         } finally {
             setUploadingVariantIndex(null);
         }
